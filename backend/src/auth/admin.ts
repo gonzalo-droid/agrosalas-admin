@@ -15,10 +15,10 @@ export function createSupabaseAuthAdmin(supabaseUrl: string, secretKey: string):
       })
       if (error || !data.user) {
         if (error?.code === 'email_exists') {
-          throw new ApiError(409, 'duplicado', 'Ya existe una cuenta de acceso con ese correo', 'correo')
+          throw new ApiError(409, 'duplicate', 'Ya existe una cuenta de acceso con ese correo', 'email')
         }
         console.error(error)
-        throw new ApiError(502, 'usuario_auth', 'No se pudo crear la cuenta de acceso')
+        throw new ApiError(502, 'auth_provider_error', 'No se pudo crear la cuenta de acceso')
       }
       return { id: data.user.id }
     },

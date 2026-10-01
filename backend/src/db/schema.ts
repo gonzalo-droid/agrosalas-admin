@@ -3,146 +3,147 @@ import {
   boolean, date, index, jsonb, numeric, pgEnum, pgTable, primaryKey, text, time, timestamp, uniqueIndex, uuid,
 } from 'drizzle-orm/pg-core'
 
-const marcas = {
-  creadoEn: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow(),
-  actualizadoEn: timestamp('actualizado_en', { withTimezone: true })
+const timestamps = {
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
     .notNull()
     .defaultNow()
     .$onUpdate(() => new Date()),
 }
 
-export const rolEnum = pgEnum('rol', ['admin', 'gerencia', 'contabilidad', 'coordinador'])
-export const modalidadEnum = pgEnum('modalidad', ['temporal', 'contrato'])
-export const estadoTrabajadorEnum = pgEnum('estado_trabajador', ['activo', 'cesado'])
-export const tipoPagoEnum = pgEnum('tipo_pago', ['por_hora', 'mensual'])
-export const tipoMetodoPagoEnum = pgEnum('tipo_metodo_pago', ['yape', 'plin', 'cuenta_bancaria'])
-export const accionAuditoriaEnum = pgEnum('accion_auditoria', ['crear', 'editar', 'eliminar'])
+export const roleEnum = pgEnum('user_role', ['admin', 'management', 'accounting', 'coordinator'])
+export const employmentTypeEnum = pgEnum('employment_type', ['temporary', 'contract'])
+export const workerStatusEnum = pgEnum('worker_status', ['active', 'terminated'])
+export const payTypeEnum = pgEnum('pay_type', ['hourly', 'monthly'])
+export const paymentMethodTypeEnum = pgEnum('payment_method_type', ['yape', 'plin', 'bank_account'])
+export const auditActionEnum = pgEnum('audit_action', ['create', 'update', 'delete'])
 
-// id = the user id in Supabase Auth
-export const usuarios = pgTable('usuarios', {
+// id = the user's id in Supabase Auth
+export const users = pgTable('users', {
   id: uuid('id').primaryKey(),
-  correo: text('correo').notNull().unique(),
-  nombre: text('nombre').notNull(),
-  rol: rolEnum('rol').notNull(),
-  activo: boolean('activo').notNull().default(true),
-  ...marcas,
+  email: text('email').notNull().unique(),
+  name: text('name').notNull(),
+  role: roleEnum('role').notNull(),
+  active: boolean('active').notNull().default(true),
+  ...timestamps,
 }).enableRLS()
 
 export const areas = pgTable('areas', {
   id: uuid('id').primaryKey().defaultRandom(),
-  nombre: text('nombre').notNull().unique(),
-  activo: boolean('activo').notNull().default(true),
-  ...marcas,
+  name: text('name').notNull().unique(),
+  active: boolean('active').notNull().default(true),
+  ...timestamps,
 }).enableRLS()
 
-export const usuarioAreas = pgTable(
-  'usuario_areas',
+export const userAreas = pgTable(
+  'user_areas',
   {
-    usuarioId: uuid('usuario_id').notNull().references(() => usuarios.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
     areaId: uuid('area_id').notNull().references(() => areas.id),
   },
-  (t) => [primaryKey({ columns: [t.usuarioId, t.areaId] })],
+  (t) => [primaryKey({ columns: [t.userId, t.areaId] })],
 ).enableRLS()
 
-export const turnos = pgTable('turnos', {
+export const shifts = pgTable('shifts', {
   id: uuid('id').primaryKey().defaultRandom(),
-  nombre: text('nombre').notNull().unique(),
-  horaInicio: time('hora_inicio').notNull(),
-  horaFin: time('hora_fin').notNull(),
-  activo: boolean('activo').notNull().default(true),
-  ...marcas,
+  name: text('name').notNull().unique(),
+  startTime: time('start_time').notNull(),
+  endTime: time('end_time').notNull(),
+  active: boolean('active').notNull().default(true),
+  ...timestamps,
 }).enableRLS()
 
-export const campanas = pgTable('campanas', {
+export const campaigns = pgTable('campaigns', {
   id: uuid('id').primaryKey().defaultRandom(),
-  nombre: text('nombre').notNull().unique(),
-  fechaInicio: date('fecha_inicio'),
-  fechaFin: date('fecha_fin'),
-  activo: boolean('activo').notNull().default(true),
-  ...marcas,
+  name: text('name').notNull().unique(),
+  startDate: date('start_date'),
+  endDate: date('end_date'),
+  active: boolean('active').notNull().default(true),
+  ...timestamps,
 }).enableRLS()
 
-export const cargos = pgTable('cargos', {
+export const positions = pgTable('positions', {
   id: uuid('id').primaryKey().defaultRandom(),
-  nombre: text('nombre').notNull().unique(),
-  tipoPago: tipoPagoEnum('tipo_pago').notNull(),
-  tarifaHora: numeric('tarifa_hora', { precision: 10, scale: 4, mode: 'number' }),
-  tarifaHoraExtra: numeric('tarifa_hora_extra', { precision: 10, scale: 4, mode: 'number' }),
-  sueldoMensual: numeric('sueldo_mensual', { precision: 10, scale: 2, mode: 'number' }),
-  activo: boolean('activo').notNull().default(true),
-  ...marcas,
+  name: text('name').notNull().unique(),
+  payType: payTypeEnum('pay_type').notNull(),
+  hourlyRate: numeric('hourly_rate', { precision: 10, scale: 4, mode: 'number' }),
+  overtimeRate: numeric('overtime_rate', { precision: 10, scale: 4, mode: 'number' }),
+  monthlySalary: numeric('monthly_salary', { precision: 10, scale: 2, mode: 'number' }),
+  active: boolean('active').notNull().default(true),
+  ...timestamps,
 }).enableRLS()
 
-export const grupos = pgTable('grupos', {
+export const groups = pgTable('groups', {
   id: uuid('id').primaryKey().defaultRandom(),
-  nombre: text('nombre').notNull().unique(),
-  temporal: boolean('temporal').notNull().default(false),
-  fechaInicio: date('fecha_inicio'),
-  fechaFin: date('fecha_fin'),
-  activo: boolean('activo').notNull().default(true),
-  ...marcas,
+  name: text('name').notNull().unique(),
+  temporary: boolean('temporary').notNull().default(false),
+  startDate: date('start_date'),
+  endDate: date('end_date'),
+  active: boolean('active').notNull().default(true),
+  ...timestamps,
 }).enableRLS()
 
-export const trabajadores = pgTable(
-  'trabajadores',
+export const workers = pgTable(
+  'workers',
   {
     id: uuid('id').primaryKey().defaultRandom(),
     dni: text('dni'),
-    nombres: text('nombres').notNull(),
-    apellidos: text('apellidos').notNull(),
-    telefono: text('telefono'),
-    correo: text('correo'),
-    direccion: text('direccion'),
-    emergenciaNombre: text('emergencia_nombre'),
-    emergenciaTelefono: text('emergencia_telefono'),
+    firstName: text('first_name').notNull(),
+    lastName: text('last_name').notNull(),
+    phone: text('phone'),
+    email: text('email'),
+    address: text('address'),
+    emergencyContactName: text('emergency_contact_name'),
+    emergencyContactPhone: text('emergency_contact_phone'),
     areaId: uuid('area_id').references(() => areas.id),
-    cargoId: uuid('cargo_id').references(() => cargos.id),
-    turnoId: uuid('turno_id').references(() => turnos.id),
-    modalidad: modalidadEnum('modalidad').notNull(),
-    fechaIngreso: date('fecha_ingreso'),
-    estado: estadoTrabajadorEnum('estado').notNull().default('activo'),
-    notas: text('notas'),
-    ...marcas,
+    positionId: uuid('position_id').references(() => positions.id),
+    shiftId: uuid('shift_id').references(() => shifts.id),
+    employmentType: employmentTypeEnum('employment_type').notNull(),
+    hireDate: date('hire_date'),
+    status: workerStatusEnum('status').notNull().default('active'),
+    notes: text('notes'),
+    ...timestamps,
   },
-  (t) => [uniqueIndex('trabajadores_dni_unico').on(t.dni), index('trabajadores_area_idx').on(t.areaId)],
+  (t) => [uniqueIndex('workers_dni_unique').on(t.dni), index('workers_area_idx').on(t.areaId)],
 ).enableRLS()
 
-export const grupoTrabajadores = pgTable(
-  'grupo_trabajadores',
+export const groupWorkers = pgTable(
+  'group_workers',
   {
-    grupoId: uuid('grupo_id').notNull().references(() => grupos.id, { onDelete: 'cascade' }),
-    trabajadorId: uuid('trabajador_id').notNull().references(() => trabajadores.id, { onDelete: 'cascade' }),
+    groupId: uuid('group_id').notNull().references(() => groups.id, { onDelete: 'cascade' }),
+    workerId: uuid('worker_id').notNull().references(() => workers.id, { onDelete: 'cascade' }),
   },
-  (t) => [primaryKey({ columns: [t.grupoId, t.trabajadorId] })],
+  (t) => [primaryKey({ columns: [t.groupId, t.workerId] })],
 ).enableRLS()
 
-export const trabajadorMetodosPago = pgTable(
-  'trabajador_metodos_pago',
+export const workerPaymentMethods = pgTable(
+  'worker_payment_methods',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    trabajadorId: uuid('trabajador_id').notNull().references(() => trabajadores.id, { onDelete: 'cascade' }),
-    tipo: tipoMetodoPagoEnum('tipo').notNull(),
-    numero: text('numero').notNull(),
-    banco: text('banco'),
+    workerId: uuid('worker_id').notNull().references(() => workers.id, { onDelete: 'cascade' }),
+    type: paymentMethodTypeEnum('type').notNull(),
+    number: text('number').notNull(),
+    bank: text('bank'),
     cci: text('cci'),
-    titular: text('titular').notNull(),
-    principal: boolean('principal').notNull().default(false),
-    ...marcas,
+    holderName: text('holder_name').notNull(),
+    // "primary" is a reserved word in SQL, hence the is_ prefix.
+    isPrimary: boolean('is_primary').notNull().default(false),
+    ...timestamps,
   },
-  (t) => [uniqueIndex('metodo_principal_unico').on(t.trabajadorId).where(sql`principal`)],
+  (t) => [uniqueIndex('worker_payment_methods_primary_unique').on(t.workerId).where(sql`is_primary`)],
 ).enableRLS()
 
-export const auditoria = pgTable(
-  'auditoria',
+export const auditLog = pgTable(
+  'audit_log',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    usuarioId: uuid('usuario_id').notNull().references(() => usuarios.id),
-    accion: accionAuditoriaEnum('accion').notNull(),
-    entidad: text('entidad').notNull(),
-    entidadId: uuid('entidad_id').notNull(),
-    antes: jsonb('antes'),
-    despues: jsonb('despues'),
-    creadoEn: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow(),
+    userId: uuid('user_id').notNull().references(() => users.id),
+    action: auditActionEnum('action').notNull(),
+    entity: text('entity').notNull(),
+    entityId: uuid('entity_id').notNull(),
+    before: jsonb('before'),
+    after: jsonb('after'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index('auditoria_entidad_idx').on(t.entidad, t.entidadId)],
+  (t) => [index('audit_log_entity_idx').on(t.entity, t.entityId)],
 ).enableRLS()

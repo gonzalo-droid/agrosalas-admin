@@ -2,7 +2,7 @@ import { and, asc, count, eq, ilike, inArray, or, type SQL } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { requireRole } from '../auth/middleware'
-import { grupoTrabajadores, trabajadorMetodosPago, trabajadores } from '../db/schema'
+import { groupWorkers, workerPaymentMethods, workers } from '../db/schema'
 import { recordAudit } from '../lib/audit'
 import { notFound } from '../lib/errors'
 import { offsetOf, pageSchema, paginated } from '../lib/pagination'
@@ -12,71 +12,71 @@ import type { AppEnv, Db, Dependencies, SessionUser, Tx } from '../types'
 const text = (max: number) => z.string().trim().max(max).nullable().optional()
 const optionalId = z.uuid().nullable().optional()
 
-const crearTrabajador = z.object({
+const createWorker = z.object({
   dni: z.string().regex(/^\d{8}$/, 'El DNI debe tener 8 dígitos'),
-  nombres: z.string().trim().min(1).max(80),
-  apellidos: z.string().trim().min(1).max(80),
-  telefono: text(20),
-  correo: z.email().nullable().optional(),
-  direccion: text(160),
-  emergenciaNombre: text(80),
-  emergenciaTelefono: text(20),
+  firstName: z.string().trim().min(1).max(80),
+  lastName: z.string().trim().min(1).max(80),
+  phone: text(20),
+  email: z.email().nullable().optional(),
+  address: text(160),
+  emergencyContactName: text(80),
+  emergencyContactPhone: text(20),
   areaId: optionalId,
-  cargoId: optionalId,
-  turnoId: optionalId,
-  modalidad: z.enum(['temporal', 'contrato']),
-  fechaIngreso: z.iso.date().nullable().optional(),
-  notas: text(500),
+  positionId: optionalId,
+  shiftId: optionalId,
+  employmentType: z.enum(['temporary', 'contract']),
+  hireDate: z.iso.date().nullable().optional(),
+  notes: text(500),
 })
-const editarTrabajador = withAtLeastOneField(crearTrabajador.partial().extend({ estado: z.enum(['activo', 'cesado']).optional() }))
+const updateWorker = withAtLeastOneField(createWorker.partial().extend({ status: z.enum(['active', 'terminated']).optional() }))
 
-const filtros = pageSchema.extend({
-  texto: z.string().trim().min(1).optional(),
+const workerFilters = pageSchema.extend({
+  search: z.string().trim().min(1).optional(),
   areaId: z.uuid().optional(),
-  modalidad: z.enum(['temporal', 'contrato']).optional(),
-  estado: z.enum(['activo', 'cesado']).optional(),
+  employmentType: z.enum(['temporary', 'contract']).optional(),
+  status: z.enum(['active', 'terminated']).optional(),
 })
 
 // The coordinator only reaches the workers of their areas.
 export function workerScope(user: SessionUser): SQL | undefined {
-  if (user.rol !== 'coordinador') return undefined
-  if (user.areaIds.length === 0) return eq(trabajadores.id, '00000000-0000-0000-0000-000000000000')
-  return inArray(trabajadores.areaId, user.areaIds)
+  if (user.role !== 'coordinator') return undefined
+  if (user.areaIds.length === 0) return eq(workers.id, '00000000-0000-0000-0000-000000000000')
+  return inArray(workers.areaId, user.areaIds)
 }
 
 export async function findWorker(db: Db | Tx, user: SessionUser, id: string) {
   const [row] = await db
     .select()
-    .from(trabajadores)
-    .where(and(eq(trabajadores.id, id), workerScope(user)))
+    .from(workers)
+    .where(and(eq(workers.id, id), workerScope(user)))
   if (!row) throw notFound('El trabajador')
   return row
 }
 
 export const workersRoutes = ({ db }: Dependencies) =>
   new Hono<AppEnv>()
-    .get('/', validate('query', filtros), async (c) => {
+    .get('/', validate('query', workerFilters), async (c) => {
       const filters = c.req.valid('query')
       const condition = and(
         workerScope(c.get('user')),
-        filters.areaId ? eq(trabajadores.areaId, filters.areaId) : undefined,
-        filters.modalidad ? eq(trabajadores.modalidad, filters.modalidad) : undefined,
-        filters.estado ? eq(trabajadores.estado, filters.estado) : undefined,
-        filters.texto
+        filters.areaId ? eq(workers.areaId, filters.areaId) : undefined,
+        filters.employmentType ? eq(workers.employmentType, filters.employmentType) : undefined,
+        filters.status ? eq(workers.status, filters.status) : undefined,
+        filters.search
           ? or(
-              ilike(trabajadores.nombres, `%${filters.texto}%`),
-              ilike(trabajadores.apellidos, `%${filters.texto}%`),
-              ilike(trabajadores.dni, `%${filters.texto}%`),
+              ilike(workers.firstName, `%${filters.search}%`),
+              ilike(workers.lastName, `%${filters.search}%`),
+              ilike(workers.dni, `%${filters.search}%`),
             )
           : undefined,
       )
-      const [{ total }] = await db.select({ total: count() }).from(trabajadores).where(condition)
+      const [{ total }] = await db.select({ total: count() }).from(workers).where(condition)
       const rows = await db
         .select()
-        .from(trabajadores)
+        .from(workers)
         .where(condition)
-        .orderBy(asc(trabajadores.apellidos), asc(trabajadores.nombres), asc(trabajadores.id))
-        .limit(filters.tamano)
+        .orderBy(asc(workers.lastName), asc(workers.firstName), asc(workers.id))
+        .limit(filters.pageSize)
         .offset(offsetOf(filters))
       return c.json(paginated(rows, total, filters))
     })
@@ -86,39 +86,39 @@ export const workersRoutes = ({ db }: Dependencies) =>
       const row = await findWorker(db, user, id)
       // Payment methods are bank details: the coordinator does not receive them.
       const paymentMethods =
-        user.rol === 'coordinador'
+        user.role === 'coordinator'
           ? []
           : await db
               .select()
-              .from(trabajadorMetodosPago)
-              .where(eq(trabajadorMetodosPago.trabajadorId, id))
-              .orderBy(asc(trabajadorMetodosPago.creadoEn))
-      const memberships = await db.select().from(grupoTrabajadores).where(eq(grupoTrabajadores.trabajadorId, id))
-      return c.json({ ...row, metodosPago: paymentMethods, grupoIds: memberships.map((m) => m.grupoId) })
+              .from(workerPaymentMethods)
+              .where(eq(workerPaymentMethods.workerId, id))
+              .orderBy(asc(workerPaymentMethods.createdAt))
+      const memberships = await db.select().from(groupWorkers).where(eq(groupWorkers.workerId, id))
+      return c.json({ ...row, paymentMethods, groupIds: memberships.map((m) => m.groupId) })
     })
-    .post('/', requireRole('admin', 'contabilidad'), validate('json', crearTrabajador), async (c) => {
+    .post('/', requireRole('admin', 'accounting'), validate('json', createWorker), async (c) => {
       const row = await db.transaction(async (tx) => {
-        const [created] = await tx.insert(trabajadores).values(c.req.valid('json')).returning()
-        await recordAudit(tx, c.get('user').id, 'crear', 'trabajadores', created.id, null, created)
+        const [created] = await tx.insert(workers).values(c.req.valid('json')).returning()
+        await recordAudit(tx, c.get('user').id, 'create', 'workers', created.id, null, created)
         return created
       })
       return c.json(row, 201)
     })
     .patch(
       '/:id',
-      requireRole('admin', 'contabilidad'),
+      requireRole('admin', 'accounting'),
       validate('param', idSchema),
-      validate('json', editarTrabajador),
+      validate('json', updateWorker),
       async (c) => {
         const { id } = c.req.valid('param')
         const row = await db.transaction(async (tx) => {
           const before = await findWorker(tx, c.get('user'), id)
           const [after] = await tx
-            .update(trabajadores)
+            .update(workers)
             .set(c.req.valid('json'))
-            .where(eq(trabajadores.id, id))
+            .where(eq(workers.id, id))
             .returning()
-          await recordAudit(tx, c.get('user').id, 'editar', 'trabajadores', id, before, after)
+          await recordAudit(tx, c.get('user').id, 'update', 'workers', id, before, after)
           return after
         })
         return c.json(row)

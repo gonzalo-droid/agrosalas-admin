@@ -4,13 +4,13 @@ import type * as schema from './db/schema'
 export type Db = PgDatabase<PgQueryResultHKT, typeof schema>
 export type Tx = Parameters<Parameters<Db['transaction']>[0]>[0]
 
-export type Role = (typeof schema.rolEnum.enumValues)[number]
+export type Role = (typeof schema.roleEnum.enumValues)[number]
 
 export type SessionUser = {
   id: string
-  correo: string
-  nombre: string
-  rol: Role
+  email: string
+  name: string
+  role: Role
   areaIds: string[]
 }
 

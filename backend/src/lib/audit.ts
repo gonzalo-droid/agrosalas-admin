@@ -1,7 +1,7 @@
-import { auditoria } from '../db/schema'
+import { auditLog } from '../db/schema'
 import type { Db, Tx } from '../types'
 
-type AuditAction = 'crear' | 'editar' | 'eliminar'
+type AuditAction = 'create' | 'update' | 'delete'
 
 export async function recordAudit(
   db: Db | Tx,
@@ -12,5 +12,5 @@ export async function recordAudit(
   before: unknown,
   after: unknown,
 ) {
-  await db.insert(auditoria).values({ usuarioId: userId, accion: action, entidad: entity, entidadId: entityId, antes: before, despues: after })
+  await db.insert(auditLog).values({ userId, action, entity, entityId, before, after })
 }

@@ -8,21 +8,21 @@ import type { Role } from '../src/types'
 // One user per role. In the tests, the token is the role name.
 export const USERS: Record<Role, string> = {
   admin: '00000000-0000-4000-8000-000000000001',
-  gerencia: '00000000-0000-4000-8000-000000000002',
-  contabilidad: '00000000-0000-4000-8000-000000000003',
-  coordinador: '00000000-0000-4000-8000-000000000004',
+  management: '00000000-0000-4000-8000-000000000002',
+  accounting: '00000000-0000-4000-8000-000000000003',
+  coordinator: '00000000-0000-4000-8000-000000000004',
 }
 
 export async function createTestApp() {
   const db = drizzle(new PGlite(), { schema })
   await migrate(db, { migrationsFolder: './drizzle' })
 
-  await db.insert(schema.usuarios).values(
+  await db.insert(schema.users).values(
     (Object.keys(USERS) as Role[]).map((role) => ({
       id: USERS[role],
-      correo: `${role}@example.test`,
-      nombre: `Usuario ${role}`,
-      rol: role,
+      email: `${role}@example.test`,
+      name: `User ${role}`,
+      role,
     })),
   )
 
@@ -35,7 +35,7 @@ export async function createTestApp() {
     verifyToken: async (token) => (token in USERS ? { sub: USERS[token as Role] } : null),
     authAdmin: {
       async createUser(email) {
-        // Special case: returns an id that already exists in usuarios to force a database failure after the sign-up.
+        // Special case: returns an id that already exists in users to force a database failure after the sign-up.
         const id =
           email === 'conflict@example.test'
             ? USERS.admin
@@ -50,7 +50,7 @@ export async function createTestApp() {
     panelOrigin: 'http://localhost:3000',
   })
 
-  // request('admin', 'POST', '/v1/areas', { nombre: 'Producción' })
+  // request('admin', 'POST', '/v1/areas', { name: 'Producción' })
   async function request(role: Role | null, method: string, path: string, body?: unknown) {
     const response = await app.request(path, {
       method,

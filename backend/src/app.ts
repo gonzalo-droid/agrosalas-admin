@@ -16,15 +16,15 @@ export function createApp(deps: Dependencies) {
   const v1 = new Hono<AppEnv>()
     .use('*', authenticate(deps))
     .route('/me', meRoutes(deps))
-    .route('/auditoria', auditLogRoutes(deps))
+    .route('/audit-log', auditLogRoutes(deps))
     .route('/areas', areasRoutes(deps))
-    .route('/turnos', shiftsRoutes(deps))
-    .route('/campanas', campaignsRoutes(deps))
-    .route('/cargos', positionsRoutes(deps))
-    .route('/trabajadores', workersRoutes(deps))
-    .route('/trabajadores', paymentMethodsRoutes(deps))
-    .route('/grupos', groupsRoutes(deps))
-    .route('/usuarios', usersRoutes(deps))
+    .route('/shifts', shiftsRoutes(deps))
+    .route('/campaigns', campaignsRoutes(deps))
+    .route('/positions', positionsRoutes(deps))
+    .route('/workers', workersRoutes(deps))
+    .route('/workers', paymentMethodsRoutes(deps))
+    .route('/groups', groupsRoutes(deps))
+    .route('/users', usersRoutes(deps))
 
   return new Hono()
     .use(
@@ -35,9 +35,9 @@ export function createApp(deps: Dependencies) {
         allowMethods: ['GET', 'POST', 'PATCH', 'DELETE'],
       }),
     )
-    .get('/salud', (c) => c.json({ ok: true }))
+    .get('/health', (c) => c.json({ ok: true }))
     .route('/v1', v1)
-    .notFound((c) => c.json({ error: { codigo: 'no_encontrado', mensaje: 'La ruta no existe' } }, 404))
+    .notFound((c) => c.json({ error: { code: 'not_found', message: 'La ruta no existe' } }, 404))
     .onError(handleError)
 }
 

@@ -1,17 +1,17 @@
 import { z } from 'zod'
 
 export const pageSchema = z.object({
-  pagina: z.coerce.number().int().min(1).default(1),
-  tamano: z.coerce.number().int().min(1).max(100).default(25),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(25),
 })
 
 export type PageParams = z.infer<typeof pageSchema>
 
-export const offsetOf = (page: PageParams) => (page.pagina - 1) * page.tamano
+export const offsetOf = (params: PageParams) => (params.page - 1) * params.pageSize
 
-export const paginated = <T>(items: T[], total: number, page: PageParams) => ({
-  datos: items,
+export const paginated = <T>(items: T[], total: number, params: PageParams) => ({
+  items,
   total,
-  pagina: page.pagina,
-  tamano: page.tamano,
+  page: params.page,
+  pageSize: params.pageSize,
 })

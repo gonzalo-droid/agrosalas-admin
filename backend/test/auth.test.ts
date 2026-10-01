@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { auditoria, usuarios } from '../src/db/schema'
+import { auditLog, users } from '../src/db/schema'
 import { createTestApp, USERS } from './helpers'
 
 let t: Awaited<ReturnType<typeof createTestApp>>
@@ -12,7 +12,7 @@ describe('authentication', () => {
   it('rejects a request without a token', async () => {
     const r = await t.request(null, 'GET', '/v1/me')
     expect(r.status).toBe(401)
-    expect(r.json.error.codigo).toBe('no_autenticado')
+    expect(r.json.error.code).toBe('unauthenticated')
   })
 
   it('rejects an invalid token', async () => {
@@ -21,11 +21,11 @@ describe('authentication', () => {
   })
 
   it('rejects a deactivated user', async () => {
-    await t.db.update(usuarios).set({ activo: false }).where(eq(usuarios.id, USERS.gerencia))
-    const r = await t.request('gerencia', 'GET', '/v1/me')
+    await t.db.update(users).set({ active: false }).where(eq(users.id, USERS.management))
+    const r = await t.request('management', 'GET', '/v1/me')
     expect(r.status).toBe(403)
-    expect(r.json.error.codigo).toBe('sin_acceso')
-    await t.db.update(usuarios).set({ activo: true }).where(eq(usuarios.id, USERS.gerencia))
+    expect(r.json.error.code).toBe('access_denied')
+    await t.db.update(users).set({ active: true }).where(eq(users.id, USERS.management))
   })
 })
 
@@ -35,29 +35,29 @@ describe('/v1/me', () => {
     expect(r.status).toBe(200)
     expect(r.json).toEqual({
       id: USERS.admin,
-      correo: 'admin@example.test',
-      nombre: 'Usuario admin',
-      rol: 'admin',
+      email: 'admin@example.test',
+      name: 'User admin',
+      role: 'admin',
       areaIds: [],
     })
   })
 
   it('changes the name and records it in the audit log', async () => {
-    const r = await t.request('contabilidad', 'PATCH', '/v1/me', { nombre: 'Rosa Contadora' })
+    const r = await t.request('accounting', 'PATCH', '/v1/me', { name: 'Rosa Contadora' })
     expect(r.status).toBe(200)
-    expect(r.json.nombre).toBe('Rosa Contadora')
-    const rows = await t.db.select().from(auditoria).where(eq(auditoria.entidadId, USERS.contabilidad))
+    expect(r.json.name).toBe('Rosa Contadora')
+    const rows = await t.db.select().from(auditLog).where(eq(auditLog.entityId, USERS.accounting))
     expect(rows).toHaveLength(1)
-    expect(rows[0].accion).toBe('editar')
-    expect(rows[0].despues).toEqual({ nombre: 'Rosa Contadora' })
+    expect(rows[0].action).toBe('update')
+    expect(rows[0].after).toEqual({ name: 'Rosa Contadora' })
   })
 
   it('validates the name with the API error format', async () => {
-    const r = await t.request('admin', 'PATCH', '/v1/me', { nombre: 'x' })
+    const r = await t.request('admin', 'PATCH', '/v1/me', { name: 'x' })
     expect(r.status).toBe(400)
-    expect(r.json.error.codigo).toBe('validacion')
-    expect(r.json.error.campo).toBe('nombre')
-    expect(r.json.error.mensaje).toBe('Demasiado pequeño: se esperaba que texto tuviera >=2 caracteres')
+    expect(r.json.error.code).toBe('validation')
+    expect(r.json.error.field).toBe('name')
+    expect(r.json.error.message).toBe('Demasiado pequeño: se esperaba que texto tuviera >=2 caracteres')
   })
 
   it('answers with the API error format when the body is not JSON', async () => {
@@ -68,7 +68,7 @@ describe('/v1/me', () => {
     })
     expect(r.status).toBe(400)
     expect(await r.json()).toEqual({
-      error: { codigo: 'solicitud_invalida', mensaje: 'La solicitud no es válida' },
+      error: { code: 'invalid_request', message: 'La solicitud no es válida' },
     })
   })
 })

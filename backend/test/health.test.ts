@@ -11,7 +11,7 @@ beforeAll(async () => {
 
 describe('health', () => {
   it('answers without a token', async () => {
-    const r = await t.request(null, 'GET', '/salud')
+    const r = await t.request(null, 'GET', '/health')
     expect(r.status).toBe(200)
     expect(r.json).toEqual({ ok: true })
   })
@@ -19,7 +19,7 @@ describe('health', () => {
   it('answers 404 as JSON when the route does not exist', async () => {
     const r = await t.request(null, 'GET', '/does-not-exist')
     expect(r.status).toBe(404)
-    expect(r.json.error.codigo).toBe('no_encontrado')
+    expect(r.json.error.code).toBe('not_found')
   })
 })
 
@@ -31,16 +31,16 @@ describe('migrations', () => {
     const rows = result.rows as { tablename: string; rowsecurity: boolean }[]
     expect(rows.map((row) => row.tablename)).toEqual([
       'areas',
-      'auditoria',
-      'campanas',
-      'cargos',
-      'grupo_trabajadores',
-      'grupos',
-      'trabajador_metodos_pago',
-      'trabajadores',
-      'turnos',
-      'usuario_areas',
-      'usuarios',
+      'audit_log',
+      'campaigns',
+      'group_workers',
+      'groups',
+      'positions',
+      'shifts',
+      'user_areas',
+      'users',
+      'worker_payment_methods',
+      'workers',
     ])
     expect(rows.every((row) => row.rowsecurity)).toBe(true)
   })
@@ -60,7 +60,7 @@ describe('unexpected errors', () => {
 
     const response = await app.request('/fails')
     expect(response.status).toBe(500)
-    expect(await response.json()).toEqual({ error: { codigo: 'interno', mensaje: 'Error interno' } })
+    expect(await response.json()).toEqual({ error: { code: 'internal', message: 'Error interno' } })
     expect(logged).toHaveBeenCalled()
     expect(JSON.stringify(logged.mock.calls)).not.toContain('45871236')
   })

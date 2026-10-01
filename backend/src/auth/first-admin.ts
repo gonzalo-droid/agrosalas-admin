@@ -1,4 +1,4 @@
-import { usuarios } from '../db/schema'
+import { users } from '../db/schema'
 import { recordAudit } from '../lib/audit'
 import type { AuthAdmin, Db } from '../types'
 
@@ -10,13 +10,13 @@ export async function createFirstAdmin(
   const { id } = await authAdmin.createUser(input.email, input.password)
   try {
     return await db.transaction(async (tx) => {
-      const [created] = await tx.insert(usuarios).values({ id, correo: input.email, nombre: input.name, rol: 'admin' }).returning()
+      const [created] = await tx.insert(users).values({ id, email: input.email, name: input.name, role: 'admin' }).returning()
       // The administrator is the author of their own creation.
-      await recordAudit(tx, id, 'crear', 'usuarios', id, null, created)
+      await recordAudit(tx, id, 'create', 'users', id, null, created)
       return created
     })
   } catch (error) {
-    // A login account without a row in usuarios is useless and would block the email on retry, so it is deleted.
+    // A login account without a row in users is useless and would block the email on retry, so it is deleted.
     try {
       await authAdmin.deleteUser(id)
     } catch (cleanupError) {

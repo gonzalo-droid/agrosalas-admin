@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest'
-import { usuarioAreas } from '../src/db/schema'
+import { userAreas } from '../src/db/schema'
 import type { Role } from '../src/types'
 import { createTestApp, USERS } from './helpers'
 
@@ -12,36 +12,36 @@ let methodId: string
 
 beforeAll(async () => {
   t = await createTestApp()
-  areaId = (await t.request('admin', 'POST', '/v1/areas', { nombre: 'Producción' })).json.id
+  areaId = (await t.request('admin', 'POST', '/v1/areas', { name: 'Producción' })).json.id
   positionId = (
-    await t.request('admin', 'POST', '/v1/cargos', {
-      nombre: 'Operario',
-      tipoPago: 'por_hora',
-      tarifaHora: 6.5,
-      tarifaHoraExtra: 8.1,
-      sueldoMensual: 1800,
+    await t.request('admin', 'POST', '/v1/positions', {
+      name: 'Operario',
+      payType: 'hourly',
+      hourlyRate: 6.5,
+      overtimeRate: 8.1,
+      monthlySalary: 1800,
     })
   ).json.id
-  groupId = (await t.request('admin', 'POST', '/v1/grupos', { nombre: 'Turno noche' })).json.id
-  const worker = await t.request('admin', 'POST', '/v1/trabajadores', {
-    nombres: 'Rosa',
-    apellidos: 'Quispe',
+  groupId = (await t.request('admin', 'POST', '/v1/groups', { name: 'Turno noche' })).json.id
+  const worker = await t.request('admin', 'POST', '/v1/workers', {
+    firstName: 'Rosa',
+    lastName: 'Quispe',
     dni: '45871236',
-    modalidad: 'contrato',
+    employmentType: 'contract',
     areaId,
-    cargoId: positionId,
+    positionId,
   })
   workerId = worker.json.id
   methodId = (
-    await t.request('admin', 'POST', `/v1/trabajadores/${workerId}/metodos-pago`, {
-      tipo: 'cuenta_bancaria',
-      numero: '19412345678901',
-      banco: 'BCP',
+    await t.request('admin', 'POST', `/v1/workers/${workerId}/payment-methods`, {
+      type: 'bank_account',
+      number: '19412345678901',
+      bank: 'BCP',
       cci: '00219400123456789012',
-      titular: 'Rosa Quispe',
+      holderName: 'Rosa Quispe',
     })
   ).json.id
-  await t.request('admin', 'POST', `/v1/grupos/${groupId}/miembros`, { trabajadorIds: [workerId] })
+  await t.request('admin', 'POST', `/v1/groups/${groupId}/members`, { workerIds: [workerId] })
 })
 
 // The paths carry placeholders (:worker, :group, :method) that are replaced with the ids created above.
@@ -50,46 +50,46 @@ const path = (template: string) =>
     .replace(':worker', workerId)
     .replace(':group', groupId)
     .replace(':method', methodId)
-    .replace(':user', USERS.coordinador)
+    .replace(':user', USERS.coordinator)
     .replace(':area', areaId)
 
 type Case = [role: Role, method: string, path: string, body?: unknown]
 
 const catalogs: [string, string, unknown][] = [
-  ['POST', '/v1/areas', { nombre: 'Otra área' }],
-  ['PATCH', '/v1/areas/:area', { nombre: 'Área renombrada' }],
-  ['POST', '/v1/turnos', { nombre: 'Día', horaInicio: '07:00', horaFin: '17:00' }],
-  ['PATCH', '/v1/turnos/:area', { nombre: 'Turno renombrado' }],
-  ['POST', '/v1/campanas', { nombre: 'Contenedor Chile' }],
-  ['PATCH', '/v1/campanas/:area', { nombre: 'Campaña renombrada' }],
-  ['POST', '/v1/cargos', { nombre: 'Jefe', tipoPago: 'mensual', sueldoMensual: 2500 }],
-  ['PATCH', '/v1/cargos/:area', { nombre: 'Cargo renombrado' }],
-  ['POST', '/v1/grupos', { nombre: 'Otro grupo' }],
-  ['PATCH', '/v1/grupos/:group', { nombre: 'Grupo renombrado' }],
+  ['POST', '/v1/areas', { name: 'Otra área' }],
+  ['PATCH', '/v1/areas/:area', { name: 'Área renombrada' }],
+  ['POST', '/v1/shifts', { name: 'Día', startTime: '07:00', endTime: '17:00' }],
+  ['PATCH', '/v1/shifts/:area', { name: 'Turno renombrado' }],
+  ['POST', '/v1/campaigns', { name: 'Contenedor Chile' }],
+  ['PATCH', '/v1/campaigns/:area', { name: 'Campaña renombrada' }],
+  ['POST', '/v1/positions', { name: 'Jefe', payType: 'monthly', monthlySalary: 2500 }],
+  ['PATCH', '/v1/positions/:area', { name: 'Cargo renombrado' }],
+  ['POST', '/v1/groups', { name: 'Otro grupo' }],
+  ['PATCH', '/v1/groups/:group', { name: 'Grupo renombrado' }],
 ]
 const users: [string, string, unknown][] = [
-  ['GET', '/v1/usuarios', undefined],
-  ['POST', '/v1/usuarios', { correo: 'new@example.test', clave: 'clave-segura-1', nombre: 'Nuevo', rol: 'gerencia' }],
-  ['PATCH', '/v1/usuarios/:user', { nombre: 'Otro nombre' }],
+  ['GET', '/v1/users', undefined],
+  ['POST', '/v1/users', { email: 'new@example.test', password: 'clave-segura-1', name: 'Nuevo', role: 'management' }],
+  ['PATCH', '/v1/users/:user', { name: 'Otro nombre' }],
 ]
 const workersAndPayments: [string, string, unknown][] = [
-  ['POST', '/v1/trabajadores', { nombres: 'Ana', apellidos: 'Rojas', dni: '45871237', modalidad: 'temporal' }],
-  ['PATCH', '/v1/trabajadores/:worker', { nombres: 'Rosa María' }],
-  ['POST', '/v1/trabajadores/:worker/metodos-pago', { tipo: 'yape', numero: '987654321', titular: 'Rosa Quispe' }],
-  ['PATCH', '/v1/trabajadores/:worker/metodos-pago/:method', { titular: 'Rosa M. Quispe' }],
-  ['DELETE', '/v1/trabajadores/:worker/metodos-pago/:method', undefined],
-  ['POST', '/v1/grupos/:group/miembros', { trabajadorIds: ['00000000-0000-4000-8000-00000000ffff'] }],
-  ['DELETE', '/v1/grupos/:group/miembros/:worker', undefined],
+  ['POST', '/v1/workers', { firstName: 'Ana', lastName: 'Rojas', dni: '45871237', employmentType: 'temporary' }],
+  ['PATCH', '/v1/workers/:worker', { firstName: 'Rosa María' }],
+  ['POST', '/v1/workers/:worker/payment-methods', { type: 'yape', number: '987654321', holderName: 'Rosa Quispe' }],
+  ['PATCH', '/v1/workers/:worker/payment-methods/:method', { holderName: 'Rosa M. Quispe' }],
+  ['DELETE', '/v1/workers/:worker/payment-methods/:method', undefined],
+  ['POST', '/v1/groups/:group/members', { workerIds: ['00000000-0000-4000-8000-00000000ffff'] }],
+  ['DELETE', '/v1/groups/:group/members/:worker', undefined],
 ]
-const auditLog: [string, string, unknown][] = [['GET', '/v1/auditoria', undefined]]
+const auditLog: [string, string, unknown][] = [['GET', '/v1/audit-log', undefined]]
 
 const withRoles = (roles: Role[], cases: [string, string, unknown][]): Case[] =>
   roles.flatMap((role) => cases.map(([method, template, body]): Case => [role, method, template, body]))
 
 const forbidden: Case[] = [
-  ...withRoles(['gerencia', 'coordinador'], [...catalogs, ...users, ...auditLog]),
-  ...withRoles(['contabilidad'], [...catalogs, ...users, ...auditLog]),
-  ...withRoles(['gerencia', 'coordinador'], workersAndPayments),
+  ...withRoles(['management', 'coordinator'], [...catalogs, ...users, ...auditLog]),
+  ...withRoles(['accounting'], [...catalogs, ...users, ...auditLog]),
+  ...withRoles(['management', 'coordinator'], workersAndPayments),
   // Accounting does manage workers, payment methods and members; it is not tested here.
 ]
 
@@ -97,11 +97,11 @@ describe('permission matrix by role', () => {
   it.each(forbidden)('%s cannot %s %s', async (role, method, template, body) => {
     const r = await t.request(role, method, path(template), body)
     expect(r.status).toBe(403)
-    expect(r.json.error.codigo).toBe('sin_permiso')
+    expect(r.json.error.code).toBe('forbidden')
   })
 })
 
-const SENSITIVE_KEYS = ['tarifaHora', 'tarifaHoraExtra', 'sueldoMensual', 'numero', 'cci', 'banco', 'titular']
+const SENSITIVE_KEYS = ['hourlyRate', 'overtimeRate', 'monthlySalary', 'number', 'cci', 'bank', 'holderName']
 
 // Walks the JSON and returns the path of every money or bank field that carries a value.
 function sensitiveFields(value: unknown, trail = '$'): string[] {
@@ -110,7 +110,7 @@ function sensitiveFields(value: unknown, trail = '$'): string[] {
   return Object.entries(value).flatMap(([key, v]) => {
     const here = `${trail}.${key}`
     if (SENSITIVE_KEYS.includes(key) && v !== null) return [here]
-    const list = key === 'metodosPago' && Array.isArray(v) && v.length > 0 ? [here] : []
+    const list = key === 'paymentMethods' && Array.isArray(v) && v.length > 0 ? [here] : []
     return [...list, ...sensitiveFields(v, here)]
   })
 }
@@ -119,22 +119,22 @@ describe('the coordinator never receives money or bank details', () => {
   const endpoints = () => [
     '/v1/me',
     '/v1/areas',
-    '/v1/turnos',
-    '/v1/campanas',
-    '/v1/cargos',
-    '/v1/grupos',
-    `/v1/grupos/${groupId}`,
-    '/v1/trabajadores',
-    `/v1/trabajadores/${workerId}`,
+    '/v1/shifts',
+    '/v1/campaigns',
+    '/v1/positions',
+    '/v1/groups',
+    `/v1/groups/${groupId}`,
+    '/v1/workers',
+    `/v1/workers/${workerId}`,
   ]
 
   beforeAll(async () => {
-    await t.db.insert(usuarioAreas).values({ usuarioId: USERS.coordinador, areaId })
+    await t.db.insert(userAreas).values({ userId: USERS.coordinator, areaId })
   })
 
   it('answers 200 on every read and without amounts or accounts', async () => {
     for (const url of endpoints()) {
-      const r = await t.request('coordinador', 'GET', url)
+      const r = await t.request('coordinator', 'GET', url)
       expect(r.status, url).toBe(200)
       expect(sensitiveFields(r.json), url).toEqual([])
     }
@@ -147,13 +147,13 @@ describe('the coordinator never receives money or bank details', () => {
       expect(r.status, url).toBe(200)
       responses[url] = r.json
     }
-    const positions = sensitiveFields(responses['/v1/cargos'])
-    expect(positions.some((p) => p.endsWith('.tarifaHora'))).toBe(true)
-    expect(positions.some((p) => p.endsWith('.tarifaHoraExtra'))).toBe(true)
-    expect(positions.some((p) => p.endsWith('.sueldoMensual'))).toBe(true)
+    const positions = sensitiveFields(responses['/v1/positions'])
+    expect(positions.some((p) => p.endsWith('.hourlyRate'))).toBe(true)
+    expect(positions.some((p) => p.endsWith('.overtimeRate'))).toBe(true)
+    expect(positions.some((p) => p.endsWith('.monthlySalary'))).toBe(true)
 
-    const record = sensitiveFields(responses[`/v1/trabajadores/${workerId}`])
-    for (const key of ['metodosPago', 'numero', 'banco', 'cci', 'titular']) {
+    const record = sensitiveFields(responses[`/v1/workers/${workerId}`])
+    for (const key of ['paymentMethods', 'number', 'bank', 'cci', 'holderName']) {
       expect(record.some((p) => p.endsWith(`.${key}`)), key).toBe(true)
     }
   })

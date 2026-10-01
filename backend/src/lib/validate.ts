@@ -11,7 +11,7 @@ export const validate = <T extends keyof ValidationTargets, S extends ZodType>(t
     if (!result.success) {
       const issue = result.error.issues[0]
       return c.json(
-        { error: { codigo: 'validacion', mensaje: issue.message, campo: issue.path.join('.') || undefined } },
+        { error: { code: 'validation', message: issue.message, field: issue.path.join('.') || undefined } },
         400,
       )
     }
