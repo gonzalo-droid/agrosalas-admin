@@ -2,7 +2,11 @@
 
 import { Catalogo } from '@/components/catalogo'
 import { api, leer } from '@/lib/api'
+import type { Valores } from '@/lib/catalogo-valores'
 import { formatoSoles, horaExtraPropuesta } from '@/lib/formato'
+
+// Las tarifas por hora solo se piden (y se guardan) en los cargos por hora; el sueldo, en los mensuales.
+const esPorHora = (valores: Valores) => valores.tipoPago === 'por_hora'
 
 export default function PaginaCargos() {
   return (
@@ -30,9 +34,16 @@ export default function PaginaCargos() {
             { valor: 'mensual', etiqueta: 'Sueldo mensual' },
           ],
         },
-        { nombre: 'tarifaHora', etiqueta: 'Hora normal (S/)', tipo: 'numero' },
-        { nombre: 'tarifaHoraExtra', etiqueta: 'Hora extra (S/)', tipo: 'numero', ayuda: 'Se propone la normal más 25 %; puedes cambiarla.' },
-        { nombre: 'sueldoMensual', etiqueta: 'Sueldo mensual (S/)', tipo: 'numero', ayuda: 'Solo para cargos de sueldo mensual.' },
+        { nombre: 'tarifaHora', etiqueta: 'Hora normal (S/)', tipo: 'numero', obligatorio: true, visibleSi: esPorHora },
+        {
+          nombre: 'tarifaHoraExtra',
+          etiqueta: 'Hora extra (S/)',
+          tipo: 'numero',
+          obligatorio: true,
+          visibleSi: esPorHora,
+          ayuda: 'Se propone la normal más 25 %; puedes cambiarla.',
+        },
+        { nombre: 'sueldoMensual', etiqueta: 'Sueldo mensual (S/)', tipo: 'numero', obligatorio: true, visibleSi: (v) => v.tipoPago === 'mensual' },
       ]}
       derivar={(campo, valores) => {
         const normal = Number(valores.tarifaHora)

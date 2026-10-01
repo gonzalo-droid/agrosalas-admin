@@ -9,21 +9,10 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { ErrorApiCliente, mensajeDeError } from '@/lib/api'
+import { camposVisibles, cuerpoParaEnviar, valorInicial, type CampoCatalogo, type FilaCatalogo, type Valor, type Valores } from '@/lib/catalogo-valores'
 import { Campo, claseControl } from './campo'
 
-type Valor = string | boolean | string[]
-type Valores = Record<string, Valor>
-export type FilaCatalogo = { id: string } & Record<string, unknown>
-
-export type CampoCatalogo = {
-  nombre: string
-  etiqueta: string
-  tipo: 'texto' | 'correo' | 'clave' | 'hora' | 'fecha' | 'numero' | 'casilla' | 'opcion' | 'opciones'
-  opciones?: { valor: string; etiqueta: string }[]
-  obligatorio?: boolean
-  soloAlCrear?: boolean
-  ayuda?: string
-}
+export type { CampoCatalogo, FilaCatalogo }
 
 type Props = {
   titulo: string
@@ -43,23 +32,6 @@ type Props = {
 
 const TIPO_INPUT = { texto: 'text', correo: 'email', clave: 'password', hora: 'time', fecha: 'date', numero: 'number' } as const
 
-function valorInicial(campo: CampoCatalogo, fila: FilaCatalogo | null): Valor {
-  const crudo = fila?.[campo.nombre]
-  if (campo.tipo === 'casilla') return Boolean(crudo)
-  if (campo.tipo === 'opciones') return Array.isArray(crudo) ? (crudo as string[]) : []
-  if (crudo == null) return campo.tipo === 'opcion' ? (campo.opciones?.[0]?.valor ?? '') : ''
-  return campo.tipo === 'hora' ? String(crudo).slice(0, 5) : String(crudo)
-}
-
-// Lo que se manda a la API: números como número y vacíos como null.
-function paraEnviar(campo: CampoCatalogo, valor: Valor): unknown {
-  if (typeof valor !== 'string') return valor
-  const texto = valor.trim()
-  if (campo.tipo === 'numero') return texto === '' ? null : Number(texto)
-  if (campo.tipo === 'fecha') return texto === '' ? null : texto
-  return texto
-}
-
 export function Catalogo(props: Props) {
   const cliente = useQueryClient()
   const { data, isPending, error } = useQuery({ queryKey: [props.claveConsulta], queryFn: props.listar })
@@ -68,7 +40,7 @@ export function Catalogo(props: Props) {
   const [valores, setValores] = useState<Valores>({})
   const [errorCampo, setErrorCampo] = useState<{ campo?: string; mensaje: string } | null>(null)
 
-  const campos = props.campos.filter((c) => !(fila && c.soloAlCrear))
+  const campos = camposVisibles(props.campos, valores, fila !== null)
   const tieneActivo = fila !== null && typeof fila.activo === 'boolean'
 
   function abrir(paraEditar: FilaCatalogo | null) {
@@ -89,7 +61,7 @@ export function Catalogo(props: Props) {
 
   const guardar = useMutation({
     mutationFn: () => {
-      const cuerpo: Record<string, unknown> = Object.fromEntries(campos.map((c) => [c.nombre, paraEnviar(c, valores[c.nombre])]))
+      const cuerpo = cuerpoParaEnviar(props.campos, valores, fila !== null)
       if (tieneActivo) cuerpo.activo = valores.activo
       return fila ? props.editar(fila.id, cuerpo) : props.crear(cuerpo)
     },
@@ -191,10 +163,13 @@ export function Catalogo(props: Props) {
               const valor = valores[c.nombre]
               if (c.tipo === 'casilla') {
                 return (
-                  <label key={c.nombre} className="flex h-10 items-center gap-2 text-sm">
-                    <input type="checkbox" checked={Boolean(valor)} onChange={(e) => cambiar(c.nombre, e.target.checked)} />
-                    {c.etiqueta}
-                  </label>
+                  <div key={c.nombre} className="space-y-1">
+                    <label className="flex h-10 items-center gap-2 text-sm">
+                      <input type="checkbox" checked={Boolean(valor)} onChange={(e) => cambiar(c.nombre, e.target.checked)} />
+                      {c.etiqueta}
+                    </label>
+                    {error && <p className="text-xs text-destructive">{error}</p>}
+                  </div>
                 )
               }
               if (c.tipo === 'opciones') {
@@ -214,7 +189,11 @@ export function Catalogo(props: Props) {
                         {o.etiqueta}
                       </label>
                     ))}
-                    {c.ayuda && <p className="text-xs text-muted-foreground">{c.ayuda}</p>}
+                    {error ? (
+                      <p className="text-xs text-destructive">{error}</p>
+                    ) : (
+                      c.ayuda && <p className="text-xs text-muted-foreground">{c.ayuda}</p>
+                    )}
                   </fieldset>
                 )
               }
