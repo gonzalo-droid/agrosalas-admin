@@ -1,5 +1,6 @@
 'use client'
 
+import { useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
@@ -11,6 +12,7 @@ import { supabaseNavegador } from '@/lib/supabase/navegador'
 
 export default function PaginaLogin() {
   const router = useRouter()
+  const cliente = useQueryClient()
   const [error, setError] = useState('')
   const [enviando, setEnviando] = useState(false)
 
@@ -25,6 +27,8 @@ export default function PaginaLogin() {
     })
     setEnviando(false)
     if (error) return setError('Correo o contraseña incorrectos')
+    // Nada de lo guardado en memoria (de una sesión anterior en esta pestaña) sirve para quien acaba de entrar.
+    cliente.clear()
     router.replace('/')
     router.refresh()
   }

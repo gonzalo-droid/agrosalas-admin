@@ -1,5 +1,6 @@
 import type { AppType } from '@agrosalas/backend/app'
 import { hc, type ClientResponse } from 'hono/client'
+import { ErrorDeConfiguracion, variablesRequeridas } from './entorno'
 import { supabaseNavegador } from './supabase/navegador'
 
 type ErrorCuerpo = { error: { codigo: string; mensaje: string; campo?: string } }
@@ -45,7 +46,9 @@ export async function leer<R extends RespuestaJson>(promesa: Promise<R>): Promis
   let respuesta: R
   try {
     respuesta = await promesa
-  } catch {
+  } catch (e) {
+    // Una variable de entorno que falta no es un problema de conexión: se deja ver tal cual.
+    if (e instanceof ErrorDeConfiguracion) throw e
     // fetch rechaza (con un mensaje en inglés del navegador) cuando no hay conexión con la API.
     throw new ErrorApiCliente(ERROR_SIN_CONEXION)
   }
@@ -54,12 +57,15 @@ export async function leer<R extends RespuestaJson>(promesa: Promise<R>): Promis
   return cuerpo
 }
 
-export const api = hc<AppType>(process.env.NEXT_PUBLIC_API_URL!, {
+// La URL se comprueba al hacer cada llamada (no al importar), para que el build y las pruebas funcionen sin ella.
+export const api = hc<AppType>(process.env.NEXT_PUBLIC_API_URL ?? '', {
   headers: async (): Promise<Record<string, string>> => {
+    variablesRequeridas({ NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL })
     const { data } = await supabaseNavegador().auth.getSession()
     return data.session ? { Authorization: `Bearer ${data.session.access_token}` } : {}
   },
 })
 
 // Solo se muestran los mensajes que escribimos nosotros; cualquier otro error (p. ej. del navegador) va en genérico.
-export const mensajeDeError = (e: unknown) => (e instanceof ErrorApiCliente ? e.message : ERROR_GENERICO.mensaje)
+export const mensajeDeError = (e: unknown) =>
+  e instanceof ErrorApiCliente || e instanceof ErrorDeConfiguracion ? e.message : ERROR_GENERICO.mensaje

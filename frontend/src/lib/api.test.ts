@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ErrorApiCliente, leer, mensajeDeError } from './api'
+import { ErrorDeConfiguracion } from './entorno'
 
 const GENERICO = 'No se pudo completar la acción'
 
@@ -41,11 +42,20 @@ describe('leer', () => {
     expect(error.codigo).toBe('sin_conexion')
     expect(error.message).toBe('No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.')
   })
+
+  it('no disfraza de falta de conexión una variable de entorno que falta', async () => {
+    const falta = new ErrorDeConfiguracion('Falta la variable de entorno NEXT_PUBLIC_API_URL')
+    await expect(leer(Promise.reject(falta) as never)).rejects.toBe(falta)
+  })
 })
 
 describe('mensajeDeError', () => {
   it('devuelve el mensaje de un error de la API', () => {
     expect(mensajeDeError(new ErrorApiCliente({ codigo: 'validacion', mensaje: 'Dato inválido' }))).toBe('Dato inválido')
+  })
+
+  it('muestra qué variable de entorno falta', () => {
+    expect(mensajeDeError(new ErrorDeConfiguracion('Falta NEXT_PUBLIC_API_URL'))).toBe('Falta NEXT_PUBLIC_API_URL')
   })
 
   it('usa un mensaje genérico para cualquier otro error', () => {

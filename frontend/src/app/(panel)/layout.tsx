@@ -1,29 +1,21 @@
 'use client'
 
-import { useEffect } from 'react'
 import { Menu } from '@/components/panel/menu'
 import { Button } from '@/components/ui/button'
-import { ErrorApiCliente, mensajeDeError } from '@/lib/api'
+import { mensajeDeError } from '@/lib/api'
 import { useCerrarSesion } from '@/lib/sesion'
 import { useYo } from '@/lib/yo'
 
+// Una sesión vencida (401) la atiende el cliente de consultas en Proveedores: cierra la sesión y lleva al ingreso.
 export default function LayoutPanel({ children }: { children: React.ReactNode }) {
   const { isPending, error, refetch } = useYo()
   const cerrarSesion = useCerrarSesion()
-  // La sesión ya no es válida (por ejemplo, fue revocada): se sale al ingreso en lugar de mostrar un error.
-  const sesionInvalida = error instanceof ErrorApiCliente && error.codigo === 'no_autenticado'
-
-  useEffect(() => {
-    if (sesionInvalida) void cerrarSesion()
-    // cerrarSesion cambia en cada render; solo importa reaccionar cuando la sesión pasa a ser inválida.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sesionInvalida])
 
   return (
     <div className="flex min-h-screen">
       <Menu />
       <main className="min-w-0 flex-1 p-4 pb-20 md:p-8 md:pb-8">
-        {isPending || sesionInvalida ? (
+        {isPending ? (
           <p className="text-sm text-muted-foreground">Cargando…</p>
         ) : error ? (
           <div className="space-y-4">
@@ -34,7 +26,7 @@ export default function LayoutPanel({ children }: { children: React.ReactNode })
               <Button variant="outline" size="lg" onClick={() => refetch()}>
                 Reintentar
               </Button>
-              <Button variant="destructive" size="lg" onClick={cerrarSesion}>
+              <Button variant="destructive" size="lg" onClick={() => void cerrarSesion()}>
                 Cerrar sesión
               </Button>
             </div>
