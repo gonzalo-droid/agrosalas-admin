@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { autenticar } from './auth/middleware'
 import { manejarError } from './lib/errores'
+import { rutasAreas, rutasCampanas, rutasTurnos } from './rutas/catalogos'
 import { rutasAuditoria } from './rutas/auditoria'
 import { rutasMe } from './rutas/me'
 import type { Dependencias, Entorno } from './tipos'
@@ -11,6 +12,9 @@ export function crearApp(deps: Dependencias) {
     .use('*', autenticar(deps))
     .route('/me', rutasMe(deps))
     .route('/auditoria', rutasAuditoria(deps))
+    .route('/areas', rutasAreas(deps))
+    .route('/turnos', rutasTurnos(deps))
+    .route('/campanas', rutasCampanas(deps))
 
   return new Hono()
     .use(
