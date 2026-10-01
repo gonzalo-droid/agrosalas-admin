@@ -1,9 +1,15 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
+import { autenticar } from './auth/middleware'
 import { manejarError } from './lib/errores'
-import type { Dependencias } from './tipos'
+import { rutasMe } from './rutas/me'
+import type { Dependencias, Entorno } from './tipos'
 
 export function crearApp(deps: Dependencias) {
+  const v1 = new Hono<Entorno>()
+    .use('*', autenticar(deps))
+    .route('/me', rutasMe(deps))
+
   return new Hono()
     .use(
       '*',
@@ -14,6 +20,7 @@ export function crearApp(deps: Dependencias) {
       }),
     )
     .get('/salud', (c) => c.json({ ok: true }))
+    .route('/v1', v1)
     .notFound((c) => c.json({ error: { codigo: 'no_encontrado', mensaje: 'La ruta no existe' } }, 404))
     .onError(manejarError)
 }
