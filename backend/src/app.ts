@@ -5,6 +5,7 @@ import { manejarError } from './lib/errores'
 import { rutasAreas, rutasCampanas, rutasTurnos } from './rutas/catalogos'
 import { rutasAuditoria } from './rutas/auditoria'
 import { rutasMe } from './rutas/me'
+import { rutasCargos } from './rutas/cargos'
 import type { Dependencias, Entorno } from './tipos'
 
 export function crearApp(deps: Dependencias) {
@@ -15,6 +16,7 @@ export function crearApp(deps: Dependencias) {
     .route('/areas', rutasAreas(deps))
     .route('/turnos', rutasTurnos(deps))
     .route('/campanas', rutasCampanas(deps))
+    .route('/cargos', rutasCargos(deps))
 
   return new Hono()
     .use(
