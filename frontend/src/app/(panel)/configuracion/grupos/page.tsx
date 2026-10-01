@@ -1,45 +1,45 @@
 'use client'
 
 import Link from 'next/link'
-import { Catalogo } from '@/components/catalogo'
+import { Catalog } from '@/components/catalog'
 import { buttonVariants } from '@/components/ui/button'
-import { api, leer } from '@/lib/api'
-import { rangoFechas } from '@/lib/formato'
+import { api, unwrap } from '@/lib/api'
+import { dateRange } from '@/lib/format'
 
-export default function PaginaGrupos() {
+export default function GroupsPage() {
   return (
-    <Catalogo
-      titulo="Grupos de trabajadores"
-      descripcion="Un grupo sirve para cargar varios trabajadores a una planilla de una sola vez. Un trabajador puede estar en varios."
-      textoNuevo="Nuevo grupo"
-      claveConsulta="grupos"
-      puedeEditar
-      columnas={[
-        { titulo: 'Grupo', celda: (f) => String(f.name) },
+    <Catalog
+      title="Grupos de trabajadores"
+      description="Un grupo sirve para cargar varios trabajadores a una planilla de una sola vez. Un trabajador puede estar en varios."
+      newLabel="Nuevo grupo"
+      queryKey="groups"
+      canEdit
+      columns={[
+        { title: 'Grupo', cell: (row) => String(row.name) },
         {
-          titulo: 'Tipo',
-          celda: (f) => {
-            if (!f.temporary) return 'Fijo'
-            const rango = rangoFechas(f.startDate as string | null, f.endDate as string | null)
-            return rango ? `Temporal · ${rango}` : 'Temporal'
+          title: 'Tipo',
+          cell: (row) => {
+            if (!row.temporary) return 'Fijo'
+            const range = dateRange(row.startDate as string | null, row.endDate as string | null)
+            return range ? `Temporal · ${range}` : 'Temporal'
           },
         },
-        { titulo: 'Miembros', derecha: true, celda: (f) => String(f.members) },
+        { title: 'Miembros', right: true, cell: (row) => String(row.members) },
       ]}
-      campos={[
-        { nombre: 'name', etiqueta: 'Nombre', tipo: 'texto', obligatorio: true },
-        { nombre: 'temporary', etiqueta: 'Es temporal (armado por unos días)', tipo: 'casilla' },
-        { nombre: 'startDate', etiqueta: 'Desde', tipo: 'fecha' },
-        { nombre: 'endDate', etiqueta: 'Hasta', tipo: 'fecha' },
+      fields={[
+        { name: 'name', label: 'Nombre', type: 'text', required: true },
+        { name: 'temporary', label: 'Es temporal (armado por unos días)', type: 'checkbox' },
+        { name: 'startDate', label: 'Desde', type: 'date' },
+        { name: 'endDate', label: 'Hasta', type: 'date' },
       ]}
-      accionesFila={(f) => (
-        <Link href={`/configuracion/grupos/${f.id}`} className={buttonVariants({ variant: 'ghost', size: 'lg' })}>
+      rowActions={(row) => (
+        <Link href={`/configuracion/grupos/${row.id}`} className={buttonVariants({ variant: 'ghost', size: 'lg' })}>
           Miembros
         </Link>
       )}
-      listar={() => leer(api.v1.groups.$get())}
-      crear={(json) => leer(api.v1.groups.$post({ json: json as never }))}
-      editar={(id, json) => leer(api.v1.groups[':id'].$patch({ param: { id }, json: json as never }))}
+      list={() => unwrap(api.v1.groups.$get())}
+      create={(json) => unwrap(api.v1.groups.$post({ json: json as never }))}
+      update={(id, json) => unwrap(api.v1.groups[':id'].$patch({ param: { id }, json: json as never }))}
     />
   )
 }

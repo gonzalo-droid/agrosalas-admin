@@ -1,71 +1,71 @@
 import type { AppType } from '@agrosalas/backend/app'
 import { hc, type ClientResponse } from 'hono/client'
-import { ErrorDeConfiguracion, variablesRequeridas } from './entorno'
-import { supabaseNavegador } from './supabase/navegador'
+import { ConfigError, requireEnv } from './env'
+import { supabaseBrowser } from './supabase/browser'
 
-type ErrorCuerpo = { error: { code: string; message: string; field?: string } }
+type ErrorBody = { error: { code: string; message: string; field?: string } }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type RespuestaJson = ClientResponse<any, any, any>
+type JsonResponse = ClientResponse<any, any, any>
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Cuerpo<R> = R extends ClientResponse<infer T, any, any> ? T : never
+type Body<R> = R extends ClientResponse<infer T, any, any> ? T : never
 
-// Datos<typeof api.v1.areas.$get> = el cuerpo de la respuesta correcta de esa llamada.
+// ResponseBody<typeof api.v1.areas.$get> = the body of the successful response of that call.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type Datos<F extends (...args: any[]) => Promise<RespuestaJson>> = Exclude<
-  Cuerpo<Awaited<ReturnType<F>>>,
-  ErrorCuerpo
+export type ResponseBody<F extends (...args: any[]) => Promise<JsonResponse>> = Exclude<
+  Body<Awaited<ReturnType<F>>>,
+  ErrorBody
 >
 
-export class ErrorApiCliente extends Error {
+export class ApiClientError extends Error {
   code: string
   field?: string
 
-  constructor(error: ErrorCuerpo['error']) {
+  constructor(error: ErrorBody['error']) {
     super(error.message)
     this.code = error.code
     this.field = error.field
   }
 }
 
-const ERROR_GENERICO: ErrorCuerpo['error'] = { code: 'unknown', message: 'No se pudo completar la acción' }
-const ERROR_SIN_CONEXION: ErrorCuerpo['error'] = {
+const GENERIC_ERROR: ErrorBody['error'] = { code: 'unknown', message: 'No se pudo completar la acción' }
+const NO_CONNECTION_ERROR: ErrorBody['error'] = {
   code: 'network_error',
   message: 'No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.',
 }
 
-// Solo se usa el error del servidor si trae código y mensaje de texto; si no, el mensaje genérico.
-function errorDeLaApi(cuerpo: unknown): ErrorCuerpo['error'] {
-  const error = (cuerpo as { error?: Partial<ErrorCuerpo['error']> } | null)?.error
+// The server's error is used only if it carries a code and a text message; otherwise the generic message.
+function apiError(body: unknown): ErrorBody['error'] {
+  const error = (body as { error?: Partial<ErrorBody['error']> } | null)?.error
   return typeof error?.code === 'string' && typeof error.message === 'string'
-    ? (error as ErrorCuerpo['error'])
-    : ERROR_GENERICO
+    ? (error as ErrorBody['error'])
+    : GENERIC_ERROR
 }
 
-// Espera la respuesta de la API; si es un error, lo lanza con el mensaje que mandó el servidor.
-export async function leer<R extends RespuestaJson>(promesa: Promise<R>): Promise<Exclude<Cuerpo<R>, ErrorCuerpo>> {
-  let respuesta: R
+// Waits for the API response; if it is an error, throws it with the message the server sent.
+export async function unwrap<R extends JsonResponse>(promise: Promise<R>): Promise<Exclude<Body<R>, ErrorBody>> {
+  let response: R
   try {
-    respuesta = await promesa
+    response = await promise
   } catch (e) {
-    // Una variable de entorno que falta no es un problema de conexión: se deja ver tal cual.
-    if (e instanceof ErrorDeConfiguracion) throw e
-    // fetch rechaza (con un mensaje en inglés del navegador) cuando no hay conexión con la API.
-    throw new ErrorApiCliente(ERROR_SIN_CONEXION)
+    // A missing environment variable is not a connection problem: let it show as it is.
+    if (e instanceof ConfigError) throw e
+    // fetch rejects (with the browser's own English message) when there is no connection to the API.
+    throw new ApiClientError(NO_CONNECTION_ERROR)
   }
-  const cuerpo = await respuesta.json().catch(() => null)
-  if (!respuesta.ok) throw new ErrorApiCliente(errorDeLaApi(cuerpo))
-  return cuerpo
+  const body = await response.json().catch(() => null)
+  if (!response.ok) throw new ApiClientError(apiError(body))
+  return body
 }
 
-// La URL se comprueba al hacer cada llamada (no al importar), para que el build y las pruebas funcionen sin ella.
+// The URL is checked on each call (not on import), so the build and the tests work without it.
 export const api = hc<AppType>(process.env.NEXT_PUBLIC_API_URL ?? '', {
   headers: async (): Promise<Record<string, string>> => {
-    variablesRequeridas({ NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL })
-    const { data } = await supabaseNavegador().auth.getSession()
+    requireEnv({ NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL })
+    const { data } = await supabaseBrowser().auth.getSession()
     return data.session ? { Authorization: `Bearer ${data.session.access_token}` } : {}
   },
 })
 
-// Solo se muestran los mensajes que escribimos nosotros; cualquier otro error (p. ej. del navegador) va en genérico.
-export const mensajeDeError = (e: unknown) =>
-  e instanceof ErrorApiCliente || e instanceof ErrorDeConfiguracion ? e.message : ERROR_GENERICO.message
+// Only the messages we wrote are shown; any other error (e.g. from the browser) becomes the generic one.
+export const errorMessage = (e: unknown) =>
+  e instanceof ApiClientError || e instanceof ConfigError ? e.message : GENERIC_ERROR.message

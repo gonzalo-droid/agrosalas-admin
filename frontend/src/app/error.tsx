@@ -3,8 +3,8 @@
 import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 
-// Error inesperado al mostrar una pantalla. `retry` vuelve a pedir y dibujar la pantalla (Next 16.3).
-export default function ErrorDePantalla({ error, retry }: { error: Error & { digest?: string }; retry: () => void }) {
+// Unexpected error while showing a screen. `retry` requests and draws the screen again (Next 16.3).
+export default function ScreenError({ error, retry }: { error: Error & { digest?: string }; retry: () => void }) {
   useEffect(() => {
     console.error(error)
   }, [error])

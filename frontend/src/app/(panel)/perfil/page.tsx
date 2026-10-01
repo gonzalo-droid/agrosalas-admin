@@ -3,61 +3,61 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { Campo } from '@/components/campo'
+import { Field } from '@/components/field'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { api, leer, mensajeDeError } from '@/lib/api'
-import { useAreas } from '@/lib/catalogos'
-import { mensajeCambioClave, mensajeClaveActual } from '@/lib/errores-acceso'
-import { useCerrarSesion } from '@/lib/sesion'
-import { supabaseNavegador } from '@/lib/supabase/navegador'
-import { hayErrores, validarClaveNueva } from '@/lib/validar-clave'
-import { ETIQUETA_ROL, useYo } from '@/lib/yo'
+import { api, errorMessage, unwrap } from '@/lib/api'
+import { useAreas } from '@/lib/catalogs'
+import { passwordChangeMessage, currentPasswordMessage } from '@/lib/auth-errors'
+import { useSignOut } from '@/lib/session'
+import { supabaseBrowser } from '@/lib/supabase/browser'
+import { hasErrors, validateNewPassword } from '@/lib/validate-password'
+import { ROLE_LABEL, useMe } from '@/lib/me'
 
-export default function PaginaPerfil() {
-  const cliente = useQueryClient()
-  const cerrarSesion = useCerrarSesion()
-  const { data: yo } = useYo()
-  const [erroresClave, setErroresClave] = useState<{ actual?: string; nueva?: string; repetir?: string; general?: string }>({})
-  const [cambiandoClave, setCambiandoClave] = useState(false)
+export default function ProfilePage() {
+  const queryClient = useQueryClient()
+  const signOut = useSignOut()
+  const { data: me } = useMe()
+  const [passwordErrors, setPasswordErrors] = useState<{ current?: string; password?: string; repeat?: string; general?: string }>({})
+  const [changingPassword, setChangingPassword] = useState(false)
   const { data: areas } = useAreas()
 
-  const guardarNombre = useMutation({
-    mutationFn: (nombre: string) => leer(api.v1.me.$patch({ json: { name: nombre } })),
+  const saveName = useMutation({
+    mutationFn: (name: string) => unwrap(api.v1.me.$patch({ json: { name } })),
     onSuccess: () => {
-      cliente.invalidateQueries({ queryKey: ['yo'] })
+      queryClient.invalidateQueries({ queryKey: ['me'] })
       toast.success('Nombre actualizado')
     },
-    onError: (e) => toast.error(mensajeDeError(e)),
+    onError: (e) => toast.error(errorMessage(e)),
   })
 
-  async function cambiarClave(e: React.FormEvent<HTMLFormElement>) {
+  async function changePassword(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    const formulario = e.currentTarget
-    const datos = new FormData(formulario)
-    const nueva = String(datos.get('nueva'))
-    const validacion = validarClaveNueva(nueva, String(datos.get('repetir')))
-    setErroresClave({ nueva: validacion.clave, repetir: validacion.repetir })
-    if (hayErrores(validacion)) return
-    setCambiandoClave(true)
+    const form = e.currentTarget
+    const formData = new FormData(form)
+    const newPassword = String(formData.get('password'))
+    const validation = validateNewPassword(newPassword, String(formData.get('repeat')))
+    setPasswordErrors({ password: validation.password, repeat: validation.repeat })
+    if (hasErrors(validation)) return
+    setChangingPassword(true)
     try {
-      const supabase = supabaseNavegador()
-      // Se vuelve a pedir la contraseña actual para confirmar que quien la cambia es el dueño de la cuenta.
-      const { error: errorActual } = await supabase.auth
-        .signInWithPassword({ email: yo!.email, password: String(datos.get('actual')) })
+      const supabase = supabaseBrowser()
+      // The current password is asked for again to confirm that whoever changes it owns the account.
+      const { error: currentError } = await supabase.auth
+        .signInWithPassword({ email: me!.email, password: String(formData.get('current')) })
         .catch((e: unknown) => ({ error: e }))
-      if (errorActual) return setErroresClave({ actual: mensajeClaveActual(errorActual) })
-      const { error } = await supabase.auth.updateUser({ password: nueva }).catch((e: unknown) => ({ error: e }))
-      if (error) return setErroresClave({ general: mensajeCambioClave(error) })
-      formulario.reset()
+      if (currentError) return setPasswordErrors({ current: currentPasswordMessage(currentError) })
+      const { error } = await supabase.auth.updateUser({ password: newPassword }).catch((e: unknown) => ({ error: e }))
+      if (error) return setPasswordErrors({ general: passwordChangeMessage(error) })
+      form.reset()
       toast.success('Contraseña actualizada')
     } finally {
-      setCambiandoClave(false)
+      setChangingPassword(false)
     }
   }
 
-  if (!yo) return null
+  if (!me) return null
 
   return (
     <div className="space-y-5">
@@ -67,58 +67,58 @@ export default function PaginaPerfil() {
           className="space-y-4 rounded-xl border bg-background p-5"
           onSubmit={(e) => {
             e.preventDefault()
-            guardarNombre.mutate(String(new FormData(e.currentTarget).get('nombre')))
+            saveName.mutate(String(new FormData(e.currentTarget).get('name')))
           }}
         >
           <h2 className="font-semibold">Mis datos</h2>
-          <Campo id="nombre" etiqueta="Nombre">
-            <Input id="nombre" name="nombre" defaultValue={yo.name} required minLength={2} className="h-10" />
-          </Campo>
-          <Campo id="correo" etiqueta="Correo" ayuda="Lo cambia el administrador.">
-            <Input id="correo" value={yo.email} readOnly className="h-10 bg-muted text-muted-foreground" />
-          </Campo>
+          <Field id="name" label="Nombre">
+            <Input id="name" name="name" defaultValue={me.name} required minLength={2} className="h-10" />
+          </Field>
+          <Field id="email" label="Correo" help="Lo cambia el administrador.">
+            <Input id="email" value={me.email} readOnly className="h-10 bg-muted text-muted-foreground" />
+          </Field>
           <div className="flex items-center gap-3 text-sm">
             <span className="text-muted-foreground">Rol</span>
-            <Badge variant="secondary">{ETIQUETA_ROL[yo.role]}</Badge>
+            <Badge variant="secondary">{ROLE_LABEL[me.role]}</Badge>
           </div>
           <p className="text-sm">
             <span className="text-muted-foreground">Áreas asignadas: </span>
-            {yo.areaIds.length === 0
-              ? yo.role === 'coordinator'
+            {me.areaIds.length === 0
+              ? me.role === 'coordinator'
                 ? 'Ninguna'
                 : 'Todas'
-              : yo.areaIds.map((id) => areas?.items.find((a) => a.id === id)?.name ?? '…').join(', ')}
+              : me.areaIds.map((id) => areas?.items.find((a) => a.id === id)?.name ?? '…').join(', ')}
           </p>
-          <Button type="submit" size="lg" disabled={guardarNombre.isPending}>
+          <Button type="submit" size="lg" disabled={saveName.isPending}>
             Guardar
           </Button>
         </form>
 
         <div className="space-y-4">
-          <form onSubmit={cambiarClave} className="space-y-4 rounded-xl border bg-background p-5">
+          <form onSubmit={changePassword} className="space-y-4 rounded-xl border bg-background p-5">
             <h2 className="font-semibold">Cambiar contraseña</h2>
-            <Campo id="actual" etiqueta="Contraseña actual" error={erroresClave.actual}>
-              <Input id="actual" name="actual" type="password" autoComplete="current-password" required className="h-10" />
-            </Campo>
-            <Campo id="nueva" etiqueta="Nueva contraseña" ayuda="Al menos 8 caracteres." error={erroresClave.nueva}>
-              <Input id="nueva" name="nueva" type="password" autoComplete="new-password" required className="h-10" />
-            </Campo>
-            <Campo id="repetir" etiqueta="Repetir nueva contraseña" error={erroresClave.repetir}>
-              <Input id="repetir" name="repetir" type="password" autoComplete="new-password" required className="h-10" />
-            </Campo>
-            {erroresClave.general && (
+            <Field id="current" label="Contraseña actual" error={passwordErrors.current}>
+              <Input id="current" name="current" type="password" autoComplete="current-password" required className="h-10" />
+            </Field>
+            <Field id="password" label="Nueva contraseña" help="Al menos 8 caracteres." error={passwordErrors.password}>
+              <Input id="password" name="password" type="password" autoComplete="new-password" required className="h-10" />
+            </Field>
+            <Field id="repeat" label="Repetir nueva contraseña" error={passwordErrors.repeat}>
+              <Input id="repeat" name="repeat" type="password" autoComplete="new-password" required className="h-10" />
+            </Field>
+            {passwordErrors.general && (
               <p role="alert" className="text-sm text-destructive">
-                {erroresClave.general}
+                {passwordErrors.general}
               </p>
             )}
-            <Button type="submit" variant="outline" size="lg" disabled={cambiandoClave}>
-              {cambiandoClave ? 'Cambiando…' : 'Cambiar contraseña'}
+            <Button type="submit" variant="outline" size="lg" disabled={changingPassword}>
+              {changingPassword ? 'Cambiando…' : 'Cambiar contraseña'}
             </Button>
           </form>
 
           <div className="flex items-center justify-between rounded-xl border bg-background p-5">
             <h2 className="font-semibold">Sesión</h2>
-            <Button variant="destructive" size="lg" onClick={() => void cerrarSesion()}>
+            <Button variant="destructive" size="lg" onClick={() => void signOut()}>
               Cerrar sesión
             </Button>
           </div>

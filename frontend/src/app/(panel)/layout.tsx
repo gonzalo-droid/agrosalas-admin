@@ -2,14 +2,14 @@
 
 import { Menu } from '@/components/panel/menu'
 import { Button } from '@/components/ui/button'
-import { mensajeDeError } from '@/lib/api'
-import { useCerrarSesion } from '@/lib/sesion'
-import { useYo } from '@/lib/yo'
+import { errorMessage } from '@/lib/api'
+import { useSignOut } from '@/lib/session'
+import { useMe } from '@/lib/me'
 
-// Una sesión vencida (401) la atiende el cliente de consultas en Proveedores: cierra la sesión y lleva al ingreso.
-export default function LayoutPanel({ children }: { children: React.ReactNode }) {
-  const { isPending, error, refetch } = useYo()
-  const cerrarSesion = useCerrarSesion()
+// An expired session (401) is handled by the query client in Providers: it ends the session and goes to the sign-in.
+export default function PanelLayout({ children }: { children: React.ReactNode }) {
+  const { isPending, error, refetch } = useMe()
+  const signOut = useSignOut()
 
   return (
     <div className="flex min-h-screen">
@@ -20,13 +20,13 @@ export default function LayoutPanel({ children }: { children: React.ReactNode })
         ) : error ? (
           <div className="space-y-4">
             <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-              {mensajeDeError(error)}
+              {errorMessage(error)}
             </p>
             <div className="flex flex-wrap gap-3">
               <Button variant="outline" size="lg" onClick={() => refetch()}>
                 Reintentar
               </Button>
-              <Button variant="destructive" size="lg" onClick={() => void cerrarSesion()}>
+              <Button variant="destructive" size="lg" onClick={() => void signOut()}>
                 Cerrar sesión
               </Button>
             </div>

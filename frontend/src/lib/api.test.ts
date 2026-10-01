@@ -1,66 +1,66 @@
 import { describe, expect, it } from 'vitest'
-import { ErrorApiCliente, leer, mensajeDeError } from './api'
-import { ErrorDeConfiguracion } from './entorno'
+import { ApiClientError, errorMessage, unwrap } from './api'
+import { ConfigError } from './env'
 
-const GENERICO = 'No se pudo completar la acción'
+const GENERIC = 'No se pudo completar la acción'
 
-// `leer` está tipado para la respuesta del cliente de Hono; en la prueba basta con un `Response` normal.
-const leerRespuesta = (respuesta: Response) => leer(Promise.resolve(respuesta) as never)
+// `unwrap` is typed for the Hono client's response; in the test a plain `Response` is enough.
+const unwrapResponse = (response: Response) => unwrap(Promise.resolve(response) as never)
 
-describe('leer', () => {
-  it('devuelve el cuerpo de una respuesta correcta', async () => {
-    const respuesta = new Response(JSON.stringify({ ok: true }), { status: 200 })
-    await expect(leerRespuesta(respuesta)).resolves.toEqual({ ok: true })
+describe('unwrap', () => {
+  it('returns the body of a successful response', async () => {
+    const response = new Response(JSON.stringify({ ok: true }), { status: 200 })
+    await expect(unwrapResponse(response)).resolves.toEqual({ ok: true })
   })
 
-  it('lanza el error de la API con su código, mensaje y campo', async () => {
-    const cuerpo = { error: { code: 'validation', message: 'El DNI debe tener 8 dígitos', field: 'dni' } }
-    const error = await leerRespuesta(new Response(JSON.stringify(cuerpo), { status: 400 })).catch((e) => e)
-    expect(error).toBeInstanceOf(ErrorApiCliente)
+  it('throws the API error with its code, message and field', async () => {
+    const body = { error: { code: 'validation', message: 'El DNI debe tener 8 dígitos', field: 'dni' } }
+    const error = await unwrapResponse(new Response(JSON.stringify(body), { status: 400 })).catch((e) => e)
+    expect(error).toBeInstanceOf(ApiClientError)
     expect(error.message).toBe('El DNI debe tener 8 dígitos')
     expect(error.code).toBe('validation')
     expect(error.field).toBe('dni')
   })
 
-  it('usa un mensaje genérico si la respuesta de error no es JSON', async () => {
-    const error = await leerRespuesta(new Response('<html>Bad Gateway</html>', { status: 502 })).catch((e) => e)
-    expect(error).toBeInstanceOf(ErrorApiCliente)
+  it('uses a generic message if the error response is not JSON', async () => {
+    const error = await unwrapResponse(new Response('<html>Bad Gateway</html>', { status: 502 })).catch((e) => e)
+    expect(error).toBeInstanceOf(ApiClientError)
     expect(error.code).toBe('unknown')
-    expect(error.message).toBe(GENERICO)
+    expect(error.message).toBe(GENERIC)
   })
 
-  it('usa un mensaje genérico si el error no trae un mensaje de texto', async () => {
-    const error = await leerRespuesta(new Response(JSON.stringify({ error: 'boom' }), { status: 500 })).catch((e) => e)
-    expect(error).toBeInstanceOf(ErrorApiCliente)
+  it('uses a generic message if the error carries no text message', async () => {
+    const error = await unwrapResponse(new Response(JSON.stringify({ error: 'boom' }), { status: 500 })).catch((e) => e)
+    expect(error).toBeInstanceOf(ApiClientError)
     expect(error.code).toBe('unknown')
-    expect(error.message).toBe(GENERICO)
+    expect(error.message).toBe(GENERIC)
   })
 
-  it('convierte un fallo de red en un error en español', async () => {
-    const error = await leer(Promise.reject(new TypeError('Failed to fetch')) as never).catch((e) => e)
-    expect(error).toBeInstanceOf(ErrorApiCliente)
+  it('turns a network failure into a Spanish error', async () => {
+    const error = await unwrap(Promise.reject(new TypeError('Failed to fetch')) as never).catch((e) => e)
+    expect(error).toBeInstanceOf(ApiClientError)
     expect(error.code).toBe('network_error')
     expect(error.message).toBe('No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.')
   })
 
-  it('no disfraza de falta de conexión una variable de entorno que falta', async () => {
-    const falta = new ErrorDeConfiguracion('Falta la variable de entorno NEXT_PUBLIC_API_URL')
-    await expect(leer(Promise.reject(falta) as never)).rejects.toBe(falta)
+  it('does not disguise a missing environment variable as a connection failure', async () => {
+    const missing = new ConfigError('Falta la variable de entorno NEXT_PUBLIC_API_URL')
+    await expect(unwrap(Promise.reject(missing) as never)).rejects.toBe(missing)
   })
 })
 
-describe('mensajeDeError', () => {
-  it('devuelve el mensaje de un error de la API', () => {
-    expect(mensajeDeError(new ErrorApiCliente({ code: 'validation', message: 'Dato inválido' }))).toBe('Dato inválido')
+describe('errorMessage', () => {
+  it('returns the message of an API error', () => {
+    expect(errorMessage(new ApiClientError({ code: 'validation', message: 'Dato inválido' }))).toBe('Dato inválido')
   })
 
-  it('muestra qué variable de entorno falta', () => {
-    expect(mensajeDeError(new ErrorDeConfiguracion('Falta NEXT_PUBLIC_API_URL'))).toBe('Falta NEXT_PUBLIC_API_URL')
+  it('shows which environment variable is missing', () => {
+    expect(errorMessage(new ConfigError('Falta NEXT_PUBLIC_API_URL'))).toBe('Falta NEXT_PUBLIC_API_URL')
   })
 
-  it('usa un mensaje genérico para cualquier otro error', () => {
-    expect(mensajeDeError(new Error('Failed to fetch'))).toBe(GENERICO)
-    expect(mensajeDeError('texto')).toBe(GENERICO)
-    expect(mensajeDeError(undefined)).toBe(GENERICO)
+  it('uses a generic message for any other error', () => {
+    expect(errorMessage(new Error('Failed to fetch'))).toBe(GENERIC)
+    expect(errorMessage('texto')).toBe(GENERIC)
+    expect(errorMessage(undefined)).toBe(GENERIC)
   })
 })

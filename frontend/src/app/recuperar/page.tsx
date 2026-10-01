@@ -2,55 +2,55 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { Campo } from '@/components/campo'
-import { MarcoAcceso } from '@/components/marco-acceso'
+import { Field } from '@/components/field'
+import { AuthFrame } from '@/components/auth-frame'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { mensajeRecuperacion } from '@/lib/errores-acceso'
-import { supabaseNavegador } from '@/lib/supabase/navegador'
+import { recoveryMessage } from '@/lib/auth-errors'
+import { supabaseBrowser } from '@/lib/supabase/browser'
 
-export default function PaginaRecuperar() {
-  const [enviado, setEnviado] = useState(false)
-  const [enviando, setEnviando] = useState(false)
+export default function ForgotPasswordPage() {
+  const [sent, setSent] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
-  async function enviar(e: React.FormEvent<HTMLFormElement>) {
+  async function send(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    const correo = String(new FormData(e.currentTarget).get('correo'))
-    setEnviando(true)
+    const email = String(new FormData(e.currentTarget).get('email'))
+    setSubmitting(true)
     setError('')
     try {
-      const { error } = await supabaseNavegador()
-        .auth.resetPasswordForEmail(correo, { redirectTo: `${window.location.origin}/restablecer` })
+      const { error } = await supabaseBrowser()
+        .auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/restablecer` })
         .catch((e: unknown) => ({ error: e }))
-      // Supabase responde igual exista o no la cuenta, así que el aviso de éxito no revela nada;
-      // solo se muestra si el pedido llegó y fue aceptado.
-      if (error) setError(mensajeRecuperacion(error))
-      else setEnviado(true)
+      // Supabase answers the same whether or not the account exists, so the success notice reveals nothing;
+      // it is only shown if the request arrived and was accepted.
+      if (error) setError(recoveryMessage(error))
+      else setSent(true)
     } finally {
-      setEnviando(false)
+      setSubmitting(false)
     }
   }
 
   return (
-    <MarcoAcceso titulo="Recuperar contraseña">
-      {enviado ? (
+    <AuthFrame title="Recuperar contraseña">
+      {sent ? (
         <p role="status" className="rounded-lg border bg-muted/40 p-3 text-sm">
           Si el correo pertenece a una cuenta, te llegará un enlace para crear una contraseña nueva. Ábrelo en este mismo navegador.
         </p>
       ) : (
-        <form onSubmit={enviar} className="space-y-4">
-          <Campo id="correo" etiqueta="Correo" ayuda="Te enviaremos un enlace para crear una contraseña nueva." error={error}>
-            <Input id="correo" name="correo" type="email" autoComplete="email" required className="h-11" />
-          </Campo>
-          <Button type="submit" disabled={enviando} className="h-11 w-full">
-            {enviando ? 'Enviando…' : 'Enviar enlace'}
+        <form onSubmit={send} className="space-y-4">
+          <Field id="email" label="Correo" help="Te enviaremos un enlace para crear una contraseña nueva." error={error}>
+            <Input id="email" name="email" type="email" autoComplete="email" required className="h-11" />
+          </Field>
+          <Button type="submit" disabled={submitting} className="h-11 w-full">
+            {submitting ? 'Enviando…' : 'Enviar enlace'}
           </Button>
         </form>
       )}
       <Link href="/login" className="inline-block py-2 text-sm font-medium text-primary">
         Volver a iniciar sesión
       </Link>
-    </MarcoAcceso>
+    </AuthFrame>
   )
 }

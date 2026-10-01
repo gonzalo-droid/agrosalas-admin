@@ -1,50 +1,50 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import { variablesRequeridas } from '@/lib/entorno'
-import { aplicarCabeceras, pasarSesion, type Cabeceras } from '@/lib/respuesta-sesion'
+import { requireEnv } from '@/lib/env'
+import { applyHeaders, carrySession, type HeaderMap } from '@/lib/session-response'
 
-const PUBLICAS = ['/login', '/recuperar', '/restablecer']
+const PUBLIC_PATHS = ['/login', '/recuperar', '/restablecer']
 
-// Refresca la sesión de Supabase y manda al login a quien no la tiene.
-// Los permisos reales los aplica la API; esto solo decide qué pantalla se muestra.
+// Refreshes the Supabase session and sends to the login whoever does not have one.
+// The real permissions are enforced by the API; this only decides which screen is shown.
 export async function proxy(request: NextRequest) {
-  const variables = variablesRequeridas({
+  const env = requireEnv({
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
   })
-  let respuesta = NextResponse.next({ request })
-  // @supabase/ssr manda las cabeceras de no-caché solo con la primera escritura de cookies:
-  // se guardan para ponerlas en cualquier respuesta que lleve la sesión.
-  let sinCache: Cabeceras = {}
+  let response = NextResponse.next({ request })
+  // @supabase/ssr sends the no-cache headers only with the first cookie write:
+  // they are kept to put them on any response that carries the session.
+  let noCacheHeaders: HeaderMap = {}
 
-  const supabase = createServerClient(variables.NEXT_PUBLIC_SUPABASE_URL, variables.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, {
+  const supabase = createServerClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, {
     cookies: {
       getAll: () => request.cookies.getAll(),
-      setAll: (cookies, cabeceras) => {
+      setAll: (cookies, headers) => {
         cookies.forEach(({ name, value }) => request.cookies.set(name, value))
-        respuesta = NextResponse.next({ request })
-        cookies.forEach(({ name, value, options }) => respuesta.cookies.set(name, value, options))
-        sinCache = { ...sinCache, ...cabeceras }
-        aplicarCabeceras(respuesta, sinCache)
+        response = NextResponse.next({ request })
+        cookies.forEach(({ name, value, options }) => response.cookies.set(name, value, options))
+        noCacheHeaders = { ...noCacheHeaders, ...headers }
+        applyHeaders(response, noCacheHeaders)
       },
     },
   })
 
   const { data } = await supabase.auth.getClaims()
-  const conSesion = Boolean(data?.claims)
-  const ruta = request.nextUrl.pathname
-  const esPublica = PUBLICAS.some((p) => ruta === p || ruta.startsWith(`${p}/`))
-  // Una redirección también lleva las cookies que Supabase acaba de renovar o borrar.
-  const redirigir = (pathname: string) => {
-    const destino = request.nextUrl.clone()
-    destino.pathname = pathname
-    destino.search = ''
-    return pasarSesion(respuesta, NextResponse.redirect(destino), sinCache)
+  const hasSession = Boolean(data?.claims)
+  const path = request.nextUrl.pathname
+  const isPublic = PUBLIC_PATHS.some((p) => path === p || path.startsWith(`${p}/`))
+  // A redirect also carries the cookies that Supabase has just renewed or deleted.
+  const redirect = (pathname: string) => {
+    const target = request.nextUrl.clone()
+    target.pathname = pathname
+    target.search = ''
+    return carrySession(response, NextResponse.redirect(target), noCacheHeaders)
   }
 
-  if (!conSesion && !esPublica) return redirigir('/login')
-  if (conSesion && ruta === '/login') return redirigir('/')
-  return respuesta
+  if (!hasSession && !isPublic) return redirect('/login')
+  if (hasSession && path === '/login') return redirect('/')
+  return response
 }
 
 export const config = {

@@ -4,55 +4,55 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { Campo } from '@/components/campo'
-import { MarcoAcceso } from '@/components/marco-acceso'
+import { Field } from '@/components/field'
+import { AuthFrame } from '@/components/auth-frame'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { mensajeRestablecer } from '@/lib/errores-acceso'
-import { comprobarEnlaceDeRecuperacion, type ResultadoEnlace } from '@/lib/recuperacion'
-import { supabaseNavegador } from '@/lib/supabase/navegador'
-import { hayErrores, validarClaveNueva, type ErroresClaveNueva } from '@/lib/validar-clave'
+import { resetMessage } from '@/lib/auth-errors'
+import { checkRecoveryLink, type LinkResult } from '@/lib/recovery'
+import { supabaseBrowser } from '@/lib/supabase/browser'
+import { hasErrors, validateNewPassword, type NewPasswordErrors } from '@/lib/validate-password'
 
-// Se llega aquí desde el enlace del correo. El formulario solo aparece si el enlace es una recuperación válida:
-// una sesión normal abierta en este navegador no sirve para cambiar la contraseña sin conocer la actual.
-export default function PaginaRestablecer() {
-  const [enlace, setEnlace] = useState<ResultadoEnlace | 'comprobando'>('comprobando')
-  const comprobacion = useRef<Promise<ResultadoEnlace> | null>(null)
+// This page is reached from the link in the email. The form only appears if the link is a valid recovery one:
+// a normal session open in this browser is not enough to change the password without knowing the current one.
+export default function ResetPasswordPage() {
+  const [link, setLink] = useState<LinkResult | 'checking'>('checking')
+  const check = useRef<Promise<LinkResult> | null>(null)
 
   useEffect(() => {
-    let vigente = true
-    // La URL se lee antes de crear el cliente, que al crearse canjea el ?code= y lo quita de la barra.
-    const parametros = new URLSearchParams(window.location.search)
-    // En desarrollo React monta dos veces: el enlace (de un solo uso) se comprueba una sola vez.
-    comprobacion.current ??= comprobarEnlaceDeRecuperacion(supabaseNavegador().auth, parametros)
-    void comprobacion.current.then((resultado) => {
-      if (vigente) setEnlace(resultado)
+    let current = true
+    // The URL is read before creating the client, which on creation exchanges the ?code= and removes it from the address bar.
+    const params = new URLSearchParams(window.location.search)
+    // In development React mounts twice: the (single-use) link is checked only once.
+    check.current ??= checkRecoveryLink(supabaseBrowser().auth, params)
+    void check.current.then((result) => {
+      if (current) setLink(result)
     })
     return () => {
-      vigente = false
+      current = false
     }
   }, [])
 
   return (
-    <MarcoAcceso titulo="Nueva contraseña">
-      {enlace === 'comprobando' ? (
+    <AuthFrame title="Nueva contraseña">
+      {link === 'checking' ? (
         <p role="status" className="text-sm text-muted-foreground">
           Comprobando el enlace…
         </p>
-      ) : enlace === 'recovery' ? (
-        <FormularioClaveNueva />
+      ) : link === 'recovery' ? (
+        <NewPasswordForm />
       ) : (
-        <EnlaceNoValido sinConexion={enlace === 'network_error'} />
+        <InvalidLink noConnection={link === 'network_error'} />
       )}
-    </MarcoAcceso>
+    </AuthFrame>
   )
 }
 
-function EnlaceNoValido({ sinConexion }: { sinConexion: boolean }) {
+function InvalidLink({ noConnection }: { noConnection: boolean }) {
   return (
     <>
       <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-        {sinConexion
+        {noConnection
           ? 'No se pudo conectar para comprobar el enlace. Revisa tu conexión y vuelve a abrir el enlace del correo.'
           : 'Este enlace no es válido: ya venció, ya se usó o se abrió en un navegador distinto del que pidió el cambio.'}
       </p>
@@ -63,26 +63,26 @@ function EnlaceNoValido({ sinConexion }: { sinConexion: boolean }) {
   )
 }
 
-function FormularioClaveNueva() {
+function NewPasswordForm() {
   const router = useRouter()
-  const [errores, setErrores] = useState<ErroresClaveNueva & { general?: string }>({})
-  // Tras guardar, el botón queda deshabilitado hasta que la navegación termine.
-  const [enviando, setEnviando] = useState(false)
+  const [errors, setErrors] = useState<NewPasswordErrors & { general?: string }>({})
+  // After saving, the button stays disabled until the navigation finishes.
+  const [submitting, setSubmitting] = useState(false)
 
-  async function guardar(e: React.FormEvent<HTMLFormElement>) {
+  async function save(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    const datos = new FormData(e.currentTarget)
-    const clave = String(datos.get('clave'))
-    const validacion = validarClaveNueva(clave, String(datos.get('repetir')))
-    setErrores(validacion)
-    if (hayErrores(validacion)) return
-    setEnviando(true)
-    const { error } = await supabaseNavegador()
-      .auth.updateUser({ password: clave })
+    const formData = new FormData(e.currentTarget)
+    const password = String(formData.get('password'))
+    const validation = validateNewPassword(password, String(formData.get('repeat')))
+    setErrors(validation)
+    if (hasErrors(validation)) return
+    setSubmitting(true)
+    const { error } = await supabaseBrowser()
+      .auth.updateUser({ password })
       .catch((e: unknown) => ({ error: e }))
     if (error) {
-      setEnviando(false)
-      setErrores({ general: mensajeRestablecer(error) })
+      setSubmitting(false)
+      setErrors({ general: resetMessage(error) })
       return
     }
     toast.success('Contraseña actualizada')
@@ -90,20 +90,20 @@ function FormularioClaveNueva() {
   }
 
   return (
-    <form onSubmit={guardar} className="space-y-4">
-      <Campo id="clave" etiqueta="Nueva contraseña" ayuda="Al menos 8 caracteres." error={errores.clave}>
-        <Input id="clave" name="clave" type="password" autoComplete="new-password" required className="h-11" />
-      </Campo>
-      <Campo id="repetir" etiqueta="Repetir contraseña" error={errores.repetir}>
-        <Input id="repetir" name="repetir" type="password" autoComplete="new-password" required className="h-11" />
-      </Campo>
-      {errores.general && (
+    <form onSubmit={save} className="space-y-4">
+      <Field id="password" label="Nueva contraseña" help="Al menos 8 caracteres." error={errors.password}>
+        <Input id="password" name="password" type="password" autoComplete="new-password" required className="h-11" />
+      </Field>
+      <Field id="repeat" label="Repetir contraseña" error={errors.repeat}>
+        <Input id="repeat" name="repeat" type="password" autoComplete="new-password" required className="h-11" />
+      </Field>
+      {errors.general && (
         <p role="alert" className="text-sm text-destructive">
-          {errores.general}
+          {errors.general}
         </p>
       )}
-      <Button type="submit" disabled={enviando} className="h-11 w-full">
-        {enviando ? 'Guardando…' : 'Guardar contraseña'}
+      <Button type="submit" disabled={submitting} className="h-11 w-full">
+        {submitting ? 'Guardando…' : 'Guardar contraseña'}
       </Button>
     </form>
   )

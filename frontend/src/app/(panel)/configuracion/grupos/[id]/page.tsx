@@ -5,95 +5,95 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { ErrorConReintento } from '@/components/error-con-reintento'
+import { ErrorWithRetry } from '@/components/error-with-retry'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { api, leer, mensajeDeError } from '@/lib/api'
-import { useValorRetrasado } from '@/lib/valor-retrasado'
+import { api, errorMessage, unwrap } from '@/lib/api'
+import { useDebouncedValue } from '@/lib/debounced-value'
 
-export default function PaginaMiembrosGrupo() {
+export default function GroupMembersPage() {
   const { id } = useParams<{ id: string }>()
-  const cliente = useQueryClient()
-  const [texto, setTexto] = useState('')
+  const queryClient = useQueryClient()
+  const [text, setText] = useState('')
 
-  // El aviso de "al menos 2 letras" usa lo escrito ahora; la consulta, el texto retrasado.
-  const puedeBuscar = texto.trim().length >= 2
-  const textoRetrasado = useValorRetrasado(texto)
-  const puedeBuscarRetrasado = textoRetrasado.trim().length >= 2
+  // The "at least 2 letters" notice uses what is typed now; the query, the debounced text.
+  const canSearch = text.trim().length >= 2
+  const debouncedText = useDebouncedValue(text)
+  const canSearchDebounced = debouncedText.trim().length >= 2
 
-  const grupo = useQuery({ queryKey: ['grupos', id], queryFn: () => leer(api.v1.groups[':id'].$get({ param: { id } })) })
-  const busqueda = useQuery({
-    queryKey: ['trabajadores', 'buscar', textoRetrasado],
-    queryFn: () => leer(api.v1.workers.$get({ query: { search: textoRetrasado, status: 'active', pageSize: '10' } })),
-    enabled: puedeBuscarRetrasado,
+  const group = useQuery({ queryKey: ['groups', id], queryFn: () => unwrap(api.v1.groups[':id'].$get({ param: { id } })) })
+  const search = useQuery({
+    queryKey: ['workers', 'search', debouncedText],
+    queryFn: () => unwrap(api.v1.workers.$get({ query: { search: debouncedText, status: 'active', pageSize: '10' } })),
+    enabled: canSearchDebounced,
     placeholderData: keepPreviousData,
   })
 
-  const refrescar = () =>
+  const refresh = () =>
     Promise.all([
-      cliente.invalidateQueries({ queryKey: ['grupos'] }),
-      cliente.invalidateQueries({ queryKey: ['trabajadores'] }),
+      queryClient.invalidateQueries({ queryKey: ['groups'] }),
+      queryClient.invalidateQueries({ queryKey: ['workers'] }),
     ])
-  const agregar = useMutation({
-    mutationFn: (trabajadorId: string) =>
-      leer(api.v1.groups[':id'].members.$post({ param: { id }, json: { workerIds: [trabajadorId] } })),
-    onSuccess: refrescar,
-    onError: (e) => toast.error(mensajeDeError(e)),
+  const add = useMutation({
+    mutationFn: (workerId: string) =>
+      unwrap(api.v1.groups[':id'].members.$post({ param: { id }, json: { workerIds: [workerId] } })),
+    onSuccess: refresh,
+    onError: (e) => toast.error(errorMessage(e)),
   })
-  const quitar = useMutation({
-    mutationFn: (trabajadorId: string) =>
-      leer(api.v1.groups[':id'].members[':workerId'].$delete({ param: { id, workerId: trabajadorId } })),
-    onSuccess: refrescar,
-    onError: (e) => toast.error(mensajeDeError(e)),
+  const remove = useMutation({
+    mutationFn: (workerId: string) =>
+      unwrap(api.v1.groups[':id'].members[':workerId'].$delete({ param: { id, workerId } })),
+    onSuccess: refresh,
+    onError: (e) => toast.error(errorMessage(e)),
   })
 
-  const yaEsta = (trabajadorId: string) => grupo.data?.members.some((m) => m.id === trabajadorId)
+  const isMember = (workerId: string) => group.data?.members.some((m) => m.id === workerId)
 
   return (
     <section className="space-y-4">
       <Link href="/configuracion/grupos" className="text-sm font-medium text-primary">
         ← Grupos
       </Link>
-      {/* Si un refresco falla pero ya hay datos, se siguen mostrando los datos. */}
-      {grupo.error && !grupo.data ? (
-        <ErrorConReintento error={grupo.error} alReintentar={grupo.refetch} />
-      ) : !grupo.data ? (
+      {/* If a refresh fails but there is already data, the data keeps being shown. */}
+      {group.error && !group.data ? (
+        <ErrorWithRetry error={group.error} onRetry={group.refetch} />
+      ) : !group.data ? (
         <h2 className="text-lg font-semibold">Cargando…</h2>
       ) : (
         <>
-          <h2 className="text-lg font-semibold">{grupo.data.name}</h2>
+          <h2 className="text-lg font-semibold">{group.data.name}</h2>
 
           <div className="grid items-start gap-4 lg:grid-cols-2">
             <div className="space-y-3 rounded-xl border bg-background p-4">
-              <label htmlFor="buscar-miembro" className="text-sm font-medium">
+              <label htmlFor="search-member" className="text-sm font-medium">
                 Agregar trabajadores
               </label>
               <Input
-                id="buscar-miembro"
+                id="search-member"
                 className="h-10"
                 placeholder="Buscar por nombre o DNI"
-                value={texto}
-                onChange={(e) => setTexto(e.target.value)}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
               />
-              {!puedeBuscar ? (
+              {!canSearch ? (
                 <p className="text-sm text-muted-foreground">Escribe al menos 2 letras para buscar.</p>
-              ) : busqueda.isError ? (
+              ) : search.isError ? (
                 <p role="alert" className="text-sm text-destructive">
-                  {mensajeDeError(busqueda.error)}
+                  {errorMessage(search.error)}
                 </p>
-              ) : !busqueda.data ? (
+              ) : !search.data ? (
                 <p className="text-sm text-muted-foreground">Buscando…</p>
-              ) : busqueda.data.items.length === 0 ? (
+              ) : search.data.items.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Ningún trabajador activo coincide.</p>
               ) : (
                 <ul className="divide-y">
-                  {busqueda.data.items.map((t) => (
-                    <li key={t.id} className="flex items-center justify-between gap-3 py-1.5 text-sm">
+                  {search.data.items.map((w) => (
+                    <li key={w.id} className="flex items-center justify-between gap-3 py-1.5 text-sm">
                       <span>
-                        {t.lastName}, {t.firstName}
+                        {w.lastName}, {w.firstName}
                       </span>
-                      <Button variant="outline" size="lg" disabled={yaEsta(t.id) || agregar.isPending} onClick={() => agregar.mutate(t.id)}>
-                        {yaEsta(t.id) ? 'Ya está' : 'Agregar'}
+                      <Button variant="outline" size="lg" disabled={isMember(w.id) || add.isPending} onClick={() => add.mutate(w.id)}>
+                        {isMember(w.id) ? 'Ya está' : 'Agregar'}
                       </Button>
                     </li>
                   ))}
@@ -102,9 +102,9 @@ export default function PaginaMiembrosGrupo() {
             </div>
 
             <div className="space-y-2 rounded-xl border bg-background p-4">
-              <h3 className="text-sm font-medium">Miembros ({grupo.data.members.length})</h3>
+              <h3 className="text-sm font-medium">Miembros ({group.data.members.length})</h3>
               <ul className="flex flex-wrap gap-2">
-                {grupo.data.members.map((m) => (
+                {group.data.members.map((m) => (
                   <li key={m.id} className="flex h-9 items-center gap-1 rounded-full border pr-1 pl-3 text-sm">
                     {m.lastName}, {m.firstName}
                     <Button
@@ -112,8 +112,8 @@ export default function PaginaMiembrosGrupo() {
                       size="icon-sm"
                       className="rounded-full"
                       aria-label={`Quitar a ${m.firstName} ${m.lastName}`}
-                      disabled={quitar.isPending}
-                      onClick={() => quitar.mutate(m.id)}
+                      disabled={remove.isPending}
+                      onClick={() => remove.mutate(m.id)}
                     >
                       ×
                     </Button>

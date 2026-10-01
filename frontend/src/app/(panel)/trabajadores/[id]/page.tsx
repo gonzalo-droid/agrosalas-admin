@@ -2,36 +2,36 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from 'next/navigation'
-import { FormularioTrabajador } from '@/components/trabajadores/formulario'
-import { GruposTrabajador } from '@/components/trabajadores/grupos-trabajador'
-import { MetodosPago } from '@/components/trabajadores/metodos-pago'
-import { api, leer, mensajeDeError } from '@/lib/api'
-import { vistaTrabajador } from '@/lib/trabajador-vista'
-import { useYo } from '@/lib/yo'
+import { WorkerForm } from '@/components/workers/worker-form'
+import { WorkerGroups } from '@/components/workers/worker-groups'
+import { PaymentMethods } from '@/components/workers/payment-methods'
+import { api, errorMessage, unwrap } from '@/lib/api'
+import { workerView } from '@/lib/worker-view'
+import { useMe } from '@/lib/me'
 
-export default function PaginaTrabajador() {
+export default function WorkerPage() {
   const { id } = useParams<{ id: string }>()
-  const { data: yo } = useYo()
-  const { data: ficha, error } = useQuery({
-    queryKey: ['trabajadores', id],
-    queryFn: () => leer(api.v1.workers[':id'].$get({ param: { id } })),
+  const { data: me } = useMe()
+  const { data: worker, error } = useQuery({
+    queryKey: ['workers', id],
+    queryFn: () => unwrap(api.v1.workers[':id'].$get({ param: { id } })),
   })
 
-  if (error && !ficha) return <p className="text-sm text-destructive">{mensajeDeError(error)}</p>
-  if (!ficha || !yo) return <p className="text-sm text-muted-foreground">Cargando…</p>
+  if (error && !worker) return <p className="text-sm text-destructive">{errorMessage(error)}</p>
+  if (!worker || !me) return <p className="text-sm text-muted-foreground">Cargando…</p>
 
-  const vista = vistaTrabajador(yo.role)
+  const view = workerView(me.role)
 
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">
-        {ficha.firstName} {ficha.lastName}
+        {worker.firstName} {worker.lastName}
       </h1>
-      {/* key: al refrescar la ficha, el formulario toma los valores nuevos */}
-      <FormularioTrabajador key={ficha.updatedAt} ficha={ficha} puedeEditar={vista.editarFicha} />
+      {/* key: when the record is refreshed, the form takes the new values */}
+      <WorkerForm key={worker.updatedAt} worker={worker} canEdit={view.canEditRecord} />
       <div className="grid items-start gap-4 lg:grid-cols-2">
-        {vista.metodosPago !== 'ocultar' && <MetodosPago ficha={ficha} soloLectura={vista.metodosPago === 'ver'} />}
-        <GruposTrabajador ficha={ficha} soloLectura={vista.grupos === 'ver'} />
+        {view.paymentMethods !== 'hidden' && <PaymentMethods worker={worker} readOnly={view.paymentMethods === 'view'} />}
+        <WorkerGroups worker={worker} readOnly={view.groups === 'view'} />
       </div>
     </div>
   )

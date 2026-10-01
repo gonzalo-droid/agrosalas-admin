@@ -1,29 +1,29 @@
 'use client'
 
-import { Catalogo } from '@/components/catalogo'
-import { api, leer } from '@/lib/api'
-import { rangoFechas } from '@/lib/formato'
+import { Catalog } from '@/components/catalog'
+import { api, unwrap } from '@/lib/api'
+import { dateRange } from '@/lib/format'
 
-export default function PaginaCampanas() {
+export default function CampaignsPage() {
   return (
-    <Catalogo
-      titulo="Campañas"
-      descripcion="Cada planilla puede llevar una campaña; los reportes suman el costo por campaña."
-      textoNuevo="Nueva campaña"
-      claveConsulta="campanas"
-      puedeEditar
-      columnas={[
-        { titulo: 'Campaña', celda: (f) => String(f.name) },
-        { titulo: 'Fechas', celda: (f) => rangoFechas(f.startDate as string | null, f.endDate as string | null) || 'Sin fechas' },
+    <Catalog
+      title="Campañas"
+      description="Cada planilla puede llevar una campaña; los reportes suman el costo por campaña."
+      newLabel="Nueva campaña"
+      queryKey="campaigns"
+      canEdit
+      columns={[
+        { title: 'Campaña', cell: (row) => String(row.name) },
+        { title: 'Fechas', cell: (row) => dateRange(row.startDate as string | null, row.endDate as string | null) || 'Sin fechas' },
       ]}
-      campos={[
-        { nombre: 'name', etiqueta: 'Nombre', tipo: 'texto', obligatorio: true },
-        { nombre: 'startDate', etiqueta: 'Fecha de inicio', tipo: 'fecha' },
-        { nombre: 'endDate', etiqueta: 'Fecha de fin', tipo: 'fecha' },
+      fields={[
+        { name: 'name', label: 'Nombre', type: 'text', required: true },
+        { name: 'startDate', label: 'Fecha de inicio', type: 'date' },
+        { name: 'endDate', label: 'Fecha de fin', type: 'date' },
       ]}
-      listar={() => leer(api.v1.campaigns.$get())}
-      crear={(json) => leer(api.v1.campaigns.$post({ json: json as never }))}
-      editar={(id, json) => leer(api.v1.campaigns[':id'].$patch({ param: { id }, json: json as never }))}
+      list={() => unwrap(api.v1.campaigns.$get())}
+      create={(json) => unwrap(api.v1.campaigns.$post({ json: json as never }))}
+      update={(id, json) => unwrap(api.v1.campaigns[':id'].$patch({ param: { id }, json: json as never }))}
     />
   )
 }

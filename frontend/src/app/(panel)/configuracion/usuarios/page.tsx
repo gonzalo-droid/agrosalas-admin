@@ -1,49 +1,49 @@
 'use client'
 
-import { Catalogo } from '@/components/catalogo'
-import { api, leer } from '@/lib/api'
-import { useAreas } from '@/lib/catalogos'
-import { ETIQUETA_ROL } from '@/lib/yo'
+import { Catalog } from '@/components/catalog'
+import { api, unwrap } from '@/lib/api'
+import { useAreas } from '@/lib/catalogs'
+import { ROLE_LABEL } from '@/lib/me'
 
-// De menos a más privilegiado: el primero es el que queda preseleccionado al crear un usuario.
-const ROLES = (['coordinator', 'accounting', 'management', 'admin'] as const).map((valor) => ({
-  valor,
-  etiqueta: ETIQUETA_ROL[valor],
+// From least to most privileged: the first one is preselected when creating a user.
+const ROLES = (['coordinator', 'accounting', 'management', 'admin'] as const).map((value) => ({
+  value,
+  label: ROLE_LABEL[value],
 }))
 
-export default function PaginaUsuarios() {
+export default function UsersPage() {
   const { data: areas } = useAreas()
-  const nombreArea = (id: string) => areas?.items.find((a) => a.id === id)?.name ?? '…'
+  const areaName = (id: string) => areas?.items.find((a) => a.id === id)?.name ?? '…'
 
   return (
-    <Catalogo
-      titulo="Usuarios y roles"
-      descripcion="Las cuentas solo se crean aquí. El coordinador ve únicamente las áreas que se le asignen."
-      textoNuevo="Nuevo usuario"
-      claveConsulta="usuarios"
-      puedeEditar
-      columnas={[
-        { titulo: 'Nombre', celda: (f) => String(f.name) },
-        { titulo: 'Correo', celda: (f) => String(f.email) },
-        { titulo: 'Rol', celda: (f) => ETIQUETA_ROL[f.role as keyof typeof ETIQUETA_ROL] },
-        { titulo: 'Áreas', celda: (f) => (f.areaIds as string[]).map(nombreArea).join(', ') || (f.role === 'coordinator' ? 'Ninguna' : 'Todas') },
+    <Catalog
+      title="Usuarios y roles"
+      description="Las cuentas solo se crean aquí. El coordinador ve únicamente las áreas que se le asignen."
+      newLabel="Nuevo usuario"
+      queryKey="users"
+      canEdit
+      columns={[
+        { title: 'Nombre', cell: (row) => String(row.name) },
+        { title: 'Correo', cell: (row) => String(row.email) },
+        { title: 'Rol', cell: (row) => ROLE_LABEL[row.role as keyof typeof ROLE_LABEL] },
+        { title: 'Áreas', cell: (row) => (row.areaIds as string[]).map(areaName).join(', ') || (row.role === 'coordinator' ? 'Ninguna' : 'Todas') },
       ]}
-      campos={[
-        { nombre: 'email', etiqueta: 'Correo', tipo: 'correo', obligatorio: true, soloAlCrear: true },
-        { nombre: 'password', etiqueta: 'Contraseña inicial', tipo: 'clave', obligatorio: true, soloAlCrear: true, ayuda: 'Mínimo 8 caracteres. La persona puede cambiarla en su perfil.' },
-        { nombre: 'name', etiqueta: 'Nombre', tipo: 'texto', obligatorio: true },
-        { nombre: 'role', etiqueta: 'Rol', tipo: 'opcion', opciones: ROLES },
+      fields={[
+        { name: 'email', label: 'Correo', type: 'email', required: true, createOnly: true },
+        { name: 'password', label: 'Contraseña inicial', type: 'password', required: true, createOnly: true, help: 'Mínimo 8 caracteres. La persona puede cambiarla en su perfil.' },
+        { name: 'name', label: 'Nombre', type: 'text', required: true },
+        { name: 'role', label: 'Rol', type: 'select', options: ROLES },
         {
-          nombre: 'areaIds',
-          etiqueta: 'Áreas (solo para coordinador)',
-          tipo: 'opciones',
-          // Las áreas inactivas solo aparecen (marcadas) en el usuario que ya las tiene, para poder quitárselas.
-          opciones: (areas?.items ?? []).map((a) => ({ valor: a.id, etiqueta: a.name, inactiva: !a.active })),
+          name: 'areaIds',
+          label: 'Áreas (solo para coordinador)',
+          type: 'multiselect',
+          // Inactive areas only appear (marked) on the user that already has them, so they can be removed.
+          options: (areas?.items ?? []).map((a) => ({ value: a.id, label: a.name, inactive: !a.active })),
         },
       ]}
-      listar={() => leer(api.v1.users.$get())}
-      crear={(json) => leer(api.v1.users.$post({ json: json as never }))}
-      editar={(id, json) => leer(api.v1.users[':id'].$patch({ param: { id }, json: json as never }))}
+      list={() => unwrap(api.v1.users.$get())}
+      create={(json) => unwrap(api.v1.users.$post({ json: json as never }))}
+      update={(id, json) => unwrap(api.v1.users[':id'].$patch({ param: { id }, json: json as never }))}
     />
   )
 }
