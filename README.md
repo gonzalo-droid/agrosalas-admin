@@ -19,6 +19,8 @@ Node 22 o superior y un proyecto Supabase (Postgres y Auth).
 3. `npm run db:migrar -w @agrosalas/backend`
 4. `npm run crear-admin -w @agrosalas/backend -- <correo> "<nombre>" "<contraseña>"`
 5. `npm run dev:api` (API en http://localhost:8787)
+6. Copia `frontend/.env.example` a `frontend/.env.local` y complétalo con la URL y la clave pública del proyecto Supabase.
+7. `npm run dev:web` (panel en http://localhost:3000)
 
 ## Comandos
 
@@ -28,6 +30,8 @@ Node 22 o superior y un proyecto Supabase (Postgres y Auth).
 | `npm run typecheck` | Tipos de todos los workspaces |
 | `npm run db:generar -w @agrosalas/backend -- --name <nombre>` | Genera una migración a partir de `backend/src/db/schema.ts` |
 | `npm run db:migrar -w @agrosalas/backend` | Aplica las migraciones a la base de `backend/.env` |
+| `npm run lint` | ESLint del frontend |
+| `npm run build` | Build de producción del frontend |
 
 ## Reglas
 
