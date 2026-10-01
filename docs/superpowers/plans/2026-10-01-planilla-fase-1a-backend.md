@@ -21,7 +21,7 @@
 - Toda lista paginada recibe `pagina` y `tamano` (máximo 100) y devuelve `{ datos, total, pagina, tamano }`.
 - Rutas bajo `/v1`; las rutas se encadenan (`new Hono().get(...).post(...)`) para que el cliente tipado del frontend infiera los tipos.
 - El backend solo usa imports relativos (sin alias), porque el frontend importa sus tipos.
-- Identificadores del dominio en español (`trabajadores`, `crearApp`, `tarifaHora`).
+- Identificadores del dominio en español (`trabajadores`, `crearApp`, `tarifaHora`). **Regla reemplazada el 2026-10-01:** todo el código va en inglés (spec, sección 17). El cambio de nombres de lo ya construido es el plan `2026-10-01-planilla-fase-1c-english-naming.md`.
 - Las pruebas no necesitan Docker, red ni variables de entorno.
 - El DNI es obligatorio al crear un trabajador desde la API; en la base puede ser nulo (migrados del Excel).
 - Rama de trabajo `feat/fase-1-base`; commits con Conventional Commits y scope (`feat(api): …`). Nunca se versiona `.env` ni el Excel de planilla.
@@ -36,6 +36,8 @@ npm 11 puede mostrar avisos `npm warn install-scripts` (esbuild, unrs-resolver).
 ## Estado de ejecución (2026-10-01)
 
 Ejecutado en la rama `feat/fase-1-base` (tareas 1 a 11 y 13). La tarea 12 queda pendiente: la hace Gonzalo. La suite tiene 148 pruebas, no las 61 que anuncian los pasos de abajo.
+
+**La tarea 12 se hace después del plan 1C** (`2026-10-01-planilla-fase-1c-english-naming.md`). Ese plan pasa a inglés las tablas, columnas y variables de entorno, y vuelve a generar la migración inicial; crear el proyecto Supabase antes obligaría a vaciarlo. Al hacerla, usa los nombres nuevos: `PANEL_ORIGIN` y `PORT` en `backend/.env`, y los comandos `db:migrate` y `create-admin`.
 
 **El código del repo manda sobre los bloques de código de este plan.** Las revisiones por tarea y la revisión final encontraron defectos en el código del propio plan, y se corrigieron. Diferencias respecto del texto de abajo:
 
