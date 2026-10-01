@@ -19,6 +19,18 @@ Node 22 o superior y un proyecto Supabase (Postgres y Auth).
 3. `npm run db:migrar -w @agrosalas/backend`
 4. `npm run crear-admin -w @agrosalas/backend -- <correo> "<nombre>" "<contraseña>"`
 5. `npm run dev:api` (API en http://localhost:8787)
+6. Copia `frontend/.env.example` a `frontend/.env.local` y complétalo con la URL y la clave pública del proyecto Supabase y con `NEXT_PUBLIC_API_URL` (la URL de la API del paso 5).
+7. `npm run dev:web` (panel en http://localhost:3000)
+
+## Despliegue y Supabase
+
+Revisar en cada entorno (local, pruebas, producción):
+
+- **Authentication → URL Configuration:** la *Site URL* es el origen del panel y las *Redirect URLs* incluyen `<origen del panel>/restablecer`.
+- **Registro público desactivado** (Authentication → Sign In / Providers → *Allow new users to sign up* apagado): las cuentas solo las crea el administrador.
+- **`ORIGEN_PANEL`** del backend es exactamente el origen del panel (esquema, dominio y puerto). En local el panel debe correr en ese puerto: si el 3000 está ocupado, Next elige otro y todas las llamadas a la API fallan por CORS.
+- **Correo de recuperación:** se recomienda que la plantilla *Reset password* enlace a `{{ .SiteURL }}/restablecer?token_hash={{ .TokenHash }}&type=recovery`. Así el enlace funciona en cualquier dispositivo; con el enlace por defecto (`?code=`) solo funciona en el mismo navegador donde se pidió.
+- **SMTP propio en producción:** el envío de correos de Supabase por defecto tiene un límite muy bajo y no sirve para producción.
 
 ## Comandos
 
@@ -28,6 +40,8 @@ Node 22 o superior y un proyecto Supabase (Postgres y Auth).
 | `npm run typecheck` | Tipos de todos los workspaces |
 | `npm run db:generar -w @agrosalas/backend -- --name <nombre>` | Genera una migración a partir de `backend/src/db/schema.ts` |
 | `npm run db:migrar -w @agrosalas/backend` | Aplica las migraciones a la base de `backend/.env` |
+| `npm run lint` | ESLint del frontend |
+| `npm run build` | Build de producción del frontend |
 
 ## Reglas
 
