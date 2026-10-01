@@ -2,6 +2,9 @@ import { zValidator } from '@hono/zod-validator'
 import type { ValidationTargets } from 'hono'
 import { z, type ZodType } from 'zod'
 
+// Mensajes de validación de Zod en español; toda ruta importa este módulo antes de validar.
+z.config(z.locales.es())
+
 // Igual que zValidator, pero responde con el formato de error de la API.
 export const validar = <D extends keyof ValidationTargets, E extends ZodType>(destino: D, esquema: E) =>
   zValidator(destino, esquema, (resultado, c) => {

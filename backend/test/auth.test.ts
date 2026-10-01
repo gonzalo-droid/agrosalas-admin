@@ -57,6 +57,7 @@ describe('/v1/me', () => {
     expect(r.status).toBe(400)
     expect(r.json.error.codigo).toBe('validacion')
     expect(r.json.error.campo).toBe('nombre')
+    expect(r.json.error.mensaje).toBe('Demasiado pequeño: se esperaba que texto tuviera >=2 caracteres')
   })
 
   it('responde con el formato de error de la API cuando el cuerpo no es JSON', async () => {
