@@ -9,6 +9,7 @@ const ERRORES_DE_TOKEN = [
   errors.JWSSignatureVerificationFailed,
   errors.JWKSNoMatchingKey,
   errors.JOSEAlgNotAllowed,
+  errors.JOSENotSupported,
 ]
 
 // Supabase firma los tokens de sesión; se validan contra sus claves públicas (JWKS).

@@ -66,4 +66,16 @@ describe('crearVerificador', () => {
     }, EMISOR)
     await expect(verificar(await firmar(EMISOR, 'authenticated'))).rejects.toThrow('JWKS no disponible')
   })
+
+  it('rechaza un token firmado con un algoritmo que el conjunto de claves no admite', async () => {
+    const { verificar } = await preparar()
+    const token = await new SignJWT({})
+      .setProtectedHeader({ alg: 'HS256', kid: 'k1' })
+      .setSubject('usuario-1')
+      .setIssuer(EMISOR)
+      .setAudience('authenticated')
+      .setExpirationTime('5m')
+      .sign(new TextEncoder().encode('un-secreto-de-al-menos-32-bytes-para-hs256'))
+    expect(await verificar(token)).toBeNull()
+  })
 })
