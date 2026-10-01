@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-10-01-planilla-design.md` (secciones 3, 4, 10 y fase 1 de la sección 15). Prototipo visual de referencia: https://claude.ai/artifact/CQCMfcsgQu5ceS96UMBXmU
 
-**Plan previo:** `docs/superpowers/plans/2026-10-01-planilla-fase-1a-backend.md`. Debe estar terminado: este plan importa el tipo `AppType` de `@agrosalas/backend/app` y usa sus endpoints.
+**Plan previo:** `docs/superpowers/plans/2026-10-01-planilla-fase-1a-backend.md`. Debe estar terminado: este plan importa el tipo `AppType` de `@agrosalas/backend/app` y usa sus endpoints. El plan 1A ya se ejecutó; su sección "Estado de ejecución" lista lo que cambió respecto de su texto. Lo que afecta a las pantallas: los mensajes de validación de la API ya llegan en español, un PATCH sin campos responde 400, y `GET /v1/grupos/:id` solo devuelve al coordinador los miembros de sus áreas.
 
 ## Global Constraints
 
@@ -31,6 +31,39 @@
 El código de este plan se compiló en una carpeta temporal el 2026-10-01 junto con el backend del plan 1A: `eslint` sin avisos, `tsc --noEmit` sin errores, `next build` correcto con las 18 rutas, 4 pruebas unitarias en verde y la redirección al login comprobada con `curl`. No se probó contra un proyecto Supabase real: eso es la verificación manual de la tarea 11.
 
 Las pantallas no llevan pruebas automáticas en esta fase; se prueban las utilidades puras. El spec deja las pruebas de componentes para la grilla semanal y el marcado de asistencia (fase 2).
+
+## Estado de ejecución (2026-10-01)
+
+Ejecutado en la rama `feat/fase-1b-frontend` (creada desde `feat/fase-1-base`), tareas 1 a 11. Queda pendiente el paso 4 de la tarea 11: la prueba manual contra un proyecto Supabase real, que hace Gonzalo. Nada de esta rama se ha probado aún en un navegador contra Supabase; se verificó con lint, tipos, build, pruebas unitarias (91 en el frontend, 148 en el backend), `curl` contra `next start` y, en la revisión final, 35 llamadas con los cuerpos de cada pantalla contra la API real en memoria.
+
+**El código del repo manda sobre los bloques de código de este plan.** Las revisiones encontraron defectos en el código del propio plan y se corrigieron. Diferencias principales:
+
+| Dónde | Qué cambió y por qué |
+|---|---|
+| `src/app/restablecer/page.tsx`, `src/lib/errores-acceso.ts` | El formulario de nueva contraseña solo aparece tras verificar una recuperación real (enlace con `token_hash`, o el evento de recuperación del enlace por defecto). Antes podía cambiar la contraseña de quien tuviera sesión abierta en ese navegador. |
+| `src/proxy.ts` | La cookie de sesión refrescada sale con cabeceras `no-store` y no se pierde en las redirecciones. |
+| `src/components/proveedores.tsx`, `src/lib/sesion.ts`, `src/app/(panel)/layout.tsx` | La caché de datos se vacía al cambiar de usuario; una sesión vencida (401) se maneja en un solo sitio; el panel siempre ofrece "Reintentar" y "Cerrar sesión" (antes un usuario desactivado quedaba atrapado); cerrar sesión ya no la cierra en los demás dispositivos. |
+| `src/lib/api.ts` | Un fallo de red se muestra en español ("No se pudo conectar…") y no con el texto del navegador; solo se muestran mensajes de la API. |
+| `src/app/login`, `src/app/recuperar`, `src/app/(panel)/perfil` | Distinguen falta de conexión, demasiados intentos y credenciales incorrectas. |
+| `src/components/catalogo.tsx`, `src/lib/catalogo-valores.ts` | Los errores de todo tipo de campo se muestran; los vacíos viajan como `null`; un campo puede ocultarse según otro (`visibleSi`): en Cargos, las tarifas que no aplican se ocultan y se limpian; `derivar` solo actúa al crear; el diálogo puede desplazarse. |
+| `configuracion/usuarios` | El rol preseleccionado es Coordinador (antes Administrador); se ven las áreas inactivas ya asignadas. |
+| `configuracion/auditoria`, `src/lib/auditoria.ts` | La columna "Cambio" muestra solo lo que cambió y enmascara DNI, teléfonos, dirección, número de cuenta y CCI (antes volcaba el JSON completo); tiene estados de error y vacío. |
+| `configuracion/grupos/[id]` | El buscador de miembros indica mínimo de letras, búsqueda en curso, sin resultados y error. |
+| `trabajadores` (lista) | La búsqueda espera 300 ms antes de pedir datos y la tabla conserva las filas mientras carga. |
+| `trabajadores/[id]`, `src/components/trabajadores/*` | Gerencia ve métodos de pago y grupos en solo lectura; el coordinador ve grupos en solo lectura y ningún método de pago; la ficha de solo lectura es legible y copiable; quitar un método de pago pide confirmación; se evita el doble clic; un DNI duplicado se indica bajo el campo DNI. |
+| `src/app/not-found.tsx`, `src/app/error.tsx`, `next.config.ts` | Páginas de error en español, cabeceras de seguridad y redirecciones de `/` y `/configuracion` en el servidor (se eliminaron las dos páginas que solo redirigían). |
+| `README.md` | Lista de comprobación de despliegue y Supabase, incluida la plantilla del correo de recuperación con `token_hash`. |
+
+Pendiente para la fase 2 (lo dejó anotado la revisión final): hacer `Catalogo` genérico por tipo de fila y usarlo solo para catálogos planos; un registro de claves de consulta; una prueba de contrato permanente para los cuerpos que hoy se envían con `as never`; títulos por página; identificadores crudos en la auditoría; unificar la versión de TypeScript; el menú inferior del celular cuando haya seis entradas; un tamaño táctil para los botones.
+
+A la lista de la prueba manual (tarea 11, paso 4) hay que sumar: abrir el enlace de recuperación en otro navegador o dispositivo; abrirlo con otro usuario ya logueado; entrar con un usuario distinto después de que la sesión terminó sin usar el botón; ver la ficha como Gerencia y como Coordinador a 390 px; y arrancar `dev:web` con el puerto 3000 ocupado.
+
+**Nombres en inglés (regla nueva del 2026-10-01).** Este plan y el código de esta rama usan nombres en español (`proveedores.tsx`, `/trabajadores`, `leer`, `ErrorApiCliente`). El spec, sección 17, ahora pide todo el código en inglés y deja en español solo el texto que ve el usuario. El cambio de nombres de lo ya construido no se hace en esta rama: es el plan `2026-10-01-planilla-fase-1c-english-naming.md`, en la rama `refactor/english-naming` y con PR propio. La prueba manual contra Supabase va después de ese plan.
+
+**Revisión de la tanda final de arreglos.** Dio por resueltos todos los hallazgos (grupos A a H) y no encontró fallos críticos ni importantes. Dejó dos mejoras menores en `src/lib/recuperacion.ts`, sin aplicar aquí para no chocar con el cambio de nombres en curso; se aplican sobre el plan 1C:
+
+- `verificarToken` da el enlace por válido si `verifyOtp` responde sin error, aunque no devuelva sesión. Debe exigir `data.session`. Supabase siempre devuelve sesión en una recuperación, así que hoy no falla; es una segunda barrera.
+- Si `verifyOtp` o la creación del cliente lanzan un error que no es de autenticación, la página se queda en "Comprobando el enlace…". Debe tratarse como enlace no válido. No muestra el formulario, así que no hay riesgo, solo una pantalla sin salida.
 
 ## Mapa de archivos
 
@@ -2692,7 +2725,7 @@ Y a la tabla de "Comandos":
 - [ ] **Step 3: Verificar lo mismo que correrá el workflow**
 
 Run: `npm ci && npm run lint && npm run typecheck && npm test && npm run build`
-Expected: PASS: 61 pruebas del backend y 4 del frontend; build con 18 rutas.
+Expected: PASS: todas las pruebas del backend (148 al cerrar el plan 1A) y 4 del frontend; build con 18 rutas.
 
 - [ ] **Step 4: Prueba manual contra Supabase**
 

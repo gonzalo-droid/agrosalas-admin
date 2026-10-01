@@ -98,6 +98,8 @@ Que el coordinador vea horas pero no montos es un supuesto (sección 16).
 
 ## 5. Modelo de datos
 
+> **Nombres.** Las secciones 5 y 9 todavía usan los nombres en español con los que se diseñó el modelo. Desde el 2026-10-01 el código, la base y la API se escriben en inglés: el nombre que vale es el de la sección 17, que trae la equivalencia de cada tabla, campo, valor y ruta.
+
 Todas las tablas llevan `id` (uuid), `creado_en` y `actualizado_en`.
 
 ### `usuarios`
@@ -363,3 +365,151 @@ Se toman como valor por defecto y son baratos de cambiar más adelante.
 3. La tarifa inicial del cargo Operario es S/ 6.25 exacto, no el 6.2517 del Excel.
 4. Asignación de campañas a las hojas del Excel e interpretación de las columnas de abono (sección 12).
 5. Alojamiento de la API (Vercel Pro o Cloudflare Workers) y forma de respaldo (sección 13).
+
+## 17. Convención de nombres
+
+Decidido el 2026-10-01. Reemplaza la regla "identificadores del dominio en español" de los planes 1A y 1B.
+
+### Qué va en inglés y qué en español
+
+| Va en inglés | Va en español |
+|---|---|
+| Carpetas y archivos de código | Todo texto que lee una persona en el panel: etiquetas, botones, avisos, títulos |
+| Variables, funciones, tipos, clases, componentes y hooks | El `message` de los errores de la API y los mensajes de validación |
+| Tablas, columnas, tipos enum, valores enum e índices de la base | Correos que envía el sistema |
+| Rutas de la API, parámetros, claves JSON y códigos de error | La prosa de este spec, de los planes y del README |
+| Direcciones del panel (`/workers`, `/settings`) | |
+| Variables de entorno y scripts de npm | |
+| Claves de consulta de TanStack Query | |
+| Comentarios del código, nombres de las pruebas y mensajes de commit | |
+
+Reglas:
+
+- Un valor del contrato nunca se muestra tal cual: todo valor enum, nombre de entidad o nombre de campo que llega a la pantalla pasa por un mapa de etiquetas en español (`ROLE_LABEL`, `FIELD_LABEL`, etc.).
+- Se conservan los nombres propios peruanos: `dni`, `cci`, `yape`, `plin`.
+- Base de datos en `snake_case`; TypeScript y JSON en `camelCase`; archivos y rutas en `kebab-case`; componentes y tipos en `PascalCase`.
+- Un booleano cuyo nombre natural es palabra reservada de SQL lleva prefijo `is_` (`is_primary`).
+
+### Glosario del dominio
+
+| Español | Inglés (singular / plural) |
+|---|---|
+| trabajador | worker / workers |
+| usuario | user / users |
+| área | area / areas |
+| turno | shift / shifts |
+| campaña | campaign / campaigns |
+| cargo | position / positions |
+| grupo | group / groups |
+| método de pago | payment method / payment methods |
+| auditoría | audit log |
+| planilla | payroll / payrolls |
+| asistencia | attendance record / attendance |
+| concepto | payroll item / payroll items |
+| pago | payment / payments |
+| evidencia | evidence |
+| reporte de costos | cost report |
+| perfil | profile |
+| configuración | settings |
+
+### Tablas y columnas
+
+Todas las tablas llevan `id`, `created_at` y `updated_at`.
+
+| Tabla (español → inglés) | Columnas (español → inglés) |
+|---|---|
+| `usuarios` → `users` | `correo` → `email`, `nombre` → `name`, `rol` → `role`, `activo` → `active` |
+| `usuario_areas` → `user_areas` | `usuario_id` → `user_id`, `area_id` |
+| `areas` → `areas` | `nombre` → `name`, `activo` → `active` |
+| `turnos` → `shifts` | `nombre` → `name`, `hora_inicio` → `start_time`, `hora_fin` → `end_time`, `activo` → `active` |
+| `campanas` → `campaigns` | `nombre` → `name`, `fecha_inicio` → `start_date`, `fecha_fin` → `end_date`, `activo` → `active` |
+| `cargos` → `positions` | `nombre` → `name`, `tipo_pago` → `pay_type`, `tarifa_hora` → `hourly_rate`, `tarifa_hora_extra` → `overtime_rate`, `sueldo_mensual` → `monthly_salary`, `activo` → `active` |
+| `grupos` → `groups` | `nombre` → `name`, `temporal` → `temporary`, `fecha_inicio` → `start_date`, `fecha_fin` → `end_date`, `activo` → `active` |
+| `grupo_trabajadores` → `group_workers` | `grupo_id` → `group_id`, `trabajador_id` → `worker_id` |
+| `trabajadores` → `workers` | `dni`, `nombres` → `first_name`, `apellidos` → `last_name`, `telefono` → `phone`, `correo` → `email`, `direccion` → `address`, `emergencia_nombre` → `emergency_contact_name`, `emergencia_telefono` → `emergency_contact_phone`, `area_id`, `cargo_id` → `position_id`, `turno_id` → `shift_id`, `modalidad` → `employment_type`, `fecha_ingreso` → `hire_date`, `estado` → `status`, `notas` → `notes` |
+| `trabajador_metodos_pago` → `worker_payment_methods` | `trabajador_id` → `worker_id`, `tipo` → `type`, `numero` → `number`, `banco` → `bank`, `cci`, `titular` → `holder_name`, `principal` → `is_primary` |
+| `auditoria` → `audit_log` | `usuario_id` → `user_id`, `accion` → `action`, `entidad` → `entity`, `entidad_id` → `entity_id`, `antes` → `before`, `despues` → `after` |
+| `planillas` → `payrolls` (fase 2) | `nombre` → `name`, `tipo` → `type`, `fecha_inicio` → `start_date`, `fecha_fin` → `end_date`, `campana_id` → `campaign_id`, `estado` → `status`, `creada_por` → `created_by`, `cerrada_por` → `closed_by`, `cerrada_en` → `closed_at` |
+| `planilla_trabajadores` → `payroll_workers` (fase 2) | `planilla_id` → `payroll_id`, `trabajador_id` → `worker_id` |
+| `asistencias` → `attendance_records` (fase 2) | `trabajador_id` → `worker_id`, `fecha` → `date`, `planilla_id` → `payroll_id`, `tipo` → `type`, `ingreso_1` → `clock_in_1`, `salida_1` → `clock_out_1`, `ingreso_2` → `clock_in_2`, `salida_2` → `clock_out_2`, `minutos_trabajados` → `worked_minutes`, `minutos_normales` → `regular_minutes`, `minutos_extra` → `overtime_minutes`, `extra_editada` → `overtime_edited`, `tarifa_hora` → `hourly_rate`, `tarifa_hora_extra` → `overtime_rate`, `monto_centimos` → `amount_cents`, `area_id`, `modalidad` → `employment_type`, `nota` → `note`, `registrado_por` → `recorded_by`, `origen` → `source`, `revisar` → `needs_review` |
+| `conceptos` → `payroll_items` (fase 3) | `planilla_id` → `payroll_id`, `trabajador_id` → `worker_id`, `tipo` → `type`, `monto_centimos` → `amount_cents`, `nota` → `note`, `registrado_por` → `recorded_by` |
+| `pagos` → `payments` (fase 3) | `planilla_id` → `payroll_id`, `trabajador_id` → `worker_id`, `fecha` → `date`, `monto_centimos` → `amount_cents`, `medio` → `method`, `metodo_detalle` → `method_detail`, `evidencia_ruta` → `evidence_path`, `nota` → `note`, `registrado_por` → `recorded_by` |
+
+### Valores enum
+
+| Enum (tipo en la base) | Valores (español → inglés) |
+|---|---|
+| rol (`user_role`) | `admin`, `gerencia` → `management`, `contabilidad` → `accounting`, `coordinador` → `coordinator` |
+| modalidad (`employment_type`) | `temporal` → `temporary`, `contrato` → `contract` |
+| estado del trabajador (`worker_status`) | `activo` → `active`, `cesado` → `terminated` |
+| tipo de pago del cargo (`pay_type`) | `por_hora` → `hourly`, `mensual` → `monthly` |
+| tipo de método de pago (`payment_method_type`) | `yape`, `plin`, `cuenta_bancaria` → `bank_account` |
+| acción de auditoría (`audit_action`) | `crear` → `create`, `editar` → `update`, `eliminar` → `delete` |
+| tipo de planilla (`payroll_type`, fase 2) | `semanal` → `weekly`, `mensual` → `monthly` |
+| estado de planilla (`payroll_status`, fase 2) | `abierta` → `open`, `cerrada` → `closed` |
+| tipo de asistencia (`attendance_type`, fase 2) | `trabajado` → `worked`, `falta` → `absence`, `permiso` → `leave`, `descanso_medico` → `medical_leave` |
+| tipo de concepto (`payroll_item_type`, fase 3) | `sueldo` → `salary`, `bono` → `bonus`, `destajo` → `piecework`, `descuento` → `deduction` |
+| medio de pago (`payment_medium`, fase 3) | `yape`, `plin`, `transferencia` → `transfer`, `efectivo` → `cash` |
+
+El valor `entity` de la auditoría es el nombre de la tabla en inglés (`workers`, `users`, `worker_payment_methods`).
+
+### API
+
+| Español | Inglés |
+|---|---|
+| `/salud` | `/health` |
+| `/v1/me` | `/v1/me` |
+| `/v1/usuarios` | `/v1/users` |
+| `/v1/areas` | `/v1/areas` |
+| `/v1/turnos` | `/v1/shifts` |
+| `/v1/campanas` | `/v1/campaigns` |
+| `/v1/cargos` | `/v1/positions` |
+| `/v1/grupos`, `/v1/grupos/:id/miembros/:trabajadorId` | `/v1/groups`, `/v1/groups/:id/members/:workerId` |
+| `/v1/trabajadores`, `/v1/trabajadores/:id/metodos-pago/:metodoId` | `/v1/workers`, `/v1/workers/:id/payment-methods/:methodId` |
+| `/v1/auditoria` | `/v1/audit-log` |
+| `/v1/asistencias`, `POST /marcar`, `POST /bloque` (fase 2) | `/v1/attendance`, `POST /clock`, `POST /bulk` |
+| `/v1/planillas`, `/v1/planillas/:id/trabajadores/:tid` (fase 2) | `/v1/payrolls`, `/v1/payrolls/:id/workers/:workerId` |
+| `/v1/conceptos` (fase 3) | `/v1/payroll-items` |
+| `/v1/pagos` (fase 3) | `/v1/payments` |
+| `/v1/evidencias` (fase 3) | `/v1/evidence` |
+| `/v1/reportes/costos` (fase 4) | `/v1/reports/costs` |
+
+- Listas paginadas: reciben `page` y `pageSize` (máximo 100) y devuelven `{ items, total, page, pageSize }`. Las listas sin paginar devuelven `{ items }`.
+- Filtros de trabajadores: `search`, `areaId`, `employmentType`, `status`. Filtro de auditoría: `entity`.
+- Error: `{ "error": { "code", "message", "field?" } }`. `message` va en español.
+
+| Código de error (español → inglés) | Cuándo |
+|---|---|
+| `no_autenticado` → `unauthenticated` | Falta el token o no es válido (401) |
+| `sin_acceso` → `access_denied` | El usuario no existe en el panel o está desactivado (403) |
+| `sin_permiso` → `forbidden` | El rol no permite la acción (403) |
+| `no_encontrado` → `not_found` | El registro o la ruta no existe (404) |
+| `validacion` → `validation` | Un dato de entrada no es válido (400) |
+| `solicitud_invalida` → `invalid_request` | El cuerpo no es JSON válido (400) |
+| `referencia_invalida` → `invalid_reference` | Un id enviado no existe (400) |
+| `duplicado` → `duplicate` | Ya existe un registro con ese valor (409) |
+| `usuario_auth` → `auth_provider_error` | Supabase Auth no pudo crear la cuenta (502) |
+| `interno` → `internal` | Error inesperado (500) |
+
+### Direcciones del panel
+
+| Español | Inglés |
+|---|---|
+| `/login` | `/login` |
+| `/recuperar` | `/forgot-password` |
+| `/restablecer` | `/reset-password` |
+| `/perfil` | `/profile` |
+| `/trabajadores`, `/trabajadores/nuevo`, `/trabajadores/[id]` | `/workers`, `/workers/new`, `/workers/[id]` |
+| `/configuracion` | `/settings` |
+| `/configuracion/cargos`, `/grupos`, `/areas`, `/turnos`, `/campanas`, `/usuarios`, `/auditoria` | `/settings/positions`, `/groups`, `/areas`, `/shifts`, `/campaigns`, `/users`, `/audit-log` |
+| Asistencia, Planillas, Reportes (fases 2 a 4) | `/attendance`, `/payrolls`, `/reports` |
+
+### Variables de entorno y scripts
+
+| Español | Inglés |
+|---|---|
+| `ORIGEN_PANEL` | `PANEL_ORIGIN` |
+| `PUERTO` | `PORT` |
+| `npm run db:generar` | `npm run db:generate` |
+| `npm run db:migrar` | `npm run db:migrate` |
+| `npm run crear-admin` | `npm run create-admin` |

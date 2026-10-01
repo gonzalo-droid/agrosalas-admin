@@ -21,7 +21,7 @@
 - Toda lista paginada recibe `pagina` y `tamano` (máximo 100) y devuelve `{ datos, total, pagina, tamano }`.
 - Rutas bajo `/v1`; las rutas se encadenan (`new Hono().get(...).post(...)`) para que el cliente tipado del frontend infiera los tipos.
 - El backend solo usa imports relativos (sin alias), porque el frontend importa sus tipos.
-- Identificadores del dominio en español (`trabajadores`, `crearApp`, `tarifaHora`).
+- Identificadores del dominio en español (`trabajadores`, `crearApp`, `tarifaHora`). **Regla reemplazada el 2026-10-01:** todo el código va en inglés (spec, sección 17). El cambio de nombres de lo ya construido es el plan `2026-10-01-planilla-fase-1c-english-naming.md`.
 - Las pruebas no necesitan Docker, red ni variables de entorno.
 - El DNI es obligatorio al crear un trabajador desde la API; en la base puede ser nulo (migrados del Excel).
 - Rama de trabajo `feat/fase-1-base`; commits con Conventional Commits y scope (`feat(api): …`). Nunca se versiona `.env` ni el Excel de planilla.
@@ -32,6 +32,44 @@
 El código de este plan se ejecutó completo en una carpeta temporal el 2026-10-01 con las versiones del `package.json` de la tarea 1: 61 pruebas en verde, `tsc --noEmit` sin errores y el servidor respondiendo en `/salud`. Si una versión más nueva de una librería rompe algo, fija la versión indicada antes de cambiar el código.
 
 npm 11 puede mostrar avisos `npm warn install-scripts` (esbuild, unrs-resolver). No impiden nada; se pueden ignorar.
+
+## Estado de ejecución (2026-10-01)
+
+Ejecutado en la rama `feat/fase-1-base` (tareas 1 a 11 y 13). La tarea 12 queda pendiente: la hace Gonzalo. La suite tiene 148 pruebas, no las 61 que anuncian los pasos de abajo.
+
+**La tarea 12 se hace después del plan 1C** (`2026-10-01-planilla-fase-1c-english-naming.md`). Ese plan pasa a inglés las tablas, columnas y variables de entorno, y vuelve a generar la migración inicial; crear el proyecto Supabase antes obligaría a vaciarlo. Al hacerla, usa los nombres nuevos: `PANEL_ORIGIN` y `PORT` en `backend/.env`, y los comandos `db:migrate` y `create-admin`.
+
+**El código del repo manda sobre los bloques de código de este plan.** Las revisiones por tarea y la revisión final encontraron defectos en el código del propio plan, y se corrigieron. Diferencias respecto del texto de abajo:
+
+| Dónde | Qué cambió y por qué |
+|---|---|
+| `backend/src/lib/errores.ts` | `manejarError` también responde 400 `solicitud_invalida` a las excepciones de Hono (cuerpo que no es JSON) y 400 `referencia_invalida` a una clave foránea inexistente (Postgres 23503). Los errores 500 se registran sin la consulta ni sus parámetros, que pueden traer DNI y cuentas. |
+| `backend/src/lib/validar.ts` | Configura el locale español de Zod; omite `campo` cuando el error no es de un campo; exporta `conAlgunCampo(esquema)`, que hace que un PATCH con cuerpo vacío responda 400 en lugar de 500. Todos los esquemas de edición lo usan. |
+| `backend/src/auth/verificar.ts` | Devuelve `null` solo para errores de validez del token (lista explícita de clases de jose); si no puede leer las claves públicas, relanza el error (500) en vez de responder 401 a todos. |
+| `backend/src/rutas/auditoria.ts`, `trabajadores.ts` | El orden de las listas paginadas termina con `id` como desempate; sin él, la paginación repetía y saltaba filas. |
+| `backend/src/rutas/grupos.ts` | El esquema de edición es explícito y sin valores por defecto (en Zod 4, `.partial()` conservaba `temporal: false` y lo pisaba al editar). `GET /:id` solo devuelve al coordinador los miembros de sus áreas. Quitar a quien no es miembro responde 404 y no escribe auditoría. |
+| `backend/src/rutas/usuarios.ts`, `backend/src/auth/admin.ts`, `backend/src/tipos.ts` | Las áreas se validan antes de crear la cuenta de login; si la base falla después, la cuenta se elimina (`AuthAdmin.eliminarUsuario`). Los errores del proveedor se responden en español: 409 solo si el correo ya existe, 502 en otro caso. Un PATCH solo con `areaIds` ya no falla. |
+| `backend/src/auth/primer-admin.ts` (nuevo), `backend/scripts/crear-admin.ts` | El alta del primer administrador escribe auditoría y limpia la cuenta de login si falla; el script solo llama a `crearPrimerAdmin`. |
+| `backend/src/env.ts` | Quita la barra final de `SUPABASE_URL` y `ORIGEN_PANEL`; `PUERTO` debe estar entre 1 y 65535. |
+| `backend/test/permisos.test.ts` (nuevo) | Matriz rol × ruta (403 en cada combinación prohibida) y barrido que comprueba que el coordinador no recibe montos ni datos bancarios en ningún GET. |
+
+Pendiente para el plan de la fase 2 (lo dejó anotado la revisión final): decidir entre esquemas de salida por rol o un ayudante común de redacción (el spec pide validar también la salida); dinero en enteros en el cálculo; qué pasa si la forma de pago del cargo no coincide con la modalidad del trabajador; regla de fechas fin ≥ inicio; búsqueda de trabajadores sin acentos.
+
+Hallazgos menores que quedaron abiertos (ninguno bloquea el plan 1B):
+
+- `GET /v1/grupos` muestra al coordinador el número total de miembros de cada grupo, incluidos los de otras áreas (solo la cifra, no las personas).
+- La búsqueda de trabajadores distingue acentos, no busca "nombre apellido" junto y no escapa `%` ni `_`.
+- `areaIds` repetidos al crear un usuario dan un 409 confuso; el correo no se pasa a minúsculas.
+- Un cargo que cambia de sueldo mensual a pago por hora conserva el sueldo anterior; los montos con más de cuatro decimales se redondean sin avisar.
+- La API devuelve las horas de turno como `HH:MM:SS` pero solo acepta `HH:MM`.
+- Los campos de texto opcionales guardan `''` en lugar de nulo si se les manda una cadena vacía.
+- No se valida que la fecha de fin sea posterior a la de inicio (campañas, grupos).
+- Un método de pago de tipo cuenta bancaria no exige banco; marcar `principal: false` se rechaza aunque el método no sea el principal.
+- El log de un error 500 ya no trae la consulta, pero el mensaje del motor puede incluir un valor suelto, y ya no se registra la traza.
+- La matriz de permisos y el barrido del coordinador listan rutas y nombres de campo a mano: una ruta o un campo de dinero nuevo hay que añadirlo a `backend/test/permisos.test.ts`.
+- El backend no tiene ESLint; `npm audit` reporta cuatro avisos moderados de una cadena solo de desarrollo (drizzle-kit → esbuild). No ejecutar `npm audit fix --force`: degrada drizzle-kit.
+- El servidor no cierra la conexión al recibir SIGTERM, no limita el tamaño del cuerpo y faltan índices secundarios; se resuelve al desplegar o con la migración de la fase 2.
+- Tres commits hechos por subagentes llevan la firma "Claude Haiku 4.5", que es el modelo que los escribió.
 
 ## Mapa de archivos
 
