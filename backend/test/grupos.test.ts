@@ -92,4 +92,12 @@ describe('grupos de trabajadores', () => {
     expect(r.json.error.codigo).toBe('validacion')
     expect(r.json.error.mensaje).toBe('Indica al menos un campo para editar')
   })
+
+  it('responde 400 si un trabajador que se quiere agregar no existe', async () => {
+    const r = await p.pedir('admin', 'POST', `/v1/grupos/${grupoId}/miembros`, {
+      trabajadorIds: ['00000000-0000-4000-8000-00000000ffff'],
+    })
+    expect(r.status).toBe(400)
+    expect(r.json.error).toEqual({ codigo: 'referencia_invalida', mensaje: 'Uno de los registros indicados no existe' })
+  })
 })

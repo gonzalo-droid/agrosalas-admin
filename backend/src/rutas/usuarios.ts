@@ -1,8 +1,8 @@
-import { asc, eq } from 'drizzle-orm'
+import { asc, eq, inArray } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { requiereRol } from '../auth/middleware'
-import { usuarioAreas, usuarios } from '../db/schema'
+import { areas, usuarioAreas, usuarios } from '../db/schema'
 import { registrarAuditoria } from '../lib/auditoria'
 import { ErrorApi, noEncontrado } from '../lib/errores'
 import { conAlgunCampo, esquemaId, validar } from '../lib/validar'
@@ -50,6 +50,13 @@ export const rutasUsuarios = ({ db, authAdmin }: Dependencias) =>
       const { correo, clave, nombre, rol, areaIds } = c.req.valid('json')
       const [existente] = await db.select().from(usuarios).where(eq(usuarios.correo, correo))
       if (existente) throw new ErrorApi(409, 'duplicado', 'Ya existe un usuario con ese correo', 'correo')
+      // Se valida antes de crear la cuenta de login, para no dejarla huérfana si el alta falla.
+      if (areaIds.length > 0) {
+        const existentes = await db.select({ id: areas.id }).from(areas).where(inArray(areas.id, areaIds))
+        if (existentes.length !== new Set(areaIds).size) {
+          throw new ErrorApi(400, 'referencia_invalida', 'Una de las áreas indicadas no existe', 'areaIds')
+        }
+      }
       const { id } = await authAdmin.crearUsuario(correo, clave)
       const fila = await db.transaction(async (tx) => {
         const [nuevo] = await tx.insert(usuarios).values({ id, correo, nombre, rol }).returning()

@@ -83,4 +83,19 @@ describe('usuarios', () => {
     expect(r.json.error.codigo).toBe('validacion')
     expect(r.json.error.mensaje).toBe('Indica al menos un campo para editar')
   })
+
+  it('no crea la cuenta de login si un área no existe', async () => {
+    const antes = p.creadosEnAuth.length
+    const r = await p.pedir('admin', 'POST', '/v1/usuarios', {
+      correo: 'huerfano@prueba.test',
+      clave: 'clave-segura-3',
+      nombre: 'Sin Área',
+      rol: 'coordinador',
+      areaIds: ['00000000-0000-4000-8000-00000000ffff'],
+    })
+    expect(r.status).toBe(400)
+    expect(r.json.error.codigo).toBe('referencia_invalida')
+    expect(r.json.error.campo).toBe('areaIds')
+    expect(p.creadosEnAuth.length).toBe(antes)
+  })
 })

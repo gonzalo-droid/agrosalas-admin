@@ -17,10 +17,10 @@ export class ErrorApi extends Error {
 
 export const noEncontrado = (que: string) => new ErrorApi(404, 'no_encontrado', `${que} no existe`)
 
-// Postgres 23505 = unique_violation. Drizzle envuelve el error original en `cause`.
-function esDuplicado(err: unknown): boolean {
+// Código de error de Postgres. Drizzle envuelve el error original en `cause`.
+function codigoPostgres(err: unknown): string | undefined {
   const codigo = (e: unknown) => (e as { code?: string } | null)?.code
-  return codigo(err) === '23505' || codigo((err as { cause?: unknown } | null)?.cause) === '23505'
+  return codigo(err) ?? codigo((err as { cause?: unknown } | null)?.cause)
 }
 
 export function manejarError(err: Error, c: Context) {
@@ -31,8 +31,14 @@ export function manejarError(err: Error, c: Context) {
   if (err instanceof HTTPException) {
     return c.json({ error: { codigo: 'solicitud_invalida', mensaje: 'La solicitud no es válida' } }, err.status)
   }
-  if (esDuplicado(err)) {
+  const codigoPg = codigoPostgres(err)
+  // Postgres 23505 = unique_violation.
+  if (codigoPg === '23505') {
     return c.json({ error: { codigo: 'duplicado', mensaje: 'Ya existe un registro con ese valor' } }, 409)
+  }
+  // Postgres 23503 = foreign_key_violation: el id enviado no existe.
+  if (codigoPg === '23503') {
+    return c.json({ error: { codigo: 'referencia_invalida', mensaje: 'Uno de los registros indicados no existe' } }, 400)
   }
   console.error(err)
   return c.json({ error: { codigo: 'interno', mensaje: 'Error interno' } }, 500)
