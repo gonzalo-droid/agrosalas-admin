@@ -58,13 +58,23 @@ export const rutasUsuarios = ({ db, authAdmin }: Dependencias) =>
         }
       }
       const { id } = await authAdmin.crearUsuario(correo, clave)
-      const fila = await db.transaction(async (tx) => {
-        const [nuevo] = await tx.insert(usuarios).values({ id, correo, nombre, rol }).returning()
-        await fijarAreas(tx, id, areaIds)
-        await registrarAuditoria(tx, c.get('usuario').id, 'crear', 'usuarios', id, null, { ...nuevo, areaIds })
-        return nuevo
-      })
-      return c.json({ ...fila, areaIds }, 201)
+      try {
+        const fila = await db.transaction(async (tx) => {
+          const [nuevo] = await tx.insert(usuarios).values({ id, correo, nombre, rol }).returning()
+          await fijarAreas(tx, id, areaIds)
+          await registrarAuditoria(tx, c.get('usuario').id, 'crear', 'usuarios', id, null, { ...nuevo, areaIds })
+          return nuevo
+        })
+        return c.json({ ...fila, areaIds }, 201)
+      } catch (error) {
+        // La cuenta de login sin fila en usuarios no sirve y bloquearía el correo, así que se elimina.
+        try {
+          await authAdmin.eliminarUsuario(id)
+        } catch (errorLimpieza) {
+          console.error('No se pudo eliminar la cuenta de acceso huérfana', id, errorLimpieza)
+        }
+        throw error
+      }
     })
     .patch('/:id', validar('param', esquemaId), validar('json', editarUsuario), async (c) => {
       const { id } = c.req.valid('param')

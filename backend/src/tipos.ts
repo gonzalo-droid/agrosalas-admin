@@ -18,6 +18,7 @@ export type Entorno = { Variables: { usuario: UsuarioSesion } }
 
 export interface AuthAdmin {
   crearUsuario(correo: string, clave: string): Promise<{ id: string }>
+  eliminarUsuario(id: string): Promise<void>
 }
 
 export type Dependencias = {

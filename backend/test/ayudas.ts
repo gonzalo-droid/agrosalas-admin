@@ -28,15 +28,23 @@ export async function crearPrueba() {
 
   let siguienteAuthId = 100
   const creadosEnAuth: { id: string; correo: string }[] = []
+  const eliminadosEnAuth: string[] = []
 
   const app = crearApp({
     db,
     verificarToken: async (token) => (token in USUARIOS ? { sub: USUARIOS[token as Rol] } : null),
     authAdmin: {
       async crearUsuario(correo) {
-        const id = `00000000-0000-4000-8000-${String(siguienteAuthId++).padStart(12, '0')}`
+        // Caso especial: devuelve un id ya existente en usuarios para forzar un fallo de la base después del alta.
+        const id =
+          correo === 'choque@prueba.test'
+            ? USUARIOS.admin
+            : `00000000-0000-4000-8000-${String(siguienteAuthId++).padStart(12, '0')}`
         creadosEnAuth.push({ id, correo })
         return { id }
+      },
+      async eliminarUsuario(id) {
+        eliminadosEnAuth.push(id)
       },
     },
     origenPanel: 'http://localhost:3000',
@@ -57,5 +65,5 @@ export async function crearPrueba() {
     return { status: respuesta.status, json }
   }
 
-  return { app, db, pedir, creadosEnAuth }
+  return { app, db, pedir, creadosEnAuth, eliminadosEnAuth }
 }

@@ -98,4 +98,16 @@ describe('usuarios', () => {
     expect(r.json.error.campo).toBe('areaIds')
     expect(p.creadosEnAuth.length).toBe(antes)
   })
+
+  it('borra la cuenta de login si el alta en la base falla', async () => {
+    const r = await p.pedir('admin', 'POST', '/v1/usuarios', {
+      correo: 'choque@prueba.test',
+      clave: 'clave-segura-4',
+      nombre: 'Choque',
+      rol: 'gerencia',
+    })
+    expect(r.status).toBe(409)
+    expect(p.eliminadosEnAuth).toEqual([USUARIOS.admin])
+    expect((await p.pedir('admin', 'GET', '/v1/me')).status).toBe(200)
+  })
 })
