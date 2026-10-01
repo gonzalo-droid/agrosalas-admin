@@ -26,10 +26,10 @@ Node 22 o superior y un proyecto Supabase (Postgres y Auth).
 
 Revisar en cada entorno (local, pruebas, producción):
 
-- **Authentication → URL Configuration:** la *Site URL* es el origen del panel y las *Redirect URLs* incluyen `<origen del panel>/restablecer`.
+- **Authentication → URL Configuration:** la *Site URL* es el origen del panel y las *Redirect URLs* incluyen `<origen del panel>/reset-password`.
 - **Registro público desactivado** (Authentication → Sign In / Providers → *Allow new users to sign up* apagado): las cuentas solo las crea el administrador.
 - **`PANEL_ORIGIN`** del backend es exactamente el origen del panel (esquema, dominio y puerto). En local el panel debe correr en ese puerto: si el 3000 está ocupado, Next elige otro y todas las llamadas a la API fallan por CORS.
-- **Correo de recuperación:** se recomienda que la plantilla *Reset password* enlace a `{{ .SiteURL }}/restablecer?token_hash={{ .TokenHash }}&type=recovery`. Así el enlace funciona en cualquier dispositivo; con el enlace por defecto (`?code=`) solo funciona en el mismo navegador donde se pidió.
+- **Correo de recuperación:** se recomienda que la plantilla *Reset password* enlace a `{{ .SiteURL }}/reset-password?token_hash={{ .TokenHash }}&type=recovery`. Así el enlace funciona en cualquier dispositivo; con el enlace por defecto (`?code=`) solo funciona en el mismo navegador donde se pidió.
 - **SMTP propio en producción:** el envío de correos de Supabase por defecto tiene un límite muy bajo y no sirve para producción.
 
 ## Comandos

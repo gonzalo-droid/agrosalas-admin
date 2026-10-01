@@ -7,8 +7,8 @@ import { ROLE_LABEL, useMe } from '@/lib/me'
 
 // The following phases add Asistencia, Planillas and Reportes here.
 const LINKS = [
-  { href: '/trabajadores', label: 'Trabajadores', adminOnly: false },
-  { href: '/configuracion', label: 'Configuración', adminOnly: true },
+  { href: '/workers', label: 'Trabajadores', adminOnly: false },
+  { href: '/settings', label: 'Configuración', adminOnly: true },
 ]
 
 export function Menu() {
@@ -38,11 +38,11 @@ export function Menu() {
           </Link>
         ))}
         <Link
-          href="/perfil"
-          aria-current={isActive('/perfil') ? 'page' : undefined}
+          href="/profile"
+          aria-current={isActive('/profile') ? 'page' : undefined}
           className={cn(
             'mt-auto rounded-lg border-t border-[#1c5a37] p-3 text-sm text-[#cfe8d8]',
-            isActive('/perfil') && 'border-transparent bg-[#1c5a37] text-white',
+            isActive('/profile') && 'border-transparent bg-[#1c5a37] text-white',
           )}
         >
           {me?.name ?? '…'}
@@ -54,7 +54,7 @@ export function Menu() {
         aria-label="Principal"
         className="fixed inset-x-0 bottom-0 z-40 grid auto-cols-fr grid-flow-col border-t bg-background md:hidden"
       >
-        {[...links, { href: '/perfil', label: 'Perfil' }].map((l) => (
+        {[...links, { href: '/profile', label: 'Perfil' }].map((l) => (
           <Link
             key={l.href}
             href={l.href}

@@ -71,7 +71,7 @@ export function WorkerForm({ worker, canEdit }: { worker?: WorkerRecord; canEdit
       toast.success('Trabajador guardado')
       if (!worker) {
         setCreated(true)
-        router.replace(`/trabajadores/${saved.id}`)
+        router.replace(`/workers/${saved.id}`)
       }
     },
     onError: (e) => {
@@ -192,7 +192,7 @@ export function WorkerForm({ worker, canEdit }: { worker?: WorkerRecord; canEdit
             Guardar
           </Button>
         )}
-        <Link href="/trabajadores" className={buttonVariants({ variant: 'outline', size: 'lg' })}>
+        <Link href="/workers" className={buttonVariants({ variant: 'outline', size: 'lg' })}>
           Volver
         </Link>
       </div>

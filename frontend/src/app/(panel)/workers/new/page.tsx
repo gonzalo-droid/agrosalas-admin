@@ -15,7 +15,7 @@ export default function NewWorkerPage() {
       <div className="space-y-4">
         <h1 className="text-2xl font-semibold">Nuevo trabajador</h1>
         <p className="text-sm text-muted-foreground">Tu rol no puede registrar trabajadores. Pídeselo a Contabilidad o al administrador.</p>
-        <Link href="/trabajadores" className={buttonVariants({ variant: 'outline', size: 'lg' })}>
+        <Link href="/workers" className={buttonVariants({ variant: 'outline', size: 'lg' })}>
           Volver a la lista
         </Link>
       </div>

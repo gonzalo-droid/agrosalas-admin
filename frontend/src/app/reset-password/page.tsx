@@ -56,7 +56,7 @@ function InvalidLink({ noConnection }: { noConnection: boolean }) {
           ? 'No se pudo conectar para comprobar el enlace. Revisa tu conexión y vuelve a abrir el enlace del correo.'
           : 'Este enlace no es válido: ya venció, ya se usó o se abrió en un navegador distinto del que pidió el cambio.'}
       </p>
-      <Link href="/recuperar" className="inline-block py-2 text-sm font-medium text-primary">
+      <Link href="/forgot-password" className="inline-block py-2 text-sm font-medium text-primary">
         Pedir un enlace nuevo
       </Link>
     </>

@@ -51,7 +51,7 @@ export default function GroupMembersPage() {
 
   return (
     <section className="space-y-4">
-      <Link href="/configuracion/grupos" className="text-sm font-medium text-primary">
+      <Link href="/settings/groups" className="text-sm font-medium text-primary">
         ← Grupos
       </Link>
       {/* If a refresh fails but there is already data, the data keeps being shown. */}

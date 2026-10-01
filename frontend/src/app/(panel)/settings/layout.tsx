@@ -6,13 +6,13 @@ import { cn } from '@/lib/utils'
 import { useMe } from '@/lib/me'
 
 const TABS = [
-  { href: '/configuracion/cargos', label: 'Cargos y tarifas' },
-  { href: '/configuracion/grupos', label: 'Grupos' },
-  { href: '/configuracion/areas', label: 'Áreas' },
-  { href: '/configuracion/turnos', label: 'Turnos' },
-  { href: '/configuracion/campanas', label: 'Campañas' },
-  { href: '/configuracion/usuarios', label: 'Usuarios y roles' },
-  { href: '/configuracion/auditoria', label: 'Auditoría' },
+  { href: '/settings/positions', label: 'Cargos y tarifas' },
+  { href: '/settings/groups', label: 'Grupos' },
+  { href: '/settings/areas', label: 'Áreas' },
+  { href: '/settings/shifts', label: 'Turnos' },
+  { href: '/settings/campaigns', label: 'Campañas' },
+  { href: '/settings/users', label: 'Usuarios y roles' },
+  { href: '/settings/audit-log', label: 'Auditoría' },
 ]
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {

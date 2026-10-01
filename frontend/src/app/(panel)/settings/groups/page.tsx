@@ -33,7 +33,7 @@ export default function GroupsPage() {
         { name: 'endDate', label: 'Hasta', type: 'date' },
       ]}
       rowActions={(row) => (
-        <Link href={`/configuracion/grupos/${row.id}`} className={buttonVariants({ variant: 'ghost', size: 'lg' })}>
+        <Link href={`/settings/groups/${row.id}`} className={buttonVariants({ variant: 'ghost', size: 'lg' })}>
           Miembros
         </Link>
       )}

@@ -21,7 +21,7 @@ export default function ForgotPasswordPage() {
     setError('')
     try {
       const { error } = await supabaseBrowser()
-        .auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/restablecer` })
+        .auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password` })
         .catch((e: unknown) => ({ error: e }))
       // Supabase answers the same whether or not the account exists, so the success notice reveals nothing;
       // it is only shown if the request arrived and was accepted.

@@ -64,7 +64,7 @@ export default function WorkersPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Trabajadores</h1>
         {canCreate && (
-          <Link href="/trabajadores/nuevo" className={buttonVariants({ size: 'lg' })}>
+          <Link href="/workers/new" className={buttonVariants({ size: 'lg' })}>
             Nuevo trabajador
           </Link>
         )}
@@ -136,7 +136,7 @@ export default function WorkersPage() {
             {data?.items.map((w) => (
               <TableRow key={w.id}>
                 <TableCell>
-                  <Link href={`/trabajadores/${w.id}`} className="font-medium text-primary">
+                  <Link href={`/workers/${w.id}`} className="font-medium text-primary">
                     {w.lastName}, {w.firstName}
                   </Link>
                   <span className={`block text-xs ${w.dni ? 'text-muted-foreground' : 'font-semibold text-amber-800'}`}>

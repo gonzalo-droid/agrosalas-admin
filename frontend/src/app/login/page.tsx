@@ -50,7 +50,7 @@ export default function LoginPage() {
           {submitting ? 'Entrando…' : 'Entrar'}
         </Button>
       </form>
-      <Link href="/recuperar" className="inline-block py-2 text-sm font-medium text-primary">
+      <Link href="/forgot-password" className="inline-block py-2 text-sm font-medium text-primary">
         Olvidé mi contraseña
       </Link>
       <p className="rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">

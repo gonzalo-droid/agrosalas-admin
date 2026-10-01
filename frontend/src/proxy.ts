@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { requireEnv } from '@/lib/env'
 import { applyHeaders, carrySession, type HeaderMap } from '@/lib/session-response'
 
-const PUBLIC_PATHS = ['/login', '/recuperar', '/restablecer']
+const PUBLIC_PATHS = ['/login', '/forgot-password', '/reset-password']
 
 // Refreshes the Supabase session and sends to the login whoever does not have one.
 // The real permissions are enforced by the API; this only decides which screen is shown.
