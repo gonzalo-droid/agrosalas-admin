@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { camposVisibles, cuerpoParaEnviar, type CampoCatalogo, type Valores } from './catalogo-valores'
+import { aplicarCambio, camposVisibles, cuerpoParaEnviar, opcionesVisibles, type CampoCatalogo, type Valores } from './catalogo-valores'
 
 const campo = (c: Partial<CampoCatalogo> & Pick<CampoCatalogo, 'nombre' | 'tipo'>): CampoCatalogo => ({ etiqueta: c.nombre, ...c })
 
@@ -57,5 +57,49 @@ describe('camposVisibles', () => {
     const campos = [campo({ nombre: 'clave', tipo: 'clave', soloAlCrear: true }), campo({ nombre: 'nombre', tipo: 'texto' })]
     expect(camposVisibles(campos, {}, true).map((c) => c.nombre)).toEqual(['nombre'])
     expect(camposVisibles(campos, {}, false).map((c) => c.nombre)).toEqual(['clave', 'nombre'])
+  })
+})
+
+describe('aplicarCambio', () => {
+  const derivar = (campo: string, v: Valores) => (campo === 'normal' ? { extra: String(Number(v.normal) * 1.25) } : {})
+
+  it('al crear, propone los campos derivados', () => {
+    expect(aplicarCambio({ normal: '', extra: '' }, 'normal', '10', derivar, false)).toEqual({ normal: '10', extra: '12.5' })
+  })
+
+  it('al editar, nunca pisa lo que ya estaba', () => {
+    expect(aplicarCambio({ normal: '10', extra: '15' }, 'normal', '12', derivar, true)).toEqual({ normal: '12', extra: '15' })
+  })
+
+  it('sin derivar solo cambia el campo', () => {
+    expect(aplicarCambio({ a: 'x' }, 'a', 'y', undefined, false)).toEqual({ a: 'y' })
+  })
+})
+
+describe('opcionesVisibles', () => {
+  const areas = campo({
+    nombre: 'areaIds',
+    tipo: 'opciones',
+    opciones: [
+      { valor: 'a1', etiqueta: 'Envasado' },
+      { valor: 'a2', etiqueta: 'Almacén', inactiva: true },
+      { valor: 'a3', etiqueta: 'Campo', inactiva: true },
+    ],
+  })
+
+  it('al crear, solo las activas', () => {
+    expect(opcionesVisibles(areas, null)).toEqual([{ valor: 'a1', etiqueta: 'Envasado' }])
+  })
+
+  it('al editar, también las inactivas que la fila ya tiene, marcadas', () => {
+    expect(opcionesVisibles(areas, { id: 'u1', areaIds: ['a2'] })).toEqual([
+      { valor: 'a1', etiqueta: 'Envasado' },
+      { valor: 'a2', etiqueta: 'Almacén (inactiva)' },
+    ])
+  })
+
+  it('vale también para una opción única', () => {
+    const rol = campo({ nombre: 'cargoId', tipo: 'opcion', opciones: [{ valor: 'c1', etiqueta: 'Viejo', inactiva: true }] })
+    expect(opcionesVisibles(rol, { id: 'x', cargoId: 'c1' })).toEqual([{ valor: 'c1', etiqueta: 'Viejo (inactiva)' }])
   })
 })

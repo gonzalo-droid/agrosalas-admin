@@ -9,8 +9,19 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { ErrorApiCliente, mensajeDeError } from '@/lib/api'
-import { camposVisibles, cuerpoParaEnviar, valorInicial, type CampoCatalogo, type FilaCatalogo, type Valor, type Valores } from '@/lib/catalogo-valores'
+import {
+  aplicarCambio,
+  camposVisibles,
+  cuerpoParaEnviar,
+  opcionesVisibles,
+  valorInicial,
+  type CampoCatalogo,
+  type FilaCatalogo,
+  type Valor,
+  type Valores,
+} from '@/lib/catalogo-valores'
 import { Campo, claseControl } from './campo'
+import { ErrorConReintento } from './error-con-reintento'
 
 export type { CampoCatalogo, FilaCatalogo }
 
@@ -25,16 +36,18 @@ type Props = {
   listar: () => Promise<{ datos: FilaCatalogo[] }>
   crear: (valores: Record<string, unknown>) => Promise<unknown>
   editar: (id: string, valores: Record<string, unknown>) => Promise<unknown>
-  // Permite proponer un campo a partir de otro (por ejemplo, la hora extra desde la hora normal).
+  // Permite proponer un campo a partir de otro (por ejemplo, la hora extra desde la hora normal). Solo al crear.
   derivar?: (campo: string, valores: Valores) => Partial<Valores>
   accionesFila?: (fila: FilaCatalogo) => React.ReactNode
 }
 
 const TIPO_INPUT = { texto: 'text', correo: 'email', clave: 'password', hora: 'time', fecha: 'date', numero: 'number' } as const
+// El navegador no debe rellenar estos formularios con los datos de quien los usa (p. ej. en "Nuevo usuario").
+const AUTOCOMPLETAR = { clave: 'new-password' } as Partial<Record<CampoCatalogo['tipo'], string>>
 
 export function Catalogo(props: Props) {
   const cliente = useQueryClient()
-  const { data, isPending, error } = useQuery({ queryKey: [props.claveConsulta], queryFn: props.listar })
+  const { data, isPending, error, refetch } = useQuery({ queryKey: [props.claveConsulta], queryFn: props.listar })
   const [abierto, setAbierto] = useState(false)
   const [fila, setFila] = useState<FilaCatalogo | null>(null)
   const [valores, setValores] = useState<Valores>({})
@@ -53,10 +66,7 @@ export function Catalogo(props: Props) {
   }
 
   function cambiar(campo: string, valor: Valor) {
-    setValores((v) => {
-      const siguiente = { ...v, [campo]: valor }
-      return { ...siguiente, ...props.derivar?.(campo, siguiente) } as Valores
-    })
+    setValores((v) => aplicarCambio(v, campo, valor, props.derivar, fila !== null))
   }
 
   const guardar = useMutation({
@@ -108,8 +118,8 @@ export function Catalogo(props: Props) {
             )}
             {error && (
               <TableRow>
-                <TableCell colSpan={props.columnas.length + 2} className="text-destructive">
-                  {mensajeDeError(error)}
+                <TableCell colSpan={props.columnas.length + 2}>
+                  <ErrorConReintento error={error} alReintentar={refetch} />
                 </TableCell>
               </TableRow>
             )}
@@ -133,7 +143,12 @@ export function Catalogo(props: Props) {
                 <TableCell className="text-right">
                   {props.accionesFila?.(f)}
                   {props.puedeEditar && (
-                    <Button variant="ghost" size="lg" onClick={() => abrir(f)}>
+                    <Button
+                      variant="ghost"
+                      size="lg"
+                      aria-label={typeof f.nombre === 'string' ? `Editar ${f.nombre}` : undefined}
+                      onClick={() => abrir(f)}
+                    >
                       Editar
                     </Button>
                   )}
@@ -145,7 +160,8 @@ export function Catalogo(props: Props) {
       </div>
 
       <Dialog open={abierto} onOpenChange={(o) => setAbierto(o)}>
-        <DialogContent className="sm:max-w-md">
+        {/* Con un formulario largo o el teclado del teléfono abierto, el contenido se desplaza hasta "Guardar". */}
+        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{fila ? 'Editar' : props.textoNuevo}</DialogTitle>
           </DialogHeader>
@@ -177,7 +193,7 @@ export function Catalogo(props: Props) {
                 return (
                   <fieldset key={c.nombre} className="space-y-1">
                     <legend className="text-sm font-medium">{c.etiqueta}</legend>
-                    {c.opciones?.map((o) => (
+                    {opcionesVisibles(c, fila).map((o) => (
                       <label key={o.valor} className="flex h-9 items-center gap-2 text-sm">
                         <input
                           type="checkbox"
@@ -201,7 +217,7 @@ export function Catalogo(props: Props) {
                 <Campo key={c.nombre} id={id} etiqueta={c.etiqueta} ayuda={c.ayuda} error={error}>
                   {c.tipo === 'opcion' ? (
                     <select id={id} className={claseControl} value={String(valor ?? '')} onChange={(e) => cambiar(c.nombre, e.target.value)}>
-                      {c.opciones?.map((o) => (
+                      {opcionesVisibles(c, fila).map((o) => (
                         <option key={o.valor} value={o.valor}>
                           {o.etiqueta}
                         </option>
@@ -214,6 +230,7 @@ export function Catalogo(props: Props) {
                       type={TIPO_INPUT[c.tipo]}
                       step={c.tipo === 'numero' ? 'any' : undefined}
                       required={c.obligatorio}
+                      autoComplete={AUTOCOMPLETAR[c.tipo] ?? 'off'}
                       value={String(valor ?? '')}
                       onChange={(e) => cambiar(c.nombre, e.target.value)}
                     />

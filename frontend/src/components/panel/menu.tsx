@@ -19,7 +19,8 @@ export function Menu() {
 
   return (
     <>
-      <nav aria-label="Principal" className="hidden w-52 shrink-0 flex-col gap-1 bg-[#0f3d24] p-3 md:flex">
+      {/* Fijo a la altura de la pantalla: el enlace al perfil queda siempre a la vista aunque la página sea larga. */}
+      <nav aria-label="Principal" className="sticky top-0 hidden h-screen w-52 shrink-0 flex-col gap-1 overflow-y-auto bg-[#0f3d24] p-3 md:flex">
         <p className="px-3 pt-2 pb-5 font-semibold text-white">
           Agrosalas <span className="font-normal text-[#a7e3bd]">Admin</span>
         </p>
@@ -38,6 +39,7 @@ export function Menu() {
         ))}
         <Link
           href="/perfil"
+          aria-current={activo('/perfil') ? 'page' : undefined}
           className={cn(
             'mt-auto rounded-lg border-t border-[#1c5a37] p-3 text-sm text-[#cfe8d8]',
             activo('/perfil') && 'border-transparent bg-[#1c5a37] text-white',

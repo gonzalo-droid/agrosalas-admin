@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Catalogo } from '@/components/catalogo'
 import { buttonVariants } from '@/components/ui/button'
 import { api, leer } from '@/lib/api'
+import { rangoFechas } from '@/lib/formato'
 
 export default function PaginaGrupos() {
   return (
@@ -17,7 +18,11 @@ export default function PaginaGrupos() {
         { titulo: 'Grupo', celda: (f) => String(f.nombre) },
         {
           titulo: 'Tipo',
-          celda: (f) => (f.temporal ? `Temporal${f.fechaInicio ? ` · ${f.fechaInicio} a ${f.fechaFin ?? '…'}` : ''}` : 'Fijo'),
+          celda: (f) => {
+            if (!f.temporal) return 'Fijo'
+            const rango = rangoFechas(f.fechaInicio as string | null, f.fechaFin as string | null)
+            return rango ? `Temporal · ${rango}` : 'Temporal'
+          },
         },
         { titulo: 'Miembros', derecha: true, celda: (f) => String(f.miembros) },
       ]}

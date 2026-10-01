@@ -6,7 +6,8 @@ export type CampoCatalogo = {
   nombre: string
   etiqueta: string
   tipo: 'texto' | 'correo' | 'clave' | 'hora' | 'fecha' | 'numero' | 'casilla' | 'opcion' | 'opciones'
-  opciones?: { valor: string; etiqueta: string }[]
+  // Una opción inactiva solo se ofrece al editar una fila que ya la tiene (para poder verla y quitarla).
+  opciones?: { valor: string; etiqueta: string; inactiva?: boolean }[]
   obligatorio?: boolean
   soloAlCrear?: boolean
   ayuda?: string
@@ -45,4 +46,26 @@ export function cuerpoParaEnviar(campos: CampoCatalogo[], valores: Valores, esEd
     cuerpo[c.nombre] = oculto ? null : paraEnviar(c, valores[c.nombre])
   }
   return cuerpo
+}
+
+// Aplica un cambio del formulario. `derivar` propone otros campos (p. ej. la hora extra desde la normal)
+// solo al crear: al editar pisaría un valor elegido a propósito.
+export function aplicarCambio(
+  valores: Valores,
+  campo: string,
+  valor: Valor,
+  derivar: ((campo: string, valores: Valores) => Partial<Valores>) | undefined,
+  esEdicion: boolean,
+): Valores {
+  const siguiente = { ...valores, [campo]: valor }
+  return esEdicion || !derivar ? siguiente : ({ ...siguiente, ...derivar(campo, siguiente) } as Valores)
+}
+
+// Las opciones que se ofrecen: las activas y, al editar, las inactivas que la fila ya tiene (marcadas).
+export function opcionesVisibles(campo: CampoCatalogo, fila: FilaCatalogo | null): { valor: string; etiqueta: string }[] {
+  const actual = fila?.[campo.nombre]
+  const tiene = (valor: string) => (Array.isArray(actual) ? actual.includes(valor) : actual === valor)
+  return (campo.opciones ?? [])
+    .filter((o) => !o.inactiva || tiene(o.valor))
+    .map((o) => ({ valor: o.valor, etiqueta: o.inactiva ? `${o.etiqueta} (inactiva)` : o.etiqueta }))
 }

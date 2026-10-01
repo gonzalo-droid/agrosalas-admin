@@ -1,6 +1,6 @@
 'use client'
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Campo } from '@/components/campo'
@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { api, leer, mensajeDeError } from '@/lib/api'
+import { useAreas } from '@/lib/catalogos'
 import { mensajeCambioClave, mensajeClaveActual } from '@/lib/errores-acceso'
 import { useCerrarSesion } from '@/lib/sesion'
 import { supabaseNavegador } from '@/lib/supabase/navegador'
@@ -20,7 +21,7 @@ export default function PaginaPerfil() {
   const { data: yo } = useYo()
   const [erroresClave, setErroresClave] = useState<{ actual?: string; nueva?: string; repetir?: string; general?: string }>({})
   const [cambiandoClave, setCambiandoClave] = useState(false)
-  const { data: areas } = useQuery({ queryKey: ['areas'], queryFn: () => leer(api.v1.areas.$get()) })
+  const { data: areas } = useAreas()
 
   const guardarNombre = useMutation({
     mutationFn: (nombre: string) => leer(api.v1.me.$patch({ json: { nombre } })),

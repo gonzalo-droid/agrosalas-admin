@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { ErrorConReintento } from '@/components/error-con-reintento'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { api, leer, mensajeDeError } from '@/lib/api'
@@ -53,10 +54,9 @@ export default function PaginaMiembrosGrupo() {
       <Link href="/configuracion/grupos" className="text-sm font-medium text-primary">
         ← Grupos
       </Link>
-      {grupo.error ? (
-        <p role="alert" className="text-sm text-destructive">
-          {mensajeDeError(grupo.error)}
-        </p>
+      {/* Si un refresco falla pero ya hay datos, se siguen mostrando los datos. */}
+      {grupo.error && !grupo.data ? (
+        <ErrorConReintento error={grupo.error} alReintentar={grupo.refetch} />
       ) : !grupo.data ? (
         <h2 className="text-lg font-semibold">Cargando…</h2>
       ) : (

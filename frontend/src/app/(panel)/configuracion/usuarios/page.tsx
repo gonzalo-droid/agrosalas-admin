@@ -1,8 +1,8 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
 import { Catalogo } from '@/components/catalogo'
 import { api, leer } from '@/lib/api'
+import { useAreas } from '@/lib/catalogos'
 import { ETIQUETA_ROL } from '@/lib/yo'
 
 // De menos a más privilegiado: el primero es el que queda preseleccionado al crear un usuario.
@@ -12,7 +12,7 @@ const ROLES = (['coordinador', 'contabilidad', 'gerencia', 'admin'] as const).ma
 }))
 
 export default function PaginaUsuarios() {
-  const { data: areas } = useQuery({ queryKey: ['areas'], queryFn: () => leer(api.v1.areas.$get()) })
+  const { data: areas } = useAreas()
   const nombreArea = (id: string) => areas?.datos.find((a) => a.id === id)?.nombre ?? '…'
 
   return (
@@ -37,7 +37,8 @@ export default function PaginaUsuarios() {
           nombre: 'areaIds',
           etiqueta: 'Áreas (solo para coordinador)',
           tipo: 'opciones',
-          opciones: (areas?.datos ?? []).filter((a) => a.activo).map((a) => ({ valor: a.id, etiqueta: a.nombre })),
+          // Las áreas inactivas solo aparecen (marcadas) en el usuario que ya las tiene, para poder quitárselas.
+          opciones: (areas?.datos ?? []).map((a) => ({ valor: a.id, etiqueta: a.nombre, inactiva: !a.activo })),
         },
       ]}
       listar={() => leer(api.v1.usuarios.$get())}

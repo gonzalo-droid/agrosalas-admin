@@ -4,13 +4,16 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { useState } from 'react'
 import { claseControl } from '@/components/campo'
+import { ErrorConReintento } from '@/components/error-con-reintento'
 import { Paginador } from '@/components/paginador'
 import { Badge } from '@/components/ui/badge'
 import { buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { api, leer, mensajeDeError } from '@/lib/api'
+import { api, leer } from '@/lib/api'
 import { useAreas, useCargos } from '@/lib/catalogos'
+import { paginaCorregida } from '@/lib/paginas'
+import { cn } from '@/lib/utils'
 import { useValorRetrasado } from '@/lib/valor-retrasado'
 import { useYo } from '@/lib/yo'
 
@@ -27,7 +30,7 @@ export default function PaginaTrabajadores() {
   const textoRetrasado = useValorRetrasado(filtros.texto)
   const filtrosConsulta = { ...filtros, texto: textoRetrasado }
 
-  const { data, isPending, error } = useQuery({
+  const { data, isPending, error, refetch, isPlaceholderData } = useQuery({
     queryKey: ['trabajadores', filtrosConsulta, pagina],
     placeholderData: keepPreviousData,
     queryFn: () =>
@@ -42,6 +45,10 @@ export default function PaginaTrabajadores() {
         }),
       ),
   })
+
+  // Si la página quedó más allá del final (por ejemplo, porque hay menos trabajadores que antes), se va a la última.
+  const corregida = data && !isPlaceholderData ? paginaCorregida(pagina.pagina, pagina.tamano, data.total, data.datos.length) : null
+  if (corregida !== null) setPagina((p) => ({ ...p, pagina: corregida }))
 
   function filtrar(campo: keyof typeof FILTROS_INICIALES, valor: string) {
     setFiltros((f) => ({ ...f, [campo]: valor }))
@@ -91,7 +98,11 @@ export default function PaginaTrabajadores() {
         </select>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border bg-background">
+      {/* Mientras llega la página nueva se sigue viendo la anterior, atenuada. */}
+      <div
+        aria-busy={isPlaceholderData}
+        className={cn('overflow-x-auto rounded-xl border bg-background transition-opacity', isPlaceholderData && 'opacity-60')}
+      >
         <Table>
           <TableHeader>
             <TableRow>
@@ -110,12 +121,12 @@ export default function PaginaTrabajadores() {
             )}
             {error && (
               <TableRow>
-                <TableCell colSpan={5} className="text-destructive">
-                  {mensajeDeError(error)}
+                <TableCell colSpan={5}>
+                  <ErrorConReintento error={error} alReintentar={refetch} />
                 </TableCell>
               </TableRow>
             )}
-            {data?.datos.length === 0 && (
+            {data?.total === 0 && (
               <TableRow>
                 <TableCell colSpan={5} className="text-muted-foreground">
                   Ningún trabajador coincide con los filtros.

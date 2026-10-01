@@ -2,6 +2,7 @@
 
 import { Catalogo } from '@/components/catalogo'
 import { api, leer } from '@/lib/api'
+import { rangoFechas } from '@/lib/formato'
 
 export default function PaginaCampanas() {
   return (
@@ -13,7 +14,7 @@ export default function PaginaCampanas() {
       puedeEditar
       columnas={[
         { titulo: 'Campaña', celda: (f) => String(f.nombre) },
-        { titulo: 'Fechas', celda: (f) => (f.fechaInicio ? `${f.fechaInicio} a ${f.fechaFin ?? '…'}` : 'Sin fechas') },
+        { titulo: 'Fechas', celda: (f) => rangoFechas(f.fechaInicio as string | null, f.fechaFin as string | null) || 'Sin fechas' },
       ]}
       campos={[
         { nombre: 'nombre', etiqueta: 'Nombre', tipo: 'texto', obligatorio: true },

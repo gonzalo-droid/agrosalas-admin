@@ -36,7 +36,8 @@ export function Proveedores({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={cliente}>
       {children}
-      <Toaster position="top-center" />
+      {/* El panel solo tiene tema claro: los avisos no siguen el modo oscuro del sistema. */}
+      <Toaster position="top-center" theme="light" />
     </QueryClientProvider>
   )
 }

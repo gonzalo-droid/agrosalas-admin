@@ -40,7 +40,7 @@ export function Paginador({
         <Button variant="outline" size="lg" disabled={pagina <= 1} onClick={() => alCambiar({ pagina: pagina - 1, tamano })}>
           Anterior
         </Button>
-        <span aria-current="page" className="px-1 tabular-nums">
+        <span className="px-1 tabular-nums">
           {pagina} de {paginas}
         </span>
         <Button variant="outline" size="lg" disabled={pagina >= paginas} onClick={() => alCambiar({ pagina: pagina + 1, tamano })}>
