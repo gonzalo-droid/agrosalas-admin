@@ -17,15 +17,15 @@ import { hasErrors, validateNewPassword, type NewPasswordErrors } from '@/lib/va
 // a normal session open in this browser is not enough to change the password without knowing the current one.
 export default function ResetPasswordPage() {
   const [link, setLink] = useState<LinkResult | 'checking'>('checking')
-  const check = useRef<Promise<LinkResult> | null>(null)
+  const linkCheck = useRef<Promise<LinkResult> | null>(null)
 
   useEffect(() => {
     let current = true
     // The URL is read before creating the client, which on creation exchanges the ?code= and removes it from the address bar.
     const params = new URLSearchParams(window.location.search)
     // In development React mounts twice: the (single-use) link is checked only once.
-    check.current ??= checkRecoveryLink(supabaseBrowser().auth, params)
-    void check.current.then((result) => {
+    linkCheck.current ??= checkRecoveryLink(supabaseBrowser().auth, params)
+    void linkCheck.current.then((result) => {
       if (current) setLink(result)
     })
     return () => {

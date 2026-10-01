@@ -55,7 +55,7 @@ const path = (template: string) =>
 
 type Case = [role: Role, method: string, path: string, body?: unknown]
 
-const catalogs: [string, string, unknown][] = [
+const catalogCases: [string, string, unknown][] = [
   ['POST', '/v1/areas', { name: 'Otra área' }],
   ['PATCH', '/v1/areas/:area', { name: 'Área renombrada' }],
   ['POST', '/v1/shifts', { name: 'Día', startTime: '07:00', endTime: '17:00' }],
@@ -67,12 +67,12 @@ const catalogs: [string, string, unknown][] = [
   ['POST', '/v1/groups', { name: 'Otro grupo' }],
   ['PATCH', '/v1/groups/:group', { name: 'Grupo renombrado' }],
 ]
-const users: [string, string, unknown][] = [
+const userCases: [string, string, unknown][] = [
   ['GET', '/v1/users', undefined],
   ['POST', '/v1/users', { email: 'new@example.test', password: 'clave-segura-1', name: 'Nuevo', role: 'management' }],
   ['PATCH', '/v1/users/:user', { name: 'Otro nombre' }],
 ]
-const workersAndPayments: [string, string, unknown][] = [
+const workerCases: [string, string, unknown][] = [
   ['POST', '/v1/workers', { firstName: 'Ana', lastName: 'Rojas', dni: '45871237', employmentType: 'temporary' }],
   ['PATCH', '/v1/workers/:worker', { firstName: 'Rosa María' }],
   ['POST', '/v1/workers/:worker/payment-methods', { type: 'yape', number: '987654321', holderName: 'Rosa Quispe' }],
@@ -81,15 +81,15 @@ const workersAndPayments: [string, string, unknown][] = [
   ['POST', '/v1/groups/:group/members', { workerIds: ['00000000-0000-4000-8000-00000000ffff'] }],
   ['DELETE', '/v1/groups/:group/members/:worker', undefined],
 ]
-const auditLog: [string, string, unknown][] = [['GET', '/v1/audit-log', undefined]]
+const auditLogCases: [string, string, unknown][] = [['GET', '/v1/audit-log', undefined]]
 
 const withRoles = (roles: Role[], cases: [string, string, unknown][]): Case[] =>
   roles.flatMap((role) => cases.map(([method, template, body]): Case => [role, method, template, body]))
 
 const forbidden: Case[] = [
-  ...withRoles(['management', 'coordinator'], [...catalogs, ...users, ...auditLog]),
-  ...withRoles(['accounting'], [...catalogs, ...users, ...auditLog]),
-  ...withRoles(['management', 'coordinator'], workersAndPayments),
+  ...withRoles(['management', 'coordinator'], [...catalogCases, ...userCases, ...auditLogCases]),
+  ...withRoles(['accounting'], [...catalogCases, ...userCases, ...auditLogCases]),
+  ...withRoles(['management', 'coordinator'], workerCases),
   // Accounting does manage workers, payment methods and members; it is not tested here.
 ]
 
