@@ -1,4 +1,5 @@
 import type { Context } from 'hono'
+import { HTTPException } from 'hono/http-exception'
 import type { ContentfulStatusCode } from 'hono/utils/http-status'
 
 export class ErrorApi extends Error {
@@ -25,6 +26,10 @@ function esDuplicado(err: unknown): boolean {
 export function manejarError(err: Error, c: Context) {
   if (err instanceof ErrorApi) {
     return c.json({ error: { codigo: err.codigo, mensaje: err.message, campo: err.campo } }, err.status)
+  }
+  // Errores que lanza Hono mismo, p. ej. un cuerpo que no es JSON válido.
+  if (err instanceof HTTPException) {
+    return c.json({ error: { codigo: 'solicitud_invalida', mensaje: 'La solicitud no es válida' } }, err.status)
   }
   if (esDuplicado(err)) {
     return c.json({ error: { codigo: 'duplicado', mensaje: 'Ya existe un registro con ese valor' } }, 409)

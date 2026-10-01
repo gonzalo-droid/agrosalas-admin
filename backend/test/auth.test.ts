@@ -58,4 +58,16 @@ describe('/v1/me', () => {
     expect(r.json.error.codigo).toBe('validacion')
     expect(r.json.error.campo).toBe('nombre')
   })
+
+  it('responde con el formato de error de la API cuando el cuerpo no es JSON', async () => {
+    const r = await p.app.request('/v1/me', {
+      method: 'PATCH',
+      headers: { Authorization: 'Bearer admin', 'Content-Type': 'application/json' },
+      body: '{no-es-json',
+    })
+    expect(r.status).toBe(400)
+    expect(await r.json()).toEqual({
+      error: { codigo: 'solicitud_invalida', mensaje: 'La solicitud no es válida' },
+    })
+  })
 })
