@@ -14,10 +14,12 @@ export function GruposTrabajador({ ficha }: { ficha: FichaTrabajador }) {
   const trabajadorId = ficha.id
 
   const opciones = {
-    onSuccess: () => {
-      cliente.invalidateQueries({ queryKey: ['trabajadores', trabajadorId] })
-      cliente.invalidateQueries({ queryKey: ['grupos'] })
-    },
+    // Devuelve la promesa: la mutación sigue "pendiente" hasta que las listas se refrescan.
+    onSuccess: () =>
+      Promise.all([
+        cliente.invalidateQueries({ queryKey: ['trabajadores', trabajadorId] }),
+        cliente.invalidateQueries({ queryKey: ['grupos'] }),
+      ]),
     onError: (e: unknown) => {
       toast.error(mensajeDeError(e))
     },
@@ -31,6 +33,7 @@ export function GruposTrabajador({ ficha }: { ficha: FichaTrabajador }) {
     ...opciones,
   })
 
+  const ocupado = agregar.isPending || quitar.isPending
   const propios = grupos?.datos.filter((g) => ficha.grupoIds.includes(g.id)) ?? []
   const disponibles = grupos?.datos.filter((g) => g.activo && !ficha.grupoIds.includes(g.id)) ?? []
 
@@ -42,7 +45,7 @@ export function GruposTrabajador({ ficha }: { ficha: FichaTrabajador }) {
         {propios.map((g) => (
           <li key={g.id} className="flex h-9 items-center gap-1 rounded-full border pr-1 pl-3 text-sm">
             {g.nombre}
-            <Button variant="ghost" size="icon-sm" className="rounded-full" aria-label={`Quitar del grupo ${g.nombre}`} onClick={() => quitar.mutate(g.id)}>
+            <Button variant="ghost" size="icon-sm" className="rounded-full" aria-label={`Quitar del grupo ${g.nombre}`} disabled={ocupado} onClick={() => quitar.mutate(g.id)}>
               ×
             </Button>
           </li>
@@ -53,6 +56,7 @@ export function GruposTrabajador({ ficha }: { ficha: FichaTrabajador }) {
           aria-label="Agregar a un grupo"
           className={`${claseControl} h-10 max-w-xs`}
           value=""
+          disabled={ocupado}
           onChange={(e) => e.target.value && agregar.mutate(e.target.value)}
         >
           <option value="">+ Agregar a un grupo</option>

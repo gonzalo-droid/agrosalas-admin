@@ -16,7 +16,7 @@ export default function PaginaTrabajador() {
     queryFn: () => leer(api.v1.trabajadores[':id'].$get({ param: { id } })),
   })
 
-  if (error) return <p className="text-sm text-destructive">{mensajeDeError(error)}</p>
+  if (error && !ficha) return <p className="text-sm text-destructive">{mensajeDeError(error)}</p>
   if (!ficha || !yo) return <p className="text-sm text-muted-foreground">Cargando…</p>
 
   const puedeEditar = yo.rol === 'admin' || yo.rol === 'contabilidad'

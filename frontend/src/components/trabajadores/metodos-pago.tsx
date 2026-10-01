@@ -19,11 +19,10 @@ export function MetodosPago({ ficha }: { ficha: FichaTrabajador }) {
   const [tipo, setTipo] = useState<Tipo>('yape')
   const id = ficha.id
 
+  // Devuelve la promesa: la mutación sigue "pendiente" hasta que la lista se refresca.
+  const refrescar = () => cliente.invalidateQueries({ queryKey: ['trabajadores', id] })
   const opciones = {
-    onSuccess: () => {
-      cliente.invalidateQueries({ queryKey: ['trabajadores', id] })
-      setAgregando(false)
-    },
+    onSuccess: refrescar,
     onError: (e: unknown) => {
       toast.error(mensajeDeError(e))
     },
@@ -45,6 +44,10 @@ export function MetodosPago({ ficha }: { ficha: FichaTrabajador }) {
       )
     },
     ...opciones,
+    onSuccess: () => {
+      setAgregando(false)
+      return refrescar()
+    },
   })
   const hacerPrincipal = useMutation({
     mutationFn: (metodoId: string) =>
@@ -56,6 +59,7 @@ export function MetodosPago({ ficha }: { ficha: FichaTrabajador }) {
       leer(api.v1.trabajadores[':id']['metodos-pago'][':metodoId'].$delete({ param: { id, metodoId } })),
     ...opciones,
   })
+  const ocupado = quitar.isPending || hacerPrincipal.isPending
 
   return (
     <section className="space-y-3 rounded-xl border bg-background p-4">
@@ -78,11 +82,11 @@ export function MetodosPago({ ficha }: { ficha: FichaTrabajador }) {
               </p>
             </div>
             {!m.principal && (
-              <Button variant="ghost" size="lg" onClick={() => hacerPrincipal.mutate(m.id)}>
+              <Button variant="ghost" size="lg" disabled={ocupado} onClick={() => hacerPrincipal.mutate(m.id)}>
                 Hacer principal
               </Button>
             )}
-            <Button variant="destructive" size="lg" onClick={() => quitar.mutate(m.id)}>
+            <Button variant="destructive" size="lg" disabled={ocupado} onClick={() => quitar.mutate(m.id)}>
               Quitar
             </Button>
           </li>

@@ -31,6 +31,8 @@ export function FormularioTrabajador({ ficha, puedeEditar }: { ficha?: FichaTrab
   const { data: turnos } = useTurnos()
   const [v, setV] = useState(() => valoresIniciales(ficha))
   const [error, setError] = useState<{ campo?: string; mensaje: string } | null>(null)
+  // Tras crear, el botón queda deshabilitado hasta que la navegación a la ficha termine.
+  const [creado, setCreado] = useState(false)
 
   const cargo = cargos?.datos.find((c) => c.id === v.cargoId)
   const fijar = (campo: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
@@ -57,9 +59,19 @@ export function FormularioTrabajador({ ficha, puedeEditar }: { ficha?: FichaTrab
     onSuccess: (guardado) => {
       cliente.invalidateQueries({ queryKey: ['trabajadores'] })
       toast.success('Trabajador guardado')
-      if (!ficha) router.replace(`/trabajadores/${guardado.id}`)
+      if (!ficha) {
+        setCreado(true)
+        router.replace(`/trabajadores/${guardado.id}`)
+      }
     },
-    onError: (e) => setError({ campo: e instanceof ErrorApiCliente ? e.campo : undefined, mensaje: mensajeDeError(e) }),
+    onError: (e) => {
+      // El DNI es el único campo único del trabajador: un duplicado se muestra bajo ese campo.
+      if (e instanceof ErrorApiCliente && e.codigo === 'duplicado') {
+        setError({ campo: 'dni', mensaje: 'Ya existe un trabajador con ese DNI' })
+        return
+      }
+      setError({ campo: e instanceof ErrorApiCliente ? e.campo : undefined, mensaje: mensajeDeError(e) })
+    },
   })
 
   const entrada = (campo: CampoTexto, etiqueta: string, extra: React.ComponentProps<typeof Input> = {}) => (
@@ -154,7 +166,7 @@ export function FormularioTrabajador({ ficha, puedeEditar }: { ficha?: FichaTrab
 
       <div className="flex gap-3">
         {puedeEditar && (
-          <Button type="submit" size="lg" disabled={guardar.isPending}>
+          <Button type="submit" size="lg" disabled={guardar.isPending || creado}>
             Guardar
           </Button>
         )}
