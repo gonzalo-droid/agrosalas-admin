@@ -33,6 +33,26 @@ El código de este plan se ejecutó completo en una carpeta temporal el 2026-10-
 
 npm 11 puede mostrar avisos `npm warn install-scripts` (esbuild, unrs-resolver). No impiden nada; se pueden ignorar.
 
+## Estado de ejecución (2026-10-01)
+
+Ejecutado en la rama `feat/fase-1-base` (tareas 1 a 11 y 13). La tarea 12 queda pendiente: la hace Gonzalo. La suite tiene 148 pruebas, no las 61 que anuncian los pasos de abajo.
+
+**El código del repo manda sobre los bloques de código de este plan.** Las revisiones por tarea y la revisión final encontraron defectos en el código del propio plan, y se corrigieron. Diferencias respecto del texto de abajo:
+
+| Dónde | Qué cambió y por qué |
+|---|---|
+| `backend/src/lib/errores.ts` | `manejarError` también responde 400 `solicitud_invalida` a las excepciones de Hono (cuerpo que no es JSON) y 400 `referencia_invalida` a una clave foránea inexistente (Postgres 23503). Los errores 500 se registran sin la consulta ni sus parámetros, que pueden traer DNI y cuentas. |
+| `backend/src/lib/validar.ts` | Configura el locale español de Zod; omite `campo` cuando el error no es de un campo; exporta `conAlgunCampo(esquema)`, que hace que un PATCH con cuerpo vacío responda 400 en lugar de 500. Todos los esquemas de edición lo usan. |
+| `backend/src/auth/verificar.ts` | Devuelve `null` solo para errores de validez del token (lista explícita de clases de jose); si no puede leer las claves públicas, relanza el error (500) en vez de responder 401 a todos. |
+| `backend/src/rutas/auditoria.ts`, `trabajadores.ts` | El orden de las listas paginadas termina con `id` como desempate; sin él, la paginación repetía y saltaba filas. |
+| `backend/src/rutas/grupos.ts` | El esquema de edición es explícito y sin valores por defecto (en Zod 4, `.partial()` conservaba `temporal: false` y lo pisaba al editar). `GET /:id` solo devuelve al coordinador los miembros de sus áreas. Quitar a quien no es miembro responde 404 y no escribe auditoría. |
+| `backend/src/rutas/usuarios.ts`, `backend/src/auth/admin.ts`, `backend/src/tipos.ts` | Las áreas se validan antes de crear la cuenta de login; si la base falla después, la cuenta se elimina (`AuthAdmin.eliminarUsuario`). Los errores del proveedor se responden en español: 409 solo si el correo ya existe, 502 en otro caso. Un PATCH solo con `areaIds` ya no falla. |
+| `backend/src/auth/primer-admin.ts` (nuevo), `backend/scripts/crear-admin.ts` | El alta del primer administrador escribe auditoría y limpia la cuenta de login si falla; el script solo llama a `crearPrimerAdmin`. |
+| `backend/src/env.ts` | Quita la barra final de `SUPABASE_URL` y `ORIGEN_PANEL`; `PUERTO` debe estar entre 1 y 65535. |
+| `backend/test/permisos.test.ts` (nuevo) | Matriz rol × ruta (403 en cada combinación prohibida) y barrido que comprueba que el coordinador no recibe montos ni datos bancarios en ningún GET. |
+
+Pendiente para el plan de la fase 2 (lo dejó anotado la revisión final): decidir entre esquemas de salida por rol o un ayudante común de redacción (el spec pide validar también la salida); dinero en enteros en el cálculo; qué pasa si la forma de pago del cargo no coincide con la modalidad del trabajador; regla de fechas fin ≥ inicio; búsqueda de trabajadores sin acentos.
+
 ## Mapa de archivos
 
 | Archivo | Responsabilidad |

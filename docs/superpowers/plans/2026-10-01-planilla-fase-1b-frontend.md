@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-10-01-planilla-design.md` (secciones 3, 4, 10 y fase 1 de la sección 15). Prototipo visual de referencia: https://claude.ai/artifact/CQCMfcsgQu5ceS96UMBXmU
 
-**Plan previo:** `docs/superpowers/plans/2026-10-01-planilla-fase-1a-backend.md`. Debe estar terminado: este plan importa el tipo `AppType` de `@agrosalas/backend/app` y usa sus endpoints.
+**Plan previo:** `docs/superpowers/plans/2026-10-01-planilla-fase-1a-backend.md`. Debe estar terminado: este plan importa el tipo `AppType` de `@agrosalas/backend/app` y usa sus endpoints. El plan 1A ya se ejecutó; su sección "Estado de ejecución" lista lo que cambió respecto de su texto. Lo que afecta a las pantallas: los mensajes de validación de la API ya llegan en español, un PATCH sin campos responde 400, y `GET /v1/grupos/:id` solo devuelve al coordinador los miembros de sus áreas.
 
 ## Global Constraints
 
@@ -2692,7 +2692,7 @@ Y a la tabla de "Comandos":
 - [ ] **Step 3: Verificar lo mismo que correrá el workflow**
 
 Run: `npm ci && npm run lint && npm run typecheck && npm test && npm run build`
-Expected: PASS: 61 pruebas del backend y 4 del frontend; build con 18 rutas.
+Expected: PASS: todas las pruebas del backend (148 al cerrar el plan 1A) y 4 del frontend; build con 18 rutas.
 
 - [ ] **Step 4: Prueba manual contra Supabase**
 
