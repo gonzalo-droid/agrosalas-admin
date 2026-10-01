@@ -53,6 +53,22 @@ Ejecutado en la rama `feat/fase-1-base` (tareas 1 a 11 y 13). La tarea 12 queda 
 
 Pendiente para el plan de la fase 2 (lo dejó anotado la revisión final): decidir entre esquemas de salida por rol o un ayudante común de redacción (el spec pide validar también la salida); dinero en enteros en el cálculo; qué pasa si la forma de pago del cargo no coincide con la modalidad del trabajador; regla de fechas fin ≥ inicio; búsqueda de trabajadores sin acentos.
 
+Hallazgos menores que quedaron abiertos (ninguno bloquea el plan 1B):
+
+- `GET /v1/grupos` muestra al coordinador el número total de miembros de cada grupo, incluidos los de otras áreas (solo la cifra, no las personas).
+- La búsqueda de trabajadores distingue acentos, no busca "nombre apellido" junto y no escapa `%` ni `_`.
+- `areaIds` repetidos al crear un usuario dan un 409 confuso; el correo no se pasa a minúsculas.
+- Un cargo que cambia de sueldo mensual a pago por hora conserva el sueldo anterior; los montos con más de cuatro decimales se redondean sin avisar.
+- La API devuelve las horas de turno como `HH:MM:SS` pero solo acepta `HH:MM`.
+- Los campos de texto opcionales guardan `''` en lugar de nulo si se les manda una cadena vacía.
+- No se valida que la fecha de fin sea posterior a la de inicio (campañas, grupos).
+- Un método de pago de tipo cuenta bancaria no exige banco; marcar `principal: false` se rechaza aunque el método no sea el principal.
+- El log de un error 500 ya no trae la consulta, pero el mensaje del motor puede incluir un valor suelto, y ya no se registra la traza.
+- La matriz de permisos y el barrido del coordinador listan rutas y nombres de campo a mano: una ruta o un campo de dinero nuevo hay que añadirlo a `backend/test/permisos.test.ts`.
+- El backend no tiene ESLint; `npm audit` reporta cuatro avisos moderados de una cadena solo de desarrollo (drizzle-kit → esbuild). No ejecutar `npm audit fix --force`: degrada drizzle-kit.
+- El servidor no cierra la conexión al recibir SIGTERM, no limita el tamaño del cuerpo y faltan índices secundarios; se resuelve al desplegar o con la migración de la fase 2.
+- Tres commits hechos por subagentes llevan la firma "Claude Haiku 4.5", que es el modelo que los escribió.
+
 ## Mapa de archivos
 
 | Archivo | Responsabilidad |
