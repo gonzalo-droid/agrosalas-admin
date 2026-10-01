@@ -5,7 +5,8 @@ import { Catalogo } from '@/components/catalogo'
 import { api, leer } from '@/lib/api'
 import { ETIQUETA_ROL } from '@/lib/yo'
 
-const ROLES = (Object.keys(ETIQUETA_ROL) as (keyof typeof ETIQUETA_ROL)[]).map((valor) => ({
+// De menos a más privilegiado: el primero es el que queda preseleccionado al crear un usuario.
+const ROLES = (['coordinador', 'contabilidad', 'gerencia', 'admin'] as const).map((valor) => ({
   valor,
   etiqueta: ETIQUETA_ROL[valor],
 }))
@@ -25,7 +26,7 @@ export default function PaginaUsuarios() {
         { titulo: 'Nombre', celda: (f) => String(f.nombre) },
         { titulo: 'Correo', celda: (f) => String(f.correo) },
         { titulo: 'Rol', celda: (f) => ETIQUETA_ROL[f.rol as keyof typeof ETIQUETA_ROL] },
-        { titulo: 'Áreas', celda: (f) => (f.areaIds as string[]).map(nombreArea).join(', ') || 'Todas' },
+        { titulo: 'Áreas', celda: (f) => (f.areaIds as string[]).map(nombreArea).join(', ') || (f.rol === 'coordinador' ? 'Ninguna' : 'Todas') },
       ]}
       campos={[
         { nombre: 'correo', etiqueta: 'Correo', tipo: 'correo', obligatorio: true, soloAlCrear: true },

@@ -5,9 +5,11 @@ import { useState } from 'react'
 import { claseControl } from '@/components/campo'
 import { Paginador } from '@/components/paginador'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { api, leer } from '@/lib/api'
+import { api, leer, mensajeDeError } from '@/lib/api'
+import { ETIQUETA_ENTIDAD, resumenCambio } from '@/lib/auditoria'
 
-const ENTIDADES = ['trabajadores', 'trabajador_metodos_pago', 'usuarios', 'cargos', 'grupos', 'areas', 'turnos', 'campanas']
+const ENTIDADES = Object.keys(ETIQUETA_ENTIDAD)
+const etiquetaEntidad = (entidad: string) => ETIQUETA_ENTIDAD[entidad] ?? entidad
 const ACCION = { crear: 'Creó', editar: 'Editó', eliminar: 'Eliminó' } as const
 const fechaHora = new Intl.DateTimeFormat('es-PE', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Lima' })
 
@@ -15,7 +17,7 @@ export default function PaginaAuditoria() {
   const [entidad, setEntidad] = useState('')
   const [pagina, setPagina] = useState({ pagina: 1, tamano: 25 })
 
-  const { data, isPending } = useQuery({
+  const { data, isPending, error } = useQuery({
     queryKey: ['auditoria', entidad, pagina],
     queryFn: () =>
       leer(
@@ -45,7 +47,7 @@ export default function PaginaAuditoria() {
             <option value="">Todas</option>
             {ENTIDADES.map((e) => (
               <option key={e} value={e}>
-                {e}
+                {etiquetaEntidad(e)}
               </option>
             ))}
           </select>
@@ -68,14 +70,28 @@ export default function PaginaAuditoria() {
                 <TableCell colSpan={5}>Cargando…</TableCell>
               </TableRow>
             )}
+            {error && (
+              <TableRow>
+                <TableCell colSpan={5} className="text-destructive">
+                  {mensajeDeError(error)}
+                </TableCell>
+              </TableRow>
+            )}
+            {data?.datos.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={5} className="text-muted-foreground">
+                  No hay cambios registrados.
+                </TableCell>
+              </TableRow>
+            )}
             {data?.datos.map((f) => (
               <TableRow key={f.id}>
                 <TableCell className="whitespace-nowrap">{fechaHora.format(new Date(f.creadoEn))}</TableCell>
                 <TableCell>{f.usuarioNombre}</TableCell>
                 <TableCell>{ACCION[f.accion]}</TableCell>
-                <TableCell>{f.entidad}</TableCell>
-                <TableCell className="max-w-md truncate font-mono text-xs" title={JSON.stringify(f.despues ?? f.antes)}>
-                  {JSON.stringify(f.despues ?? f.antes)}
+                <TableCell>{etiquetaEntidad(f.entidad)}</TableCell>
+                <TableCell className="max-w-md truncate font-mono text-xs" title={resumenCambio(f.accion, f.antes, f.despues)}>
+                  {resumenCambio(f.accion, f.antes, f.despues)}
                 </TableCell>
               </TableRow>
             ))}
