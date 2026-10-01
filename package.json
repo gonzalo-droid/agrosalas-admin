@@ -1,0 +1,11 @@
+{
+  "name": "agrosalas-admin",
+  "private": true,
+  "workspaces": ["backend"],
+  "scripts": {
+    "dev:api": "npm run dev -w @agrosalas/backend",
+    "test": "npm test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "engines": { "node": ">=22" }
+}
