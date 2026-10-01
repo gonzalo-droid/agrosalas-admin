@@ -9,6 +9,7 @@ import { rutasCargos } from './rutas/cargos'
 import { rutasTrabajadores } from './rutas/trabajadores'
 import { rutasMetodosPago } from './rutas/metodos-pago'
 import { rutasGrupos } from './rutas/grupos'
+import { rutasUsuarios } from './rutas/usuarios'
 import type { Dependencias, Entorno } from './tipos'
 
 export function crearApp(deps: Dependencias) {
@@ -23,6 +24,7 @@ export function crearApp(deps: Dependencias) {
     .route('/trabajadores', rutasTrabajadores(deps))
     .route('/trabajadores', rutasMetodosPago(deps))
     .route('/grupos', rutasGrupos(deps))
+    .route('/usuarios', rutasUsuarios(deps))
 
   return new Hono()
     .use(
