@@ -50,6 +50,7 @@ describe('áreas', () => {
     expect(r.status).toBe(400)
     expect(r.json.error.codigo).toBe('validacion')
     expect(r.json.error.mensaje).toBe('Indica al menos un campo para editar')
+    expect('campo' in r.json.error).toBe(false)
   })
 })
 
