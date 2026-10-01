@@ -31,4 +31,39 @@ describe('crearVerificador', () => {
     expect(await verificar(await firmar(EMISOR, 'anon'))).toBeNull()
     expect(await verificar('no-es-un-token')).toBeNull()
   })
+
+  it('rechaza un token firmado con otra clave bajo el mismo kid', async () => {
+    const { verificar } = await preparar()
+    const { privateKey: ajena } = await generateKeyPair('ES256')
+    const token = await new SignJWT({})
+      .setProtectedHeader({ alg: 'ES256', kid: 'k1' })
+      .setSubject('usuario-1')
+      .setIssuer(EMISOR)
+      .setAudience('authenticated')
+      .setExpirationTime('5m')
+      .sign(ajena)
+    expect(await verificar(token)).toBeNull()
+  })
+
+  it('rechaza un token vencido', async () => {
+    const { publicKey, privateKey } = await generateKeyPair('ES256')
+    const jwk = { ...(await exportJWK(publicKey)), kid: 'k1', alg: 'ES256' }
+    const verificar = crearVerificador(createLocalJWKSet({ keys: [jwk] }), EMISOR)
+    const token = await new SignJWT({})
+      .setProtectedHeader({ alg: 'ES256', kid: 'k1' })
+      .setSubject('usuario-1')
+      .setIssuer(EMISOR)
+      .setAudience('authenticated')
+      .setExpirationTime(Math.floor(Date.now() / 1000) - 60)
+      .sign(privateKey)
+    expect(await verificar(token)).toBeNull()
+  })
+
+  it('relanza los fallos que no son del token, como no poder leer las claves públicas', async () => {
+    const { firmar } = await preparar()
+    const verificar = crearVerificador(async () => {
+      throw new Error('JWKS no disponible')
+    }, EMISOR)
+    await expect(verificar(await firmar(EMISOR, 'authenticated'))).rejects.toThrow('JWKS no disponible')
+  })
 })
