@@ -8,9 +8,10 @@ import { api, leer, mensajeDeError } from '@/lib/api'
 import { useGrupos } from '@/lib/catalogos'
 import type { FichaTrabajador } from './formulario'
 
-export function GruposTrabajador({ ficha }: { ficha: FichaTrabajador }) {
+// soloLectura (gerencia y coordinador): ve los grupos del trabajador, sin agregarlo ni quitarlo.
+export function GruposTrabajador({ ficha, soloLectura = false }: { ficha: FichaTrabajador; soloLectura?: boolean }) {
   const cliente = useQueryClient()
-  const { data: grupos } = useGrupos()
+  const { data: grupos, isPending, error } = useGrupos()
   const trabajadorId = ficha.id
 
   const opciones = {
@@ -40,32 +41,51 @@ export function GruposTrabajador({ ficha }: { ficha: FichaTrabajador }) {
   return (
     <section className="space-y-3 rounded-xl border bg-background p-4">
       <h2 className="font-semibold">Grupos</h2>
-      <ul className="flex flex-wrap gap-2">
-        {propios.length === 0 && <li className="text-sm text-muted-foreground">No está en ningún grupo.</li>}
-        {propios.map((g) => (
-          <li key={g.id} className="flex h-9 items-center gap-1 rounded-full border pr-1 pl-3 text-sm">
-            {g.nombre}
-            <Button variant="ghost" size="icon-sm" className="rounded-full" aria-label={`Quitar del grupo ${g.nombre}`} disabled={ocupado} onClick={() => quitar.mutate(g.id)}>
-              ×
-            </Button>
-          </li>
-        ))}
-      </ul>
-      {disponibles.length > 0 && (
-        <select
-          aria-label="Agregar a un grupo"
-          className={`${claseControl} h-10 max-w-xs`}
-          value=""
-          disabled={ocupado}
-          onChange={(e) => e.target.value && agregar.mutate(e.target.value)}
-        >
-          <option value="">+ Agregar a un grupo</option>
-          {disponibles.map((g) => (
-            <option key={g.id} value={g.id}>
-              {g.nombre}
-            </option>
-          ))}
-        </select>
+      {isPending ? (
+        <p className="text-sm text-muted-foreground">Cargando…</p>
+      ) : error ? (
+        <p role="alert" className="text-sm text-destructive">
+          {mensajeDeError(error)}
+        </p>
+      ) : (
+        <>
+          <ul className="flex flex-wrap gap-2">
+            {propios.length === 0 && <li className="text-sm text-muted-foreground">No está en ningún grupo.</li>}
+            {propios.map((g) => (
+              <li key={g.id} className={`flex h-9 items-center gap-1 rounded-full border pl-3 text-sm ${soloLectura ? 'pr-3' : 'pr-1'}`}>
+                {g.nombre}
+                {!soloLectura && (
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="rounded-full"
+                    aria-label={`Quitar del grupo ${g.nombre}`}
+                    disabled={ocupado}
+                    onClick={() => quitar.mutate(g.id)}
+                  >
+                    ×
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ul>
+          {!soloLectura && disponibles.length > 0 && (
+            <select
+              aria-label="Agregar a un grupo"
+              className={`${claseControl} h-10 max-w-xs`}
+              value=""
+              disabled={ocupado}
+              onChange={(e) => e.target.value && agregar.mutate(e.target.value)}
+            >
+              <option value="">+ Agregar a un grupo</option>
+              {disponibles.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.nombre}
+                </option>
+              ))}
+            </select>
+          )}
+        </>
       )}
     </section>
   )
