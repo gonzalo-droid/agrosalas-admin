@@ -99,9 +99,12 @@ export const rutasGrupos = ({ db }: Dependencias) =>
       async (c) => {
         const { id, trabajadorId } = c.req.valid('param')
         await db.transaction(async (tx) => {
-          await tx
+          const quitados = await tx
             .delete(grupoTrabajadores)
             .where(and(eq(grupoTrabajadores.grupoId, id), eq(grupoTrabajadores.trabajadorId, trabajadorId)))
+            .returning()
+          // Si no había nada que quitar, no se audita: la transacción se revierte.
+          if (quitados.length === 0) throw noEncontrado('El miembro del grupo')
           await registrarAuditoria(tx, c.get('usuario').id, 'editar', 'grupos', id, { quitado: trabajadorId }, null)
         })
         return c.json({ ok: true })

@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest'
-import { usuarioAreas } from '../src/db/schema'
+import { auditoria, usuarioAreas } from '../src/db/schema'
 import { crearPrueba, USUARIOS } from './ayudas'
 
 let p: Awaited<ReturnType<typeof crearPrueba>>
@@ -100,6 +100,14 @@ describe('grupos de trabajadores', () => {
     })
     expect(r.status).toBe(400)
     expect(r.json.error).toEqual({ codigo: 'referencia_invalida', mensaje: 'Uno de los registros indicados no existe' })
+  })
+
+  it('responde 404 y no audita al quitar a alguien que no está en el grupo', async () => {
+    const antes = await p.db.select().from(auditoria)
+    const r = await p.pedir('admin', 'DELETE', `/v1/grupos/${grupoId}/miembros/00000000-0000-4000-8000-00000000ffff`)
+    expect(r.status).toBe(404)
+    expect(r.json.error.codigo).toBe('no_encontrado')
+    expect(await p.db.select().from(auditoria)).toHaveLength(antes.length)
   })
 })
 
