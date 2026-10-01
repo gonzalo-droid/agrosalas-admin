@@ -58,6 +58,13 @@ Pendiente para la fase 2 (lo dejó anotado la revisión final): hacer `Catalogo`
 
 A la lista de la prueba manual (tarea 11, paso 4) hay que sumar: abrir el enlace de recuperación en otro navegador o dispositivo; abrirlo con otro usuario ya logueado; entrar con un usuario distinto después de que la sesión terminó sin usar el botón; ver la ficha como Gerencia y como Coordinador a 390 px; y arrancar `dev:web` con el puerto 3000 ocupado.
 
+**Nombres en inglés (regla nueva del 2026-10-01).** Este plan y el código de esta rama usan nombres en español (`proveedores.tsx`, `/trabajadores`, `leer`, `ErrorApiCliente`). El spec, sección 17, ahora pide todo el código en inglés y deja en español solo el texto que ve el usuario. El cambio de nombres de lo ya construido no se hace en esta rama: es el plan `2026-10-01-planilla-fase-1c-english-naming.md`, en la rama `refactor/english-naming` y con PR propio. La prueba manual contra Supabase va después de ese plan.
+
+**Revisión de la tanda final de arreglos.** Dio por resueltos todos los hallazgos (grupos A a H) y no encontró fallos críticos ni importantes. Dejó dos mejoras menores en `src/lib/recuperacion.ts`, sin aplicar aquí para no chocar con el cambio de nombres en curso; se aplican sobre el plan 1C:
+
+- `verificarToken` da el enlace por válido si `verifyOtp` responde sin error, aunque no devuelva sesión. Debe exigir `data.session`. Supabase siempre devuelve sesión en una recuperación, así que hoy no falla; es una segunda barrera.
+- Si `verifyOtp` o la creación del cliente lanzan un error que no es de autenticación, la página se queda en "Comprobando el enlace…". Debe tratarse como enlace no válido. No muestra el formulario, así que no hay riesgo, solo una pantalla sin salida.
+
 ## Mapa de archivos
 
 Todas las rutas son relativas a `frontend/`.
