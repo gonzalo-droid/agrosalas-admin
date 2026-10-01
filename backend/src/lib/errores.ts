@@ -40,6 +40,10 @@ export function manejarError(err: Error, c: Context) {
   if (codigoPg === '23503') {
     return c.json({ error: { codigo: 'referencia_invalida', mensaje: 'Uno de los registros indicados no existe' } }, 400)
   }
-  console.error(err)
+  // No se registra el error completo: el de Drizzle trae la consulta con sus parámetros (DNI, cuentas bancarias).
+  // Solo el nombre, el código de Postgres y el mensaje del driver, que no incluye parámetros.
+  const causa = (err as { cause?: unknown }).cause
+  const mensaje = causa instanceof Error ? causa.message : err.name === 'DrizzleQueryError' ? undefined : err.message
+  console.error('Error inesperado:', { nombre: err.name, codigoPostgres: codigoPg, mensaje })
   return c.json({ error: { codigo: 'interno', mensaje: 'Error interno' } }, 500)
 }
