@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { autenticar } from './auth/middleware'
 import { manejarError } from './lib/errores'
+import { rutasAuditoria } from './rutas/auditoria'
 import { rutasMe } from './rutas/me'
 import type { Dependencias, Entorno } from './tipos'
 
@@ -9,6 +10,7 @@ export function crearApp(deps: Dependencias) {
   const v1 = new Hono<Entorno>()
     .use('*', autenticar(deps))
     .route('/me', rutasMe(deps))
+    .route('/auditoria', rutasAuditoria(deps))
 
   return new Hono()
     .use(
