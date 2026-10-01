@@ -1,28 +1,28 @@
 import { createClient } from '@supabase/supabase-js'
-import { ErrorApi } from '../lib/errores'
-import type { AuthAdmin } from '../tipos'
+import { ApiError } from '../lib/errors'
+import type { AuthAdmin } from '../types'
 
-export function crearAuthAdminSupabase(supabaseUrl: string, claveSecreta: string): AuthAdmin {
-  const supabase = createClient(supabaseUrl, claveSecreta, {
+export function createSupabaseAuthAdmin(supabaseUrl: string, secretKey: string): AuthAdmin {
+  const supabase = createClient(supabaseUrl, secretKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   })
   return {
-    async crearUsuario(correo, clave) {
+    async createUser(email, password) {
       const { data, error } = await supabase.auth.admin.createUser({
-        email: correo,
-        password: clave,
+        email,
+        password,
         email_confirm: true,
       })
       if (error || !data.user) {
         if (error?.code === 'email_exists') {
-          throw new ErrorApi(409, 'duplicado', 'Ya existe una cuenta de acceso con ese correo', 'correo')
+          throw new ApiError(409, 'duplicate', 'Ya existe una cuenta de acceso con ese correo', 'email')
         }
         console.error(error)
-        throw new ErrorApi(502, 'usuario_auth', 'No se pudo crear la cuenta de acceso')
+        throw new ApiError(502, 'auth_provider_error', 'No se pudo crear la cuenta de acceso')
       }
       return { id: data.user.id }
     },
-    async eliminarUsuario(id) {
+    async deleteUser(id) {
       const { error } = await supabase.auth.admin.deleteUser(id)
       if (error) throw error
     },

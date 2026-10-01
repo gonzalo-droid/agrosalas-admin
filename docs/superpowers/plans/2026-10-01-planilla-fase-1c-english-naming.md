@@ -10,16 +10,16 @@
 
 **Spec:** `docs/superpowers/specs/2026-10-01-planilla-design.md`, sección 17 (convención de nombres y glosario). Las tablas de la sección 17 son la autoridad para todo nombre de dominio; este plan agrega los mapas de archivos e identificadores del código.
 
-**Planes previos:** `2026-10-01-planilla-fase-1a-backend.md` (ejecutado, PR #1) y `2026-10-01-planilla-fase-1b-frontend.md` (tareas 1 a 11 hechas; tanda final de arreglos en curso al escribir este plan).
+**Planes previos:** `2026-10-01-planilla-fase-1a-backend.md` (ejecutado; PR #1 mergeado en `master`, commit `e16be05`) y `2026-10-01-planilla-fase-1b-frontend.md` (ejecutado; PR #2 mergeado en `master`, commit `3cb13fc`, 2026-10-01).
 
 ## Dónde estamos y qué sigue
 
 | Orden | Paso | Estado al 2026-10-01 |
 |---|---|---|
-| 1 | Plan 1A: API base | Hecho. PR #1 abierto (`feat/fase-1-base`) |
-| 2 | Plan 1B: pantallas base | Tareas 1 a 11 hechas. Tanda final de arreglos (grupos A a H) en curso en `feat/fase-1b-frontend` |
-| 3 | PR del plan 1B | Pendiente: se abre al terminar la tanda final |
-| 4 | **Plan 1C (este): nombres en inglés** | Pendiente. Rama `refactor/english-naming`, con PR propio |
+| 1 | Plan 1A: API base | Hecho. PR #1 mergeado en `master` (`e16be05`, 2026-10-01) |
+| 2 | Plan 1B: pantallas base | Hecho, con su tanda final de arreglos (grupos A a H) |
+| 3 | PR del plan 1B | Hecho. PR #2 mergeado en `master` (`3cb13fc`, 2026-10-01) |
+| 4 | **Plan 1C (este): nombres en inglés** | Ejecutado en `refactor/english-naming` (ver "Estado de ejecución"); revisión final hecha. Falta su PR contra `master` |
 | 5 | Proyecto Supabase de desarrollo y primer administrador (tarea 12 del plan 1A) y prueba manual de punta a punta (tarea 11, paso 4, del plan 1B) | Pendiente; lo hace Gonzalo. **Va después del plan 1C**, para crear la base ya con los nombres en inglés |
 | 6 | Plan de la fase 2 (Asistencia) | Sin escribir. Se escribe con los nombres de la sección 17 del spec |
 
@@ -32,6 +32,84 @@ Gonzalo pidió el 2026-10-01 que variables, clases, carpetas y demás estén en 
 3. **La migración inicial se genera de nuevo** en lugar de escribir una migración de renombrado, porque todavía no existe ninguna base con datos. Si para cuando se ejecute este plan ya existe un proyecto Supabase migrado, ver "Antes de empezar".
 4. **Se conservan** `dni`, `cci`, `yape` y `plin`.
 5. **Único agregado que no es un renombrado:** etiquetas en español para los nombres de campo y los valores enum que muestra la pantalla de auditoría (tarea 3). Sin ellas, esa pantalla pasaría a mostrar `hourlyRate` o `bank_account` al usuario.
+
+## Estado de ejecución
+
+**Fecha:** 2026-10-01. **Rama:** `refactor/english-naming`, creada desde `feat/fase-1b-frontend`. Tareas 1 a 6 ejecutadas y revisión final de la rama hecha.
+
+Commits (`git log --oneline feat/fase-1b-frontend..HEAD`, del más antiguo al más nuevo; hasta el commit de este último arreglo):
+
+| Commit | Qué hizo |
+|---|---|
+| `8a7d4d2` | Merge de `feat/fase-1-base`: trae a la rama el plan, la sección 17 y los últimos docs del plan 1B |
+| `178ce65` | `refactor(api): rename backend files, identifiers, env vars and scripts to English` (tarea 1) |
+| `a813a13` | Merge de `origin/feat/fase-1b-frontend`: trae los últimos docs del plan 1B |
+| `198bea5` | `refactor(api)!: rename tables, columns, routes, JSON keys and error codes to English` (tarea 2) |
+| `1675578` | `refactor(web): consume the English API contract and label audit fields in Spanish` (tarea 3) |
+| `3dc16ed` | `refactor(web): rename frontend files, components, hooks and helpers to English` (tarea 4) |
+| `9817cf4` | `refactor(web): rename panel URLs to English` (tarea 5) |
+| `3a1bfe8` | `refactor: rename the last Spanish identifiers found by the final sweep` (tarea 6, barrido) |
+| `4de935a` | `docs: bring the spec, README and plans in line with the English naming` (tarea 6) |
+| `274f4c4` | `refactor: tidy the last names flagged by the final review` (arreglos de código de la revisión final) |
+| este commit | `docs: record the final review and the merged PRs in plan 1C` (arreglos de documentación de la revisión final) |
+
+**Totales finales** (con `frontend/.env.local` apartado, como en CI): lint y typecheck limpios; backend 148 pruebas (13 archivos); frontend 94 pruebas (15 archivos), que son 91 de la línea base más las 3 de las etiquetas de auditoría; build con 16 rutas, todas en inglés. Los tres barridos del paso 3 salen vacíos.
+
+Revisión final de la rama: sin hallazgos críticos ni importantes; lista para mergear.
+
+### Pendiente para la fase 2
+
+1. Unificar el nombre de las constantes de esquemas Zod: `createWorker` y `updateUser` se leen como funciones junto a `positionInput` y `workerFilters`.
+2. Dejar una sola fuente para las etiquetas de los enums: las de rol y método de pago se repiten en `lib/audit-log.ts`, `lib/me.ts` y `lib/worker-view.ts`; las de tipo de empleo y estado, en tres lugares.
+3. `members` es un conteo en `GET /v1/groups` y una lista en `GET /v1/groups/:id`: considerar `memberCount`.
+4. El resumen de la auditoría todavía muestra los booleanos como `true`/`false` y los ids como UUID crudos, contra la regla de la sección 17 del spec de que ningún valor del contrato se muestra crudo.
+
+### En qué difirió la ejecución del texto del plan
+
+- **Línea base.** El plan no sabía los números del frontend: eran 91 pruebas y 16 rutas del build (incluida `/_not-found`).
+- **Redirecciones.** Ya vivían en `frontend/next.config.ts` (la tanda final del plan 1B borró las dos páginas de redirección), así que la tarea 5 cambió ahí las cadenas de origen y destino y no movió páginas de redirección.
+- **Mapa de acciones de la auditoría.** En la tarea 3 sus claves pasaron a `create`/`update`/`delete`; en la tarea 4 el mapa se renombró `ACTION_LABEL`. Sus textos en español (`Creó`, `Editó`, `Eliminó`) no cambiaron.
+- **Pruebas nuevas de auditoría.** De las tres pruebas que agregó la tarea 3, una ya pasaba antes del cambio (la del respaldo con la clave cruda): quedó como guarda de regresión y no como prueba en rojo. Las otras dos fallaron primero, como pedía el plan.
+- **Esquemas de filtros.** Los dos esquemas de consulta que se llamaban `filtros` pasaron a `auditFilters` (auditoría) y `workerFilters` (trabajadores). La tarea 1 los había dejado en español a propósito porque llevaban claves del contrato; la tarea 2 los renombró junto con el contrato.
+- **Comentarios fuera de `src`.** Los comentarios de `frontend/next.config.ts` y de `frontend/.env.example` se pasaron a inglés en la tarea 5.
+- **Antes de empezar.** No existía proyecto Supabase migrado (ni `backend/.env`), así que la migración inicial se regeneró sin pedir vaciar ninguna base.
+- **Barrido final.** Encontró dos restos pequeños, sin cambio de comportamiento: las constantes `users` y `auditLog` de `backend/test/permissions.test.ts` (repetían nombres de exports del schema; ahora `userCases` y `auditLogCases`, y sus hermanas `catalogCases` y `workerCases`) y el ref `check` de `frontend/src/app/reset-password/page.tsx` (ahora `linkCheck`).
+
+### Nombres que no estaban en ninguna tabla
+
+| Antes | Después | Dónde |
+|---|---|---|
+| `filtros` (esquemas de consulta) | `auditFilters`, `workerFilters` | `backend/src/routes/audit-log.ts`, `workers.ts` |
+| `rolEnum` | `roleEnum` | `backend/src/db/schema.ts` |
+| `marcas` (ayudante de columnas) | `timestamps` | `backend/src/db/schema.ts` |
+| `Accion` | `AuditAction` | `backend/src/lib/audit.ts` |
+| `Tarifas`, `exigirTarifas` | `Rates`, `requireRates` (parámetro `position`) | `backend/src/routes/*` |
+| `codigo`, `mensaje`, `campo` (parámetros de `ApiError`) | `code`, `message`, `field` | `backend/src/lib/errors.ts` |
+| `validar(destino, esquema)`, `esquema`/`valores` | `validate(target, schema)`, `schema`/`values` | `backend/src/lib/validate.ts` y rutas |
+| `{ correo, nombre, clave }` (entrada de `createFirstAdmin`) | `{ email, name, password }` | `backend/src/auth/first-admin.ts`, `backend/scripts/create-admin.ts` |
+| `offsetOf`/`paginated`: parámetro `page` | `params` | `backend/src/lib/pagination.ts` |
+| Ayudante Zod `rol` | `role` | `backend/src/routes/users.ts` |
+| Locales de rutas: `grupo`, `miembros`, `metodosPago`, `principal`, `areasAntes`/`areasDespues` | `group`, `members`/`memberships`, `paymentMethods`, `isPrimary`, `areasBefore`/`areasAfter` | `backend/src/routes/*` |
+| Datos de prueba: `p`, `EMISOR`, `preparar`/`verificar`/`firmar`, `Usuario ${role}`, `'empate'`, `Choque` | `t`, `ISSUER`, `setup`/`verify`/`sign`, `User ${role}`, `'tie'`, `Conflict` | `backend/test/*` |
+| Correo de prueba `coordinator@example.test` (usuario creado en la prueba) | `pedro@example.test` | `backend/test/users.test.ts` (chocaba con el usuario sembrado del rol `coordinator`) |
+| Constantes de casos de la matriz de permisos: `catalogos`, `usuarios`, `trabajadoresYPagos`, `auditoria`, `prohibidas`, `CLAVES_SENSIBLES`, `datosSensibles`, `con` | `catalogCases`, `userCases`, `workerCases`, `auditLogCases`, `forbidden`, `SENSITIVE_KEYS`, `sensitiveFields`, `withRoles` | `backend/test/permissions.test.ts` |
+| Claves de consulta de TanStack Query: `'yo'`, `'trabajadores'`, `'trabajadores','buscar'`, `'grupos'`, `'cargos'`, `'turnos'`, `'campanas'`, `'usuarios'`, `'auditoria'` | `'me'`, `'workers'`, `'workers','search'`, `'groups'`, `'positions'`, `'shifts'`, `'campaigns'`, `'users'`, `'audit-log'` | `frontend/src/lib/*`, páginas de `app/` y componentes |
+| Estado del filtro de trabajadores `{ texto, areaId, modalidad, estado }` | `{ search, areaId, employmentType, status }` | `frontend/src/app/(panel)/workers/page.tsx` |
+| Campos del formulario de métodos de pago `numero`/`banco`/`titular` y de los catálogos `activo` | `number`/`bank`/`holderName` y `active` | `frontend/src/components/workers/payment-methods.tsx`, `catalog.tsx` |
+| Tipos de campo del catálogo `texto`, `correo`, `clave`, `hora`, `fecha`, `numero`, `casilla`, `opcion`, `opciones` | `text`, `email`, `password`, `time`, `date`, `number`, `checkbox`, `select`, `multiselect` | `frontend/src/components/catalog.tsx` y páginas de configuración |
+| Props de componentes: `titulo`, `descripcion`, `textoNuevo`, `columnas`, `campos`, `listar`, `crear`, `editar`, `alReintentar`, `pagina`/`tamano`/`alCambiar`, `etiqueta`, `ayuda`, `soloLectura`, `puedeEditar` | `title`, `description`, `newLabel`, `columns`, `fields`, `list`, `create`, `update`, `onRetry`, `page`/`pageSize`/`onChange`, `label`, `help`, `readOnly`, `canEdit` | `frontend/src/components/*` |
+| Ayudantes de `lib/`: `aplicarCambio`, `opcionesVisibles`, `paraEnviar`, `rangoFechas`, `paginaCorregida`, `verificarToken`, `esperarAvisoDeRecuperacion`, `errorDeLaApi`, `mensajeComun`, `mensajeClaveNueva`, `esDemasiadosIntentos`, `sonCredencialesInvalidas` | `applyChange`, `visibleOptions`, `toRequestValue`, `dateRange`, `correctedPage`, `verifyToken`, `waitForRecoveryEvent`, `apiError`, `commonMessage`, `newPasswordMessage`, `isTooManyAttempts`, `isInvalidCredentials` | `frontend/src/lib/*` |
+| Constantes: `DEMASIADOS_INTENTOS`, `CLAVE_DEBIL`, `MISMA_CLAVE`, `ERROR_GENERICO`, `ERROR_SIN_CONEXION`, `EDITAN`, `TAMANOS`, `TIPO_INPUT`, `AUTOCOMPLETAR`, `ENTIDADES`, `FILTROS_INICIALES`, `PESTANAS`, `ENLACES`/`soloAdmin`, `ACCION`, `PUBLICAS` | `TOO_MANY_ATTEMPTS`, `WEAK_PASSWORD`, `SAME_PASSWORD`, `GENERIC_ERROR`, `NO_CONNECTION_ERROR`, `EDITORS`, `PAGE_SIZES`, `INPUT_TYPE`, `AUTOCOMPLETE`, `ENTITIES`, `INITIAL_FILTERS`, `TABS`, `LINKS`/`adminOnly`, `ACTION_LABEL`, `PUBLIC_PATHS` | `frontend/src/lib/*`, `components/panel/menu.tsx`, `proxy.ts`, páginas de `app/` |
+| Nombres de campo de los formularios de sesión y perfil `nombre`, `correo`, `clave`, `actual`, `nueva`, `repetir`; ids `campo-<nombre>`, `filas-por-pagina`, `filtro-entidad`, `buscar-miembro`, `metodo-*` | `name`, `email`, `password`, `current`, `password`, `repeat`; `field-<name>`, `rows-per-page`, `entity-filter`, `search-member`, `method-*` | `frontend/src/app/login`, `profile`, `forgot-password`, `reset-password` y componentes |
+| Resultado de la comprobación del enlace `ResultadoEnlace` y código de cliente | `LinkResult` con `'recovery' \| 'invalid' \| 'network_error'`; código `'unknown'` | `frontend/src/lib/recovery.ts`, `api.ts` |
+| Ref de la comprobación del enlace `check` | `linkCheck` | `frontend/src/app/reset-password/page.tsx` |
+| Valores de prueba `SIN_CACHE`, `SIN_CONEXION`, cookie `'nuevo'` | `NO_CACHE`, `NO_CONNECTION`, `'fresh'` | `frontend/src/lib/*.test.ts` |
+
+### Para quien despliegue
+
+- El job de CI pasó de `verificar` a `verify`: si `master` exige un check con el nombre viejo, hay que actualizarlo en GitHub.
+- Las variables de entorno del backend son `PANEL_ORIGIN` y `PORT` (antes `ORIGEN_PANEL` y `PUERTO`): cualquier `.env` o entorno desplegado que ya exista debe renombrarlas.
+- La migración inicial se regeneró con los nombres en inglés (no es incremental): una base migrada antes de este cambio hay que recrearla. Todavía no existe ninguna.
 
 ## Global Constraints
 
@@ -51,11 +129,11 @@ Gonzalo pidió el 2026-10-01 que variables, clases, carpetas y demás estén en 
 
 ## Antes de empezar
 
-- [ ] La tanda final del plan 1B terminó: `git status --short` vacío en `feat/fase-1b-frontend` y existe `.superpowers/sdd/2026-10-01-planilla-fase-1b-frontend/final-fix-report.md`.
-- [ ] La rama `feat/fase-1b-frontend` contiene este plan y la sección 17 del spec (llegan por `feat/fase-1-base`). Si no: `git merge feat/fase-1-base`.
-- [ ] Crear la rama: `git switch -c refactor/english-naming feat/fase-1b-frontend`.
-- [ ] Anotar la línea base. Ejecutar `npm run lint && npm run typecheck && npm test && npm run build` y guardar: número de pruebas del backend (se espera 148), número de pruebas del frontend y la lista de rutas del build.
-- [ ] Preguntar a Gonzalo si ya creó el proyecto Supabase de desarrollo. Si ya lo migró con los nombres en español, la base hay que vaciarla y la cuenta del administrador hay que borrarla en Supabase Auth antes de volver a migrar. Es una acción destructiva: la decide y la hace Gonzalo, no el agente.
+- [x] La tanda final del plan 1B terminó: `git status --short` vacío en `feat/fase-1b-frontend` y existe `.superpowers/sdd/2026-10-01-planilla-fase-1b-frontend/final-fix-report.md`.
+- [x] La rama `feat/fase-1b-frontend` contiene este plan y la sección 17 del spec (llegan por `feat/fase-1-base`). Si no: `git merge feat/fase-1-base`.
+- [x] Crear la rama: `git switch -c refactor/english-naming feat/fase-1b-frontend`.
+- [x] Anotar la línea base. Ejecutar `npm run lint && npm run typecheck && npm test && npm run build` y guardar: número de pruebas del backend (se espera 148), número de pruebas del frontend y la lista de rutas del build.
+- [x] Preguntar a Gonzalo si ya creó el proyecto Supabase de desarrollo. Si ya lo migró con los nombres en español, la base hay que vaciarla y la cuenta del administrador hay que borrarla en Supabase Auth antes de volver a migrar. Es una acción destructiva: la decide y la hace Gonzalo, no el agente.
 
 ## Mapa de archivos
 
@@ -160,7 +238,7 @@ Renombra lo interno del backend. No cambia nada que viaje por la red ni que se g
 - Consumes: nada.
 - Produces: los nombres de la tabla de identificadores de abajo. La tarea 2 los usa tal cual.
 
-- [ ] **Step 1: Mover los archivos**
+- [x] **Step 1: Mover los archivos**
 
 ```bash
 cd backend
@@ -196,7 +274,7 @@ git mv test/verificar.test.ts test/verify.test.ts
 cd ..
 ```
 
-- [ ] **Step 2: Renombrar los identificadores exportados y sus usos**
+- [x] **Step 2: Renombrar los identificadores exportados y sus usos**
 
 | Antes | Después | Archivo |
 |---|---|---|
@@ -251,7 +329,7 @@ En `src/types.ts`, la variable de contexto de Hono `usuario` (`c.get('usuario')`
 
 No se tocan en esta tarea: los nombres exportados por `src/db/schema.ts` y sus claves, los nombres de los esquemas Zod cuyas claves son parte del contrato (se renombran en la tarea 2 junto con sus claves), ni las propiedades `codigo` y `campo` de `ApiError`.
 
-- [ ] **Step 3: Renombrar variables locales, parámetros y comentarios**
+- [x] **Step 3: Renombrar variables locales, parámetros y comentarios**
 
 Toda variable local, parámetro y comentario de `backend/src`, `backend/scripts` y `backend/test` pasa a inglés. Equivalencias de los nombres que más se repiten:
 
@@ -278,7 +356,7 @@ Los `describe` e `it` de las pruebas se traducen al inglés conservando lo que a
 
 Los textos que la API devuelve al usuario (`'Inicia sesión para continuar'`, `noEncontrado('El trabajador')`) no cambian. Los `console.error` y `console.log` sí pasan a inglés (`'API en http://…'` → `'API listening on http://…'`, `'Migraciones aplicadas'` → `'Migrations applied'`, `'Administrador creado: …'` → `'Administrator created: …'`, y el texto de uso de `create-admin`).
 
-- [ ] **Step 4: Variables de entorno**
+- [x] **Step 4: Variables de entorno**
 
 En `backend/src/env.ts`, `ORIGEN_PANEL` pasa a `PANEL_ORIGIN` y `PUERTO` a `PORT`; `esquema` pasa a `schema`. El mensaje de error pasa a `Invalid or missing environment variables: …`. Actualizar `backend/src/server.ts`, `backend/test/env.test.ts` y `backend/.env.example`:
 
@@ -294,7 +372,7 @@ PORT=8787
 
 Si existe un `backend/.env` local, no está versionado: avisar a Gonzalo en el reporte de que debe renombrar ahí las dos variables.
 
-- [ ] **Step 5: Scripts de npm, CI y README**
+- [x] **Step 5: Scripts de npm, CI y README**
 
 `backend/package.json`, bloque `scripts`:
 
@@ -311,7 +389,7 @@ Si existe un `backend/.env` local, no está versionado: avisar a Gonzalo en el r
 
 En `.github/workflows/ci.yml`, el job `verificar` pasa a `verify`. En `README.md` se actualizan los comandos (`db:migrate`, `db:generate`, `create-admin`) y los nombres `PANEL_ORIGIN` y `PORT`; la prosa sigue en español.
 
-- [ ] **Step 6: Verificar**
+- [x] **Step 6: Verificar**
 
 Run: `npm run typecheck && npm test`
 Expected: sin errores de tipos en los dos workspaces; backend con 148 pruebas en verde y frontend con el mismo total que la línea base.
@@ -319,7 +397,7 @@ Expected: sin errores de tipos en los dos workspaces; backend con 148 pruebas en
 Run: `git ls-files backend | grep -Ei 'rutas|tipos|errores|paginacion|validar|auditoria|trabajador|usuario|cargo|grupo|catalogos|metodos|ayudas|salud|primer|migrar|crear|verificar|permisos'`
 Expected: sin salida. (`backend/drizzle/0000_inicial.sql` se regenera en la tarea 2.)
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add -A backend .github README.md
@@ -340,7 +418,7 @@ Pasa a inglés lo que se guarda y lo que viaja: tablas, columnas, enums, rutas, 
 - Consumes: los nombres de la tarea 1.
 - Produces: el contrato de la sección 17 del spec ("Tablas y columnas", "Valores enum", "API"). Las tareas 3 a 5 dependen de él.
 
-- [ ] **Step 1: Reemplazar `backend/src/db/schema.ts`**
+- [x] **Step 1: Reemplazar `backend/src/db/schema.ts`**
 
 ```ts
 import { sql } from 'drizzle-orm'
@@ -494,7 +572,7 @@ export const auditLog = pgTable(
 ).enableRLS()
 ```
 
-- [ ] **Step 2: Generar de nuevo la migración inicial**
+- [x] **Step 2: Generar de nuevo la migración inicial**
 
 ```bash
 git rm -r -q backend/drizzle
@@ -509,7 +587,7 @@ Expected: `11`
 Run: `grep -ciE 'usuario|trabajador|cargo|grupo|turno|campana|auditoria|nombre|creado' backend/drizzle/0000_initial.sql`
 Expected: `0`
 
-- [ ] **Step 3: Actualizar primero las pruebas del contrato**
+- [x] **Step 3: Actualizar primero las pruebas del contrato**
 
 En `backend/test/health.test.ts`, la lista de tablas esperada pasa a:
 
@@ -544,7 +622,7 @@ En el resto de `backend/test/` se cambian rutas, claves, valores y códigos seg�
 Run: `npm test -w @agrosalas/backend`
 Expected: FAIL. Fallan las pruebas que piden rutas, claves o códigos que el código todavía no tiene.
 
-- [ ] **Step 4: Rutas, parámetros y claves de entrada**
+- [x] **Step 4: Rutas, parámetros y claves de entrada**
 
 En `backend/src/app.ts`:
 
@@ -585,7 +663,7 @@ Esquemas Zod (nombre del esquema y sus claves):
 
 Los mensajes de validación escritos a mano (`'El DNI debe tener 8 dígitos'`, `'Usa el formato HH:MM'`) no cambian. El `campo` que acompaña a un `ApiError` lleva el nombre nuevo de la clave (`'hourlyRate'`, `'monthlySalary'`, `'isPrimary'`, `'email'`, `'areaIds'`).
 
-- [ ] **Step 5: Claves de salida**
+- [x] **Step 5: Claves de salida**
 
 | Antes | Después |
 |---|---|
@@ -599,7 +677,7 @@ Los mensajes de validación escritos a mano (`'El DNI debe tener 8 dígitos'`, `
 
 Las filas que salen de la base toman las claves nuevas de `schema.ts` sin más cambios.
 
-- [ ] **Step 6: Formato y códigos de error**
+- [x] **Step 6: Formato y códigos de error**
 
 En `backend/src/lib/errors.ts`, `ApiError` pasa a:
 
@@ -635,11 +713,11 @@ y toda respuesta de error usa `{ error: { code, message, field } }`, también la
 
 El texto de `message` no cambia. El `console.error` de `handleError` pasa a `console.error('Unexpected error:', { name, postgresCode, message })`.
 
-- [ ] **Step 7: Valores que guarda la auditoría**
+- [x] **Step 7: Valores que guarda la auditoría**
 
 `recordAudit(db, userId, action, entity, entityId, before, after)`: `action` es `'create' | 'update' | 'delete'` y `entity` es el nombre nuevo de la tabla (`'users'`, `'areas'`, `'shifts'`, `'campaigns'`, `'positions'`, `'groups'`, `'workers'`, `'worker_payment_methods'`). En `src/routes/groups.ts`, `{ agregados: trabajadorIds }` pasa a `{ added: workerIds }` y `{ quitado: trabajadorId }` a `{ removed: workerId }`.
 
-- [ ] **Step 8: Verificar el backend**
+- [x] **Step 8: Verificar el backend**
 
 Run: `npm run typecheck -w @agrosalas/backend && npm test -w @agrosalas/backend`
 Expected: sin errores de tipos; 148 pruebas en verde.
@@ -649,7 +727,7 @@ Expected: ninguna coincidencia fuera de textos en español que se muestran al us
 
 No ejecutar `npm run typecheck` en la raíz: el frontend no compila hasta la tarea 3.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add -A backend
@@ -669,7 +747,7 @@ Hace que el frontend vuelva a compilar contra la API de la tarea 2. Solo toca lo
 - Consumes: el contrato de la tarea 2 (sección 17 del spec).
 - Produces: `FIELD_LABEL` y `VALUE_LABEL` en `frontend/src/lib/auditoria.ts` (la tarea 4 mueve el archivo a `lib/audit-log.ts`).
 
-- [ ] **Step 1: Llamadas a la API**
+- [x] **Step 1: Llamadas a la API**
 
 | Antes | Después |
 |---|---|
@@ -685,11 +763,11 @@ Hace que el frontend vuelva a compilar contra la API de la tarea 2. Solo toca lo
 
 Parámetros de consulta, cuerpos y respuestas usan las claves de los pasos 4 y 5 de la tarea 2 (`page`, `pageSize`, `search`, `items`, `firstName`, `paymentMethods`, …). TypeScript marca cada uso que falta: `npm run typecheck -w @agrosalas/frontend` es la lista de pendientes.
 
-- [ ] **Step 2: Formato y códigos de error en `frontend/src/lib/api.ts`**
+- [x] **Step 2: Formato y códigos de error en `frontend/src/lib/api.ts`**
 
 El tipo del cuerpo de error pasa a `{ error: { code: string; message: string; field?: string } }` y la clase del cliente guarda `code` y `field`. Códigos propios del cliente: `'sin_conexion'` → `'network_error'`, `'desconocido'` → `'unknown'`. En el resto del frontend: `e.codigo === 'duplicado'` → `e.code === 'duplicate'`, `'no_autenticado'` → `'unauthenticated'`, y todo `.campo` → `.field`. El tipo `ResultadoEnlace` de `lib/recuperacion.ts` pasa a `'recovery' | 'invalid' | 'network_error'`.
 
-- [ ] **Step 3: Valores enum y sus etiquetas**
+- [x] **Step 3: Valores enum y sus etiquetas**
 
 Todo valor enum del contrato pasa al inglés y su etiqueta sigue en español:
 
@@ -702,7 +780,7 @@ Todo valor enum del contrato pasa al inglés y su etiqueta sigue en español:
 | `trabajadores/page.tsx`, `components/trabajadores/formulario.tsx` | `'temporal'`, `'contrato'`, `'activo'`, `'cesado'` | `'temporary'`, `'contract'`, `'active'`, `'terminated'` |
 | `components/trabajadores/metodos-pago.tsx` | `'cuenta_bancaria'` | `'bank_account'` |
 
-- [ ] **Step 4: Escribir la prueba de las etiquetas de auditoría**
+- [x] **Step 4: Escribir la prueba de las etiquetas de auditoría**
 
 Agregar a `frontend/src/lib/auditoria.test.ts`:
 
@@ -731,7 +809,7 @@ Las pruebas que ya existen en ese archivo se actualizan a las acciones (`'create
 Run: `npx vitest run src/lib/auditoria.test.ts` (desde `frontend/`)
 Expected: FAIL. Las tres pruebas nuevas fallan porque el resumen todavía muestra la clave tal cual.
 
-- [ ] **Step 5: Etiquetas en `frontend/src/lib/auditoria.ts`**
+- [x] **Step 5: Etiquetas en `frontend/src/lib/auditoria.ts`**
 
 Reemplazar el contenido del archivo. Si la tanda final del plan 1B lo cambió después del commit `f49ddd7`, conservar esos cambios y aplicar encima los nombres y las etiquetas.
 
@@ -836,12 +914,12 @@ En `configuracion/auditoria/page.tsx`, el mapa `ACCION` conserva sus textos (`'C
 Run: `npx vitest run src/lib/auditoria.test.ts` (desde `frontend/`)
 Expected: PASS
 
-- [ ] **Step 6: Verificar todo el repo**
+- [x] **Step 6: Verificar todo el repo**
 
 Run: `npm run lint && npm run typecheck && npm test && npm run build`
 Expected: sin avisos ni errores; backend 148; frontend = línea base + 3; el build lista las mismas rutas que la línea base.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add -A frontend
@@ -862,13 +940,13 @@ Renombra lo interno del frontend. No mueve las carpetas de `app/` (son direccion
 - Consumes: `FIELD_LABEL` y `VALUE_LABEL` de la tarea 3.
 - Produces: los nombres de la tabla de abajo; la tarea 5 los usa.
 
-- [ ] **Step 1: Inventario**
+- [x] **Step 1: Inventario**
 
 Run: `git ls-files frontend/src | grep -v 'components/ui/'`
 
 Comparar con el mapa de archivos. Todo archivo o export que la tanda final del plan 1B haya agregado y no figure en este plan recibe un nombre en inglés con las mismas reglas, y se lista en el reporte de la tarea con su nombre anterior y el nuevo.
 
-- [ ] **Step 2: Mover los archivos**
+- [x] **Step 2: Mover los archivos**
 
 Con `git mv`, según el mapa de archivos (solo `components/` y `lib/`). Por ejemplo:
 
@@ -883,7 +961,7 @@ git mv lib/formato.test.ts lib/format.test.ts
 cd ../..
 ```
 
-- [ ] **Step 3: Renombrar exports y sus usos**
+- [x] **Step 3: Renombrar exports y sus usos**
 
 | Antes | Después | Archivo nuevo |
 |---|---|---|
@@ -928,7 +1006,7 @@ cd ../..
 
 El resultado de `vistaTrabajador` (`{ editarFicha, metodosPago, grupos }`) pasa a `{ canEditRecord, paymentMethods, groups }`.
 
-- [ ] **Step 4: Props, claves de consulta y nombres locales**
+- [x] **Step 4: Props, claves de consulta y nombres locales**
 
 | Antes | Después |
 |---|---|
@@ -941,7 +1019,7 @@ Las claves de consulta se cambian en todos los sitios a la vez (`queryKey`, `inv
 
 El resto de variables locales, parámetros, tipos internos y comentarios pasa a inglés con las equivalencias del paso 3 de la tarea 1. Los `describe` e `it` de las pruebas se traducen conservando lo que afirman.
 
-- [ ] **Step 5: Verificar**
+- [x] **Step 5: Verificar**
 
 Run: `npm run lint && npm run typecheck && npm test && npm run build`
 Expected: sin avisos ni errores; los mismos totales de pruebas que al final de la tarea 3; las mismas rutas en el build.
@@ -949,7 +1027,7 @@ Expected: sin avisos ni errores; los mismos totales de pruebas que al final de l
 Run: `git ls-files frontend/src/components frontend/src/lib | grep -Ei 'campo|catalogo|marco|paginador|proveedores|trabajador|formulario|metodos|auditoria|cambio|cliente|entorno|errores|formato|paginas|recuperacion|respuesta|sesion|navegador|validar|clave|valor|yo\.ts'`
 Expected: sin salida.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add -A frontend
@@ -970,7 +1048,7 @@ Mueve las carpetas de `app/` y actualiza todo lo que apunta a ellas.
 - Consumes: los nombres de la tarea 4.
 - Produces: las direcciones de la sección 17 del spec ("Direcciones del panel").
 
-- [ ] **Step 1: Mover las carpetas**
+- [x] **Step 1: Mover las carpetas**
 
 ```bash
 cd frontend/src/app
@@ -989,7 +1067,7 @@ git mv "(panel)/settings/usuarios" "(panel)/settings/users"
 cd ../../..
 ```
 
-- [ ] **Step 2: Actualizar los enlaces y las redirecciones**
+- [x] **Step 2: Actualizar los enlaces y las redirecciones**
 
 Run: `git grep -nE "/(recuperar|restablecer|perfil|trabajadores|configuracion|nuevo|cargos|grupos|turnos|campanas|usuarios|auditoria)" -- frontend/src frontend/next.config.ts README.md`
 
@@ -1008,11 +1086,11 @@ Cada coincidencia que sea una dirección del panel se cambia según la sección 
 
 Los textos de los enlaces ("Trabajadores", "Configuración", "¿Olvidaste tu contraseña?") no cambian.
 
-- [ ] **Step 3: README**
+- [x] **Step 3: README**
 
 En la lista "Despliegue y Supabase" del `README.md` (la agrega la tanda final del plan 1B), las direcciones pasan a `/reset-password`: la URL de redirección permitida y la plantilla del correo de recuperación (`/reset-password?token_hash={{ .TokenHash }}&type=recovery`).
 
-- [ ] **Step 4: Verificar**
+- [x] **Step 4: Verificar**
 
 Run: `npm run lint && npm run typecheck && npm test && npm run build`
 Expected: sin avisos ni errores; los mismos totales de pruebas; el build lista `/login`, `/forgot-password`, `/reset-password`, `/profile`, `/workers`, `/workers/new`, `/workers/[id]`, `/settings/positions`, `/settings/groups`, `/settings/groups/[id]`, `/settings/areas`, `/settings/shifts`, `/settings/campaigns`, `/settings/users`, `/settings/audit-log`, y ninguna ruta en español.
@@ -1031,7 +1109,7 @@ kill $SERVER_PID
 
 Expected: `307 http://localhost:3111/login` (sin sesión, el panel manda al login), `200`, y para la dirección vieja `307` hacia `/login` (sin sesión toda dirección que no es pública redirige; con sesión es un 404).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add -A frontend README.md
@@ -1049,17 +1127,17 @@ git commit -m "refactor(web): rename panel URLs to English"
 - Consumes: todo lo anterior.
 - Produces: el repo listo para el PR.
 
-- [ ] **Step 1: Poner el spec al día**
+- [x] **Step 1: Poner el spec al día**
 
 En el spec, las secciones 5 ("Modelo de datos") y 9 ("API") se reescriben con los nombres en inglés de la sección 17, y se quita el aviso "Nombres" que hoy encabeza la sección 5. En la sección 3, `usuarios` pasa a `users`. La sección 17 conserva las tablas de equivalencia: sirven para leer el Excel, el plan 1A y el plan 1B. La prosa sigue en español.
 
-- [ ] **Step 2: Nota en el plan 1B y estado de este plan**
+- [x] **Step 2: Nota en el plan 1B y estado de este plan**
 
 En `2026-10-01-planilla-fase-1b-frontend.md`, bajo "Global Constraints", agregar: `**Nombres:** este plan se ejecutó con identificadores en español; el plan 1C los pasó a inglés. El código del repo manda sobre los nombres de este texto.`
 
 En este plan, agregar una sección "Estado de ejecución" con la fecha, los commits, los totales de pruebas y la lista de nombres que no estaban en las tablas (inventario de la tarea 4).
 
-- [ ] **Step 3: Barrido de nombres en español**
+- [x] **Step 3: Barrido de nombres en español**
 
 Run: `git ls-files backend frontend .github | grep -Ei 'rutas|tipos|errores|paginacion|validar|auditoria|trabajador|usuario|cargo|grupo|turno|campana|catalogo|metodos|ayudas|salud|primer|migrar|crear|verificar|permisos|perfil|recuperar|restablecer|configuracion|nuevo|campo|marco|paginador|proveedores|formulario|navegador|sesion|entorno|formato|paginas|clave|inicial'`
 Expected: sin salida.
@@ -1072,7 +1150,7 @@ Expected: sin salida (ningún comentario en español).
 
 Si aparece algo, se renombra con las mismas reglas y se repite el paso.
 
-- [ ] **Step 4: Verificación final**
+- [x] **Step 4: Verificación final**
 
 ```bash
 mv frontend/.env.local /tmp/agrosalas-env-local.bak
@@ -1082,14 +1160,14 @@ mv /tmp/agrosalas-env-local.bak frontend/.env.local
 
 Expected: todo en verde sin variables de entorno, como en CI; backend 148 pruebas; frontend = línea base + 3. Si un comando falla, restaurar igual el `.env.local` antes de seguir.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add -A docs README.md
 git commit -m "docs: bring the spec, README and plans in line with the English naming"
 ```
 
-- [ ] **Step 6: Revisión de la rama**
+- [x] **Step 6: Revisión de la rama**
 
 Pedir una revisión de toda la rama (`feat/fase-1b-frontend..refactor/english-naming`) con dos preguntas: si quedó algún nombre, comentario o prueba en español, y si algún cambio altera el comportamiento. Corregir lo que encuentre antes de abrir el PR.
 

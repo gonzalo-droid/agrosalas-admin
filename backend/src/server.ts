@@ -1,20 +1,20 @@
 import { serve } from '@hono/node-server'
-import { crearApp } from './app'
-import { crearAuthAdminSupabase } from './auth/admin'
-import { crearVerificadorSupabase } from './auth/verificar'
-import { crearDb } from './db/client'
-import { leerEnv } from './env'
+import { createApp } from './app'
+import { createSupabaseAuthAdmin } from './auth/admin'
+import { createSupabaseVerifier } from './auth/verify'
+import { createDb } from './db/client'
+import { readEnv } from './env'
 
-const env = leerEnv()
-const { db } = crearDb(env.DATABASE_URL)
+const env = readEnv()
+const { db } = createDb(env.DATABASE_URL)
 
-const app = crearApp({
+const app = createApp({
   db,
-  verificarToken: crearVerificadorSupabase(env.SUPABASE_URL),
-  authAdmin: crearAuthAdminSupabase(env.SUPABASE_URL, env.SUPABASE_SECRET_KEY),
-  origenPanel: env.ORIGEN_PANEL,
+  verifyToken: createSupabaseVerifier(env.SUPABASE_URL),
+  authAdmin: createSupabaseAuthAdmin(env.SUPABASE_URL, env.SUPABASE_SECRET_KEY),
+  panelOrigin: env.PANEL_ORIGIN,
 })
 
-serve({ fetch: app.fetch, port: env.PUERTO }, (info) => {
-  console.log(`API en http://localhost:${info.port}`)
+serve({ fetch: app.fetch, port: env.PORT }, (info) => {
+  console.log(`API listening on http://localhost:${info.port}`)
 })

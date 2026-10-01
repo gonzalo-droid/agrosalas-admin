@@ -1,5 +1,5 @@
 {
-  "id": "910008d0-9198-4db6-ba50-6bd3376ae54b",
+  "id": "af13b4e9-33ca-4cf6-af23-f3149b07849e",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -15,28 +15,28 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "nombre": {
-          "name": "nombre",
+        "name": {
+          "name": "name",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "activo": {
-          "name": "activo",
+        "active": {
+          "name": "active",
           "type": "boolean",
           "primaryKey": false,
           "notNull": true,
           "default": true
         },
-        "creado_en": {
-          "name": "creado_en",
+        "created_at": {
+          "name": "created_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
         },
-        "actualizado_en": {
-          "name": "actualizado_en",
+        "updated_at": {
+          "name": "updated_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
@@ -47,11 +47,11 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "areas_nombre_unique": {
-          "name": "areas_nombre_unique",
+        "areas_name_unique": {
+          "name": "areas_name_unique",
           "nullsNotDistinct": false,
           "columns": [
-            "nombre"
+            "name"
           ]
         }
       },
@@ -59,8 +59,8 @@
       "checkConstraints": {},
       "isRLSEnabled": true
     },
-    "public.auditoria": {
-      "name": "auditoria",
+    "public.audit_log": {
+      "name": "audit_log",
       "schema": "",
       "columns": {
         "id": {
@@ -70,45 +70,45 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "usuario_id": {
-          "name": "usuario_id",
+        "user_id": {
+          "name": "user_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
-        "accion": {
-          "name": "accion",
-          "type": "accion_auditoria",
+        "action": {
+          "name": "action",
+          "type": "audit_action",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
         },
-        "entidad": {
-          "name": "entidad",
+        "entity": {
+          "name": "entity",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "entidad_id": {
-          "name": "entidad_id",
+        "entity_id": {
+          "name": "entity_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
-        "antes": {
-          "name": "antes",
+        "before": {
+          "name": "before",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
-        "despues": {
-          "name": "despues",
+        "after": {
+          "name": "after",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
-        "creado_en": {
-          "name": "creado_en",
+        "created_at": {
+          "name": "created_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
@@ -116,17 +116,17 @@
         }
       },
       "indexes": {
-        "auditoria_entidad_idx": {
-          "name": "auditoria_entidad_idx",
+        "audit_log_entity_idx": {
+          "name": "audit_log_entity_idx",
           "columns": [
             {
-              "expression": "entidad",
+              "expression": "entity",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             },
             {
-              "expression": "entidad_id",
+              "expression": "entity_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -139,12 +139,12 @@
         }
       },
       "foreignKeys": {
-        "auditoria_usuario_id_usuarios_id_fk": {
-          "name": "auditoria_usuario_id_usuarios_id_fk",
-          "tableFrom": "auditoria",
-          "tableTo": "usuarios",
+        "audit_log_user_id_users_id_fk": {
+          "name": "audit_log_user_id_users_id_fk",
+          "tableFrom": "audit_log",
+          "tableTo": "users",
           "columnsFrom": [
-            "usuario_id"
+            "user_id"
           ],
           "columnsTo": [
             "id"
@@ -159,8 +159,8 @@
       "checkConstraints": {},
       "isRLSEnabled": true
     },
-    "public.campanas": {
-      "name": "campanas",
+    "public.campaigns": {
+      "name": "campaigns",
       "schema": "",
       "columns": {
         "id": {
@@ -170,40 +170,40 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "nombre": {
-          "name": "nombre",
+        "name": {
+          "name": "name",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "fecha_inicio": {
-          "name": "fecha_inicio",
+        "start_date": {
+          "name": "start_date",
           "type": "date",
           "primaryKey": false,
           "notNull": false
         },
-        "fecha_fin": {
-          "name": "fecha_fin",
+        "end_date": {
+          "name": "end_date",
           "type": "date",
           "primaryKey": false,
           "notNull": false
         },
-        "activo": {
-          "name": "activo",
+        "active": {
+          "name": "active",
           "type": "boolean",
           "primaryKey": false,
           "notNull": true,
           "default": true
         },
-        "creado_en": {
-          "name": "creado_en",
+        "created_at": {
+          "name": "created_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
         },
-        "actualizado_en": {
-          "name": "actualizado_en",
+        "updated_at": {
+          "name": "updated_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
@@ -214,11 +214,11 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "campanas_nombre_unique": {
-          "name": "campanas_nombre_unique",
+        "campaigns_name_unique": {
+          "name": "campaigns_name_unique",
           "nullsNotDistinct": false,
           "columns": [
-            "nombre"
+            "name"
           ]
         }
       },
@@ -226,98 +226,18 @@
       "checkConstraints": {},
       "isRLSEnabled": true
     },
-    "public.cargos": {
-      "name": "cargos",
+    "public.group_workers": {
+      "name": "group_workers",
       "schema": "",
       "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "nombre": {
-          "name": "nombre",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "tipo_pago": {
-          "name": "tipo_pago",
-          "type": "tipo_pago",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "tarifa_hora": {
-          "name": "tarifa_hora",
-          "type": "numeric(10, 4)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "tarifa_hora_extra": {
-          "name": "tarifa_hora_extra",
-          "type": "numeric(10, 4)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sueldo_mensual": {
-          "name": "sueldo_mensual",
-          "type": "numeric(10, 2)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "activo": {
-          "name": "activo",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "creado_en": {
-          "name": "creado_en",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "actualizado_en": {
-          "name": "actualizado_en",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "cargos_nombre_unique": {
-          "name": "cargos_nombre_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "nombre"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": true
-    },
-    "public.grupo_trabajadores": {
-      "name": "grupo_trabajadores",
-      "schema": "",
-      "columns": {
-        "grupo_id": {
-          "name": "grupo_id",
+        "group_id": {
+          "name": "group_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
-        "trabajador_id": {
-          "name": "trabajador_id",
+        "worker_id": {
+          "name": "worker_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
@@ -325,12 +245,12 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "grupo_trabajadores_grupo_id_grupos_id_fk": {
-          "name": "grupo_trabajadores_grupo_id_grupos_id_fk",
-          "tableFrom": "grupo_trabajadores",
-          "tableTo": "grupos",
+        "group_workers_group_id_groups_id_fk": {
+          "name": "group_workers_group_id_groups_id_fk",
+          "tableFrom": "group_workers",
+          "tableTo": "groups",
           "columnsFrom": [
-            "grupo_id"
+            "group_id"
           ],
           "columnsTo": [
             "id"
@@ -338,12 +258,12 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "grupo_trabajadores_trabajador_id_trabajadores_id_fk": {
-          "name": "grupo_trabajadores_trabajador_id_trabajadores_id_fk",
-          "tableFrom": "grupo_trabajadores",
-          "tableTo": "trabajadores",
+        "group_workers_worker_id_workers_id_fk": {
+          "name": "group_workers_worker_id_workers_id_fk",
+          "tableFrom": "group_workers",
+          "tableTo": "workers",
           "columnsFrom": [
-            "trabajador_id"
+            "worker_id"
           ],
           "columnsTo": [
             "id"
@@ -353,11 +273,11 @@
         }
       },
       "compositePrimaryKeys": {
-        "grupo_trabajadores_grupo_id_trabajador_id_pk": {
-          "name": "grupo_trabajadores_grupo_id_trabajador_id_pk",
+        "group_workers_group_id_worker_id_pk": {
+          "name": "group_workers_group_id_worker_id_pk",
           "columns": [
-            "grupo_id",
-            "trabajador_id"
+            "group_id",
+            "worker_id"
           ]
         }
       },
@@ -366,8 +286,8 @@
       "checkConstraints": {},
       "isRLSEnabled": true
     },
-    "public.grupos": {
-      "name": "grupos",
+    "public.groups": {
+      "name": "groups",
       "schema": "",
       "columns": {
         "id": {
@@ -377,47 +297,47 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "nombre": {
-          "name": "nombre",
+        "name": {
+          "name": "name",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "temporal": {
-          "name": "temporal",
+        "temporary": {
+          "name": "temporary",
           "type": "boolean",
           "primaryKey": false,
           "notNull": true,
           "default": false
         },
-        "fecha_inicio": {
-          "name": "fecha_inicio",
+        "start_date": {
+          "name": "start_date",
           "type": "date",
           "primaryKey": false,
           "notNull": false
         },
-        "fecha_fin": {
-          "name": "fecha_fin",
+        "end_date": {
+          "name": "end_date",
           "type": "date",
           "primaryKey": false,
           "notNull": false
         },
-        "activo": {
-          "name": "activo",
+        "active": {
+          "name": "active",
           "type": "boolean",
           "primaryKey": false,
           "notNull": true,
           "default": true
         },
-        "creado_en": {
-          "name": "creado_en",
+        "created_at": {
+          "name": "created_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
         },
-        "actualizado_en": {
-          "name": "actualizado_en",
+        "updated_at": {
+          "name": "updated_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
@@ -428,11 +348,11 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "grupos_nombre_unique": {
-          "name": "grupos_nombre_unique",
+        "groups_name_unique": {
+          "name": "groups_name_unique",
           "nullsNotDistinct": false,
           "columns": [
-            "nombre"
+            "name"
           ]
         }
       },
@@ -440,8 +360,8 @@
       "checkConstraints": {},
       "isRLSEnabled": true
     },
-    "public.trabajador_metodos_pago": {
-      "name": "trabajador_metodos_pago",
+    "public.positions": {
+      "name": "positions",
       "schema": "",
       "columns": {
         "id": {
@@ -451,27 +371,301 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "trabajador_id": {
-          "name": "trabajador_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "tipo": {
-          "name": "tipo",
-          "type": "tipo_metodo_pago",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "numero": {
-          "name": "numero",
+        "name": {
+          "name": "name",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "banco": {
-          "name": "banco",
+        "pay_type": {
+          "name": "pay_type",
+          "type": "pay_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "hourly_rate": {
+          "name": "hourly_rate",
+          "type": "numeric(10, 4)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "overtime_rate": {
+          "name": "overtime_rate",
+          "type": "numeric(10, 4)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "monthly_salary": {
+          "name": "monthly_salary",
+          "type": "numeric(10, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "active": {
+          "name": "active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "positions_name_unique": {
+          "name": "positions_name_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "name"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": true
+    },
+    "public.shifts": {
+      "name": "shifts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "start_time": {
+          "name": "start_time",
+          "type": "time",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "end_time": {
+          "name": "end_time",
+          "type": "time",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "active": {
+          "name": "active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "shifts_name_unique": {
+          "name": "shifts_name_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "name"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": true
+    },
+    "public.user_areas": {
+      "name": "user_areas",
+      "schema": "",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "area_id": {
+          "name": "area_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "user_areas_user_id_users_id_fk": {
+          "name": "user_areas_user_id_users_id_fk",
+          "tableFrom": "user_areas",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "user_areas_area_id_areas_id_fk": {
+          "name": "user_areas_area_id_areas_id_fk",
+          "tableFrom": "user_areas",
+          "tableTo": "areas",
+          "columnsFrom": [
+            "area_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "user_areas_user_id_area_id_pk": {
+          "name": "user_areas_user_id_area_id_pk",
+          "columns": [
+            "user_id",
+            "area_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": true
+    },
+    "public.users": {
+      "name": "users",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "user_role",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "active": {
+          "name": "active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "users_email_unique": {
+          "name": "users_email_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "email"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": true
+    },
+    "public.worker_payment_methods": {
+      "name": "worker_payment_methods",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "worker_id": {
+          "name": "worker_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "payment_method_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "number": {
+          "name": "number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bank": {
+          "name": "bank",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -482,28 +676,28 @@
           "primaryKey": false,
           "notNull": false
         },
-        "titular": {
-          "name": "titular",
+        "holder_name": {
+          "name": "holder_name",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "principal": {
-          "name": "principal",
+        "is_primary": {
+          "name": "is_primary",
           "type": "boolean",
           "primaryKey": false,
           "notNull": true,
           "default": false
         },
-        "creado_en": {
-          "name": "creado_en",
+        "created_at": {
+          "name": "created_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
         },
-        "actualizado_en": {
-          "name": "actualizado_en",
+        "updated_at": {
+          "name": "updated_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
@@ -511,30 +705,30 @@
         }
       },
       "indexes": {
-        "metodo_principal_unico": {
-          "name": "metodo_principal_unico",
+        "worker_payment_methods_primary_unique": {
+          "name": "worker_payment_methods_primary_unique",
           "columns": [
             {
-              "expression": "trabajador_id",
+              "expression": "worker_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             }
           ],
           "isUnique": true,
-          "where": "principal",
+          "where": "is_primary",
           "concurrently": false,
           "method": "btree",
           "with": {}
         }
       },
       "foreignKeys": {
-        "trabajador_metodos_pago_trabajador_id_trabajadores_id_fk": {
-          "name": "trabajador_metodos_pago_trabajador_id_trabajadores_id_fk",
-          "tableFrom": "trabajador_metodos_pago",
-          "tableTo": "trabajadores",
+        "worker_payment_methods_worker_id_workers_id_fk": {
+          "name": "worker_payment_methods_worker_id_workers_id_fk",
+          "tableFrom": "worker_payment_methods",
+          "tableTo": "workers",
           "columnsFrom": [
-            "trabajador_id"
+            "worker_id"
           ],
           "columnsTo": [
             "id"
@@ -549,8 +743,8 @@
       "checkConstraints": {},
       "isRLSEnabled": true
     },
-    "public.trabajadores": {
-      "name": "trabajadores",
+    "public.workers": {
+      "name": "workers",
       "schema": "",
       "columns": {
         "id": {
@@ -566,44 +760,44 @@
           "primaryKey": false,
           "notNull": false
         },
-        "nombres": {
-          "name": "nombres",
+        "first_name": {
+          "name": "first_name",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "apellidos": {
-          "name": "apellidos",
+        "last_name": {
+          "name": "last_name",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "telefono": {
-          "name": "telefono",
+        "phone": {
+          "name": "phone",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "correo": {
-          "name": "correo",
+        "email": {
+          "name": "email",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "direccion": {
-          "name": "direccion",
+        "address": {
+          "name": "address",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "emergencia_nombre": {
-          "name": "emergencia_nombre",
+        "emergency_contact_name": {
+          "name": "emergency_contact_name",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "emergencia_telefono": {
-          "name": "emergencia_telefono",
+        "emergency_contact_phone": {
+          "name": "emergency_contact_phone",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -614,54 +808,54 @@
           "primaryKey": false,
           "notNull": false
         },
-        "cargo_id": {
-          "name": "cargo_id",
+        "position_id": {
+          "name": "position_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
-        "turno_id": {
-          "name": "turno_id",
+        "shift_id": {
+          "name": "shift_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
-        "modalidad": {
-          "name": "modalidad",
-          "type": "modalidad",
+        "employment_type": {
+          "name": "employment_type",
+          "type": "employment_type",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
         },
-        "fecha_ingreso": {
-          "name": "fecha_ingreso",
+        "hire_date": {
+          "name": "hire_date",
           "type": "date",
           "primaryKey": false,
           "notNull": false
         },
-        "estado": {
-          "name": "estado",
-          "type": "estado_trabajador",
+        "status": {
+          "name": "status",
+          "type": "worker_status",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": "'activo'"
+          "default": "'active'"
         },
-        "notas": {
-          "name": "notas",
+        "notes": {
+          "name": "notes",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "creado_en": {
-          "name": "creado_en",
+        "created_at": {
+          "name": "created_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
         },
-        "actualizado_en": {
-          "name": "actualizado_en",
+        "updated_at": {
+          "name": "updated_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
@@ -669,8 +863,8 @@
         }
       },
       "indexes": {
-        "trabajadores_dni_unico": {
-          "name": "trabajadores_dni_unico",
+        "workers_dni_unique": {
+          "name": "workers_dni_unique",
           "columns": [
             {
               "expression": "dni",
@@ -684,8 +878,8 @@
           "method": "btree",
           "with": {}
         },
-        "trabajadores_area_idx": {
-          "name": "trabajadores_area_idx",
+        "workers_area_idx": {
+          "name": "workers_area_idx",
           "columns": [
             {
               "expression": "area_id",
@@ -701,9 +895,9 @@
         }
       },
       "foreignKeys": {
-        "trabajadores_area_id_areas_id_fk": {
-          "name": "trabajadores_area_id_areas_id_fk",
-          "tableFrom": "trabajadores",
+        "workers_area_id_areas_id_fk": {
+          "name": "workers_area_id_areas_id_fk",
+          "tableFrom": "workers",
           "tableTo": "areas",
           "columnsFrom": [
             "area_id"
@@ -714,12 +908,12 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "trabajadores_cargo_id_cargos_id_fk": {
-          "name": "trabajadores_cargo_id_cargos_id_fk",
-          "tableFrom": "trabajadores",
-          "tableTo": "cargos",
+        "workers_position_id_positions_id_fk": {
+          "name": "workers_position_id_positions_id_fk",
+          "tableFrom": "workers",
+          "tableTo": "positions",
           "columnsFrom": [
-            "cargo_id"
+            "position_id"
           ],
           "columnsTo": [
             "id"
@@ -727,12 +921,12 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "trabajadores_turno_id_turnos_id_fk": {
-          "name": "trabajadores_turno_id_turnos_id_fk",
-          "tableFrom": "trabajadores",
-          "tableTo": "turnos",
+        "workers_shift_id_shifts_id_fk": {
+          "name": "workers_shift_id_shifts_id_fk",
+          "tableFrom": "workers",
+          "tableTo": "shifts",
           "columnsFrom": [
-            "turno_id"
+            "shift_id"
           ],
           "columnsTo": [
             "id"
@@ -743,256 +937,62 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": true
-    },
-    "public.turnos": {
-      "name": "turnos",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "nombre": {
-          "name": "nombre",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "hora_inicio": {
-          "name": "hora_inicio",
-          "type": "time",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "hora_fin": {
-          "name": "hora_fin",
-          "type": "time",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "activo": {
-          "name": "activo",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "creado_en": {
-          "name": "creado_en",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "actualizado_en": {
-          "name": "actualizado_en",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "turnos_nombre_unique": {
-          "name": "turnos_nombre_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "nombre"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": true
-    },
-    "public.usuario_areas": {
-      "name": "usuario_areas",
-      "schema": "",
-      "columns": {
-        "usuario_id": {
-          "name": "usuario_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "area_id": {
-          "name": "area_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "usuario_areas_usuario_id_usuarios_id_fk": {
-          "name": "usuario_areas_usuario_id_usuarios_id_fk",
-          "tableFrom": "usuario_areas",
-          "tableTo": "usuarios",
-          "columnsFrom": [
-            "usuario_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "usuario_areas_area_id_areas_id_fk": {
-          "name": "usuario_areas_area_id_areas_id_fk",
-          "tableFrom": "usuario_areas",
-          "tableTo": "areas",
-          "columnsFrom": [
-            "area_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "usuario_areas_usuario_id_area_id_pk": {
-          "name": "usuario_areas_usuario_id_area_id_pk",
-          "columns": [
-            "usuario_id",
-            "area_id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": true
-    },
-    "public.usuarios": {
-      "name": "usuarios",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "correo": {
-          "name": "correo",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "nombre": {
-          "name": "nombre",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "rol": {
-          "name": "rol",
-          "type": "rol",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "activo": {
-          "name": "activo",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "creado_en": {
-          "name": "creado_en",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "actualizado_en": {
-          "name": "actualizado_en",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "usuarios_correo_unique": {
-          "name": "usuarios_correo_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "correo"
-          ]
-        }
-      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": true
     }
   },
   "enums": {
-    "public.accion_auditoria": {
-      "name": "accion_auditoria",
+    "public.audit_action": {
+      "name": "audit_action",
       "schema": "public",
       "values": [
-        "crear",
-        "editar",
-        "eliminar"
+        "create",
+        "update",
+        "delete"
       ]
     },
-    "public.estado_trabajador": {
-      "name": "estado_trabajador",
+    "public.employment_type": {
+      "name": "employment_type",
       "schema": "public",
       "values": [
-        "activo",
-        "cesado"
+        "temporary",
+        "contract"
       ]
     },
-    "public.modalidad": {
-      "name": "modalidad",
+    "public.pay_type": {
+      "name": "pay_type",
       "schema": "public",
       "values": [
-        "temporal",
-        "contrato"
+        "hourly",
+        "monthly"
       ]
     },
-    "public.rol": {
-      "name": "rol",
-      "schema": "public",
-      "values": [
-        "admin",
-        "gerencia",
-        "contabilidad",
-        "coordinador"
-      ]
-    },
-    "public.tipo_metodo_pago": {
-      "name": "tipo_metodo_pago",
+    "public.payment_method_type": {
+      "name": "payment_method_type",
       "schema": "public",
       "values": [
         "yape",
         "plin",
-        "cuenta_bancaria"
+        "bank_account"
       ]
     },
-    "public.tipo_pago": {
-      "name": "tipo_pago",
+    "public.user_role": {
+      "name": "user_role",
       "schema": "public",
       "values": [
-        "por_hora",
-        "mensual"
+        "admin",
+        "management",
+        "accounting",
+        "coordinator"
+      ]
+    },
+    "public.worker_status": {
+      "name": "worker_status",
+      "schema": "public",
+      "values": [
+        "active",
+        "terminated"
       ]
     }
   },

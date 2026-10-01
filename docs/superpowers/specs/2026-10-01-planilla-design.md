@@ -66,7 +66,7 @@ agrosalas_admin/
 
 Decisiones:
 
-- **Autenticación.** El frontend inicia sesión con Supabase Auth (`@supabase/ssr`) y envía el token de acceso como `Authorization: Bearer` en cada llamada. El backend valida el JWT contra las claves públicas de Supabase y carga el usuario (rol y áreas) desde la tabla `usuarios`. El alta pública está desactivada: los usuarios los crea el administrador.
+- **Autenticación.** El frontend inicia sesión con Supabase Auth (`@supabase/ssr`) y envía el token de acceso como `Authorization: Bearer` en cada llamada. El backend valida el JWT contra las claves públicas de Supabase y carga el usuario (rol y áreas) desde la tabla `users`. El alta pública está desactivada: los usuarios los crea el administrador.
 - **Base de datos cerrada.** RLS activado en todas las tablas y sin políticas: las claves públicas de Supabase no pueden leer ni escribir nada. El backend se conecta como rol privilegiado por el pooler en modo transacción (Drizzle + `postgres` con `prepare: false`).
 - **Tipos compartidos.** El frontend usa el cliente RPC de Hono (`hc<AppType>`) importando solo el tipo de la API mediante npm workspaces. Los esquemas Zod viven en el backend.
 - **Dinero y tiempo.** El cálculo usa enteros: minutos y céntimos. Las fechas se interpretan siempre en `America/Lima`.
@@ -98,113 +98,112 @@ Que el coordinador vea horas pero no montos es un supuesto (sección 16).
 
 ## 5. Modelo de datos
 
-> **Nombres.** Las secciones 5 y 9 todavía usan los nombres en español con los que se diseñó el modelo. Desde el 2026-10-01 el código, la base y la API se escriben en inglés: el nombre que vale es el de la sección 17, que trae la equivalencia de cada tabla, campo, valor y ruta.
+Las tablas de entidad llevan `id` (uuid), `created_at` y `updated_at`. Las tablas de relación (`user_areas`, `group_workers`, `payroll_workers`) solo llevan sus dos claves, y `audit_log` lleva `id` y `created_at`. Los nombres de tablas, columnas y valores siguen la sección 17.
 
-Todas las tablas llevan `id` (uuid), `creado_en` y `actualizado_en`.
-
-### `usuarios`
+### `users`
 
 | Campo | Tipo | Nota |
 |---|---|---|
 | `id` | uuid | Igual al id del usuario en Supabase Auth |
-| `nombre` | texto | |
-| `rol` | enum | `admin`, `gerencia`, `contabilidad`, `coordinador` |
-| `activo` | booleano | |
+| `email` | texto | Único |
+| `name` | texto | |
+| `role` | enum | `admin`, `management`, `accounting`, `coordinator` |
+| `active` | booleano | |
 
-`usuario_areas (usuario_id, area_id)` asigna áreas a los coordinadores.
+`user_areas (user_id, area_id)` asigna áreas a los coordinadores.
 
 ### Catálogos
 
-- `areas (nombre, activo)`. Iniciales: Producción, Etiquetado, Almacén. Editable.
-- `cargos (nombre, tipo_pago, tarifa_hora, tarifa_hora_extra, sueldo_mensual, activo)`. Es donde viven las tarifas de referencia. `tipo_pago` es `por_hora` o `mensual`. Ejemplos: Operario S/ 6.25 y S/ 7.81; Estibador S/ 10.00 y S/ 12.50; Mecánico S/ 30.00 y S/ 37.50.
-- `grupos (nombre, temporal, fecha_inicio?, fecha_fin?)` y `grupo_trabajadores (grupo_id, trabajador_id)`. Un grupo (por ejemplo "Turno noche" o una cuadrilla armada por unos días) sirve para cargar varios trabajadores a una planilla de una vez. Un trabajador puede estar en varios grupos.
-- `turnos (nombre, hora_inicio, hora_fin)`. Iniciales: Día, Noche. Solo referencial, no interviene en el cálculo.
-- `campanas (nombre, fecha_inicio, fecha_fin, activa)`. Ejemplo: "Contenedor Chile".
+- `areas (name, active)`. Iniciales: Producción, Etiquetado, Almacén. Editable.
+- `positions (name, pay_type, hourly_rate, overtime_rate, monthly_salary, active)`. Es donde viven las tarifas de referencia. `pay_type` es `hourly` o `monthly`. Ejemplos: Operario S/ 6.25 y S/ 7.81; Estibador S/ 10.00 y S/ 12.50; Mecánico S/ 30.00 y S/ 37.50.
+- `groups (name, temporary, start_date?, end_date?, active)` y `group_workers (group_id, worker_id)`. Un grupo (por ejemplo "Turno noche" o una cuadrilla armada por unos días) sirve para cargar varios trabajadores a una planilla de una vez. Un trabajador puede estar en varios grupos.
+- `shifts (name, start_time, end_time, active)`. Iniciales: Día, Noche. Solo referencial, no interviene en el cálculo.
+- `campaigns (name, start_date, end_date, active)`. Ejemplo: "Contenedor Chile".
 
-### `trabajadores`
+### `workers`
 
 | Campo | Obligatorio | Nota |
 |---|---|---|
 | `dni` | Sí al crear desde la app | Único cuando existe. Los migrados del Excel quedan sin DNI y marcados como pendientes |
-| `nombres`, `apellidos` | Sí | |
-| `telefono`, `correo`, `direccion` | No | |
-| `emergencia_nombre`, `emergencia_telefono` | No | |
-| `area_id`, `cargo_id`, `turno_id` | No | El cargo aporta las tarifas de referencia |
-| `modalidad` | Sí | `temporal` o `contrato` |
-| `fecha_ingreso` | No | |
-| `estado` | Sí | `activo` o `cesado` |
-| `notas` | No | |
+| `first_name`, `last_name` | Sí | |
+| `phone`, `email`, `address` | No | |
+| `emergency_contact_name`, `emergency_contact_phone` | No | |
+| `area_id`, `position_id`, `shift_id` | No | El cargo (`position`) aporta las tarifas de referencia |
+| `employment_type` | Sí | `temporary` o `contract` |
+| `hire_date` | No | |
+| `status` | Sí | `active` o `terminated` |
+| `notes` | No | |
 
 El trabajador no guarda tarifas propias: la referencia es la de su cargo y el valor real queda en cada registro de asistencia.
 
-### `trabajador_metodos_pago`
+### `worker_payment_methods`
 
 Cero o más por trabajador; todos opcionales.
 
 | Campo | Nota |
 |---|---|
-| `trabajador_id` | |
-| `tipo` | `yape`, `plin` o `cuenta_bancaria` |
-| `numero` | Celular o número de cuenta |
-| `banco`, `cci` | Solo para cuenta bancaria |
-| `titular` | Puede ser otra persona |
-| `principal` | Uno por trabajador; es el que se propone al pagar |
+| `worker_id` | |
+| `type` | `yape`, `plin` o `bank_account` |
+| `number` | Celular o número de cuenta |
+| `bank`, `cci` | Solo para cuenta bancaria |
+| `holder_name` | Puede ser otra persona |
+| `is_primary` | Uno por trabajador; es el que se propone al pagar |
 
-### `planillas`
+### `payrolls`
 
 | Campo | Nota |
 |---|---|
-| `nombre` | Lo escribe quien la crea. Ejemplo: "Semana 39 · Contenedor Chile" |
-| `tipo` | `semanal` (temporales) o `mensual` (contrato) |
-| `fecha_inicio`, `fecha_fin` | Se proponen de lunes a domingo, o el mes completo; son editables |
-| `campana_id` | Opcional. Una sola campaña por planilla |
-| `estado` | `abierta` o `cerrada` |
-| `creada_por`, `cerrada_por`, `cerrada_en` | |
+| `name` | Lo escribe quien la crea. Ejemplo: "Semana 39 · Contenedor Chile" |
+| `type` | `weekly` (temporales) o `monthly` (contrato) |
+| `start_date`, `end_date` | Se proponen de lunes a domingo, o el mes completo; son editables |
+| `campaign_id` | Opcional. Una sola campaña por planilla |
+| `status` | `open` o `closed` |
+| `created_by`, `closed_by`, `closed_at` | |
 
-`planilla_trabajadores (planilla_id, trabajador_id)` lista quiénes participan en la planilla.
+`payroll_workers (payroll_id, worker_id)` lista quiénes participan en la planilla.
 
-### `asistencias`
+### `attendance_records`
 
 Una por trabajador y fecha (único).
 
 | Campo | Nota |
 |---|---|
-| `trabajador_id`, `fecha`, `planilla_id` | La fecha es la del ingreso, en hora de Lima |
-| `tipo` | `trabajado`, `falta`, `permiso`, `descanso_medico` |
-| `ingreso_1`, `salida_1`, `ingreso_2`, `salida_2` | timestamptz. El segundo tramo es opcional |
-| `minutos_trabajados`, `minutos_normales`, `minutos_extra` | Enteros |
-| `extra_editada` | Verdadero si el encargado cambió las horas extra sugeridas |
-| `tarifa_hora`, `tarifa_hora_extra` | Copiadas del cargo del trabajador al crear; editables por registro |
-| `monto_centimos` | Entero |
-| `area_id`, `modalidad` | Copia del valor del trabajador ese día |
-| `nota`, `registrado_por` | |
-| `origen`, `revisar` | `origen = 'excel'` para lo migrado; `revisar` marca registros dudosos |
+| `worker_id`, `date`, `payroll_id` | La fecha es la del ingreso, en hora de Lima |
+| `type` | `worked`, `absence`, `leave`, `medical_leave` |
+| `clock_in_1`, `clock_out_1`, `clock_in_2`, `clock_out_2` | timestamptz. El segundo tramo es opcional |
+| `worked_minutes`, `regular_minutes`, `overtime_minutes` | Enteros |
+| `overtime_edited` | Verdadero si el encargado cambió las horas extra sugeridas |
+| `hourly_rate`, `overtime_rate` | Copiadas del cargo del trabajador al crear; editables por registro |
+| `amount_cents` | Entero |
+| `area_id`, `employment_type` | Copia del valor del trabajador ese día |
+| `note`, `recorded_by` | |
+| `source`, `needs_review` | `source = 'excel'` para lo migrado; `needs_review` marca registros dudosos |
 
-### `conceptos`
+### `payroll_items`
 
-`(planilla_id, trabajador_id, tipo, monto_centimos, nota, registrado_por)`. Tipos: `sueldo`, `bono`, `destajo` (suman) y `descuento` (resta).
+`(payroll_id, worker_id, type, amount_cents, note, recorded_by)`. Tipos: `salary`, `bonus`, `piecework` (suman) y `deduction` (resta).
 
-### `pagos`
+### `payments`
 
-`(planilla_id, trabajador_id, fecha, monto_centimos, medio, metodo_detalle, evidencia_ruta?, nota, registrado_por)`. `medio` es `yape`, `plin`, `transferencia` o `efectivo`; `metodo_detalle` copia el número y el titular usados, para que el historial no cambie si luego se edita el método del trabajador.
+`(payroll_id, worker_id, date, amount_cents, method, method_detail, evidence_path?, note, recorded_by)`. `method` es `yape`, `plin`, `transfer` o `cash`; `method_detail` copia el número y el titular usados, para que el historial no cambie si luego se edita el método del trabajador.
 
-### `auditoria`
+### `audit_log`
 
-`(usuario_id, accion, entidad, entidad_id, antes jsonb, despues jsonb, creado_en)`. El backend escribe una fila por cada creación, edición o eliminación de trabajadores, asistencias, conceptos, pagos, planillas y usuarios.
+`(user_id, action, entity, entity_id, before jsonb, after jsonb, created_at)`. El backend escribe una fila por cada creación, edición o eliminación de trabajadores, asistencias, conceptos, pagos, planillas y usuarios. `action` es `create`, `update` o `delete`; `entity` es el nombre de la tabla (`workers`, `users`, `worker_payment_methods`).
 
 ## 6. Reglas de cálculo
 
 Módulo puro en `backend/` (sin acceso a base de datos), con pruebas unitarias.
 
-1. `minutos_trabajados = (salida_1 − ingreso_1) + (salida_2 − ingreso_2)`. El refrigerio es el hueco entre tramos y no se paga. Con un solo tramo, solo cuenta el primero.
+1. `worked_minutes = (clock_out_1 − clock_in_1) + (clock_out_2 − clock_in_2)`. El refrigerio es el hueco entre tramos y no se paga. Con un solo tramo, solo cuenta el primero.
 2. Si una salida es menor que su ingreso, se asume que es del día siguiente (turno de noche). El registro pertenece a la fecha del primer ingreso.
 3. Jornada: 480 minutos.
-4. Horas extra sugeridas: `max(0, minutos_trabajados − 480)`. El encargado puede cambiar `minutos_extra` a cualquier valor entre 0 y `minutos_trabajados`; `minutos_normales` es la diferencia.
+4. Horas extra sugeridas: `max(0, worked_minutes − 480)`. El encargado puede cambiar `overtime_minutes` a cualquier valor entre 0 y `worked_minutes`; `regular_minutes` es la diferencia.
 5. Las tarifas de referencia se definen por cargo en Configuración (Operario S/ 6.25, Estibador S/ 10.00, Mecánico S/ 30.00 por hora, cada uno con su hora extra). Al crear un registro se copian las del cargo del trabajador; ambas son editables en cada registro, lo que cubre trabajos mejor pagados, domingos, feriados y acuerdos puntuales. Al crear un cargo, la hora extra se propone como normal × 1.25.
-6. `monto = minutos_normales × tarifa_hora ÷ 60 + minutos_extra × tarifa_hora_extra ÷ 60`, redondeado al céntimo (mitad hacia arriba). Se paga al minuto, sin redondear las horas.
+6. `amount = regular_minutes × hourly_rate ÷ 60 + overtime_minutes × overtime_rate ÷ 60`, redondeado al céntimo (mitad hacia arriba). Se paga al minuto, sin redondear las horas.
 7. Cada registro guarda sus tarifas. Cambiar la tarifa de un cargo, o el cargo de un trabajador, no altera registros anteriores.
 8. Faltas, permisos y descansos médicos tienen monto 0.
-9. Personal con contrato: registra asistencia igual, pero el monto de cada día es 0. Su pago es el concepto `sueldo` de la planilla mensual.
+9. Personal con contrato: registra asistencia igual, pero el monto de cada día es 0. Su pago es el concepto `salary` de la planilla mensual.
 
 Ejemplo: ingreso 7:10, salida 13:00, regreso 14:00, salida 18:30. Son 350 + 270 = 620 minutos: 480 normales y 140 extra. Monto = 8 × 6.25 + (140 ÷ 60) × 7.8125 = 50.00 + 18.23 = **S/ 68.23**.
 
@@ -224,7 +223,7 @@ Reglas:
 
 - Solo se registra asistencia dentro de una planilla abierta cuyas fechas incluyan ese día, y solo a los trabajadores agregados a esa planilla. Si no hay ninguna, la pantalla de asistencia pide crearla.
 - Dos planillas pueden coincidir en fechas (por ejemplo, dos campañas la misma semana con cuadrillas distintas), pero un trabajador solo puede tener un registro de asistencia por fecha, así que no puede estar en dos planillas el mismo día.
-- Al crear una planilla mensual se genera un concepto `sueldo` por cada trabajador de contrato incluido (monto editable, por ejemplo para un mes incompleto).
+- Al crear una planilla mensual se genera un concepto `salary` por cada trabajador de contrato incluido (monto editable, por ejemplo para un mes incompleto).
 - **Total por trabajador:** suma de montos de asistencia + conceptos que suman − descuentos.
 - **Pendiente:** total − pagos. Puede ser negativo (adelanto mayor al total acumulado); se muestra como saldo a favor de la empresa.
 
@@ -263,20 +262,20 @@ REST bajo `/v1`, con validación Zod en entrada y salida.
 | Recurso | Operaciones |
 |---|---|
 | `/me` | Usuario actual, rol y áreas |
-| `/usuarios`, `/areas`, `/turnos`, `/campanas`, `/cargos`, `/grupos` | CRUD (administrador) |
-| `/trabajadores` | Listar con filtros (área, modalidad, estado, texto), crear, ver, editar, cesar; métodos de pago (agregar, editar, quitar, marcar principal) |
-| `/asistencias` | Listar por fecha y área; `POST /marcar` (ingreso, salida a refrigerio, regreso, salida, con hora actual o indicada); `POST /bloque` (misma marca para varios); editar registro completo; eliminar |
-| `/planillas` | Listar (texto, rango de fechas, campaña, estado, tipo); crear; editar nombre, fechas y campaña; agregar y quitar trabajadores; detalle en grilla; cerrar; reabrir; exportar a Excel |
-| `/planillas/:id/trabajadores/:tid` | Detalle para el recibo |
-| `/conceptos` | Crear, editar, eliminar |
-| `/pagos` | Crear, listar, eliminar |
-| `/evidencias` | URL firmada de subida y de lectura |
-| `/reportes/costos` | Agrupado por semana, mes, área o campaña, en un rango de fechas; exportar a Excel |
-| `/auditoria` | Listar (administrador) |
+| `/users`, `/areas`, `/shifts`, `/campaigns`, `/positions`, `/groups` | CRUD (administrador) |
+| `/workers` | Listar con filtros (`areaId`, `employmentType`, `status`, `search`), crear, ver, editar, cesar; métodos de pago en `/workers/:id/payment-methods` (agregar, editar, quitar, marcar principal) |
+| `/attendance` | Listar por fecha y área; `POST /clock` (ingreso, salida a refrigerio, regreso, salida, con hora actual o indicada); `POST /bulk` (misma marca para varios); editar registro completo; eliminar |
+| `/payrolls` | Listar (texto, rango de fechas, campaña, estado, tipo); crear; editar nombre, fechas y campaña; agregar y quitar trabajadores; detalle en grilla; cerrar; reabrir; exportar a Excel |
+| `/payrolls/:id/workers/:workerId` | Detalle para el recibo |
+| `/payroll-items` | Crear, editar, eliminar |
+| `/payments` | Crear, listar, eliminar |
+| `/evidence` | URL firmada de subida y de lectura |
+| `/reports/costs` | Agrupado por semana, mes, área o campaña, en un rango de fechas; exportar a Excel |
+| `/audit-log` | Listar (administrador) |
 
 Errores con un formato único: código, mensaje en español y, si aplica, campo.
 
-Todas las listas (planillas, trabajadores, pagos, auditoría) se paginan en el servidor: reciben página y tamaño, y devuelven el total de filas.
+Todas las listas (planillas, trabajadores, pagos, auditoría) se paginan en el servidor: reciben `page` y `pageSize`, y devuelven el total de filas.
 
 ## 10. Pantallas
 
@@ -320,8 +319,8 @@ Script en `backend/scripts/` que recibe la ruta del archivo. El Excel no se guar
 - **Hojas a migrar:** "13 al 19 1era sem" (13–19 abr 2026), "SEM 17 20 AL 25" (20–25 abr), "9 MAYO" (9 may), "ETI 5 AL 10 Junio" (5–10 jun).
 - **Hojas omitidas:** "ejemplo 43" y "Hoja1" (duplicados), "SE DEBE" y "PRDUC X DIA" (producción).
 - **Trabajadores:** se crean por nombre, sin DNI ni cargo, con modalidad temporal y estado activo. Los nombres casi iguales entre hojas se listan para unificarlos a mano.
-- **Asistencias:** se importan las cuatro horas y el monto tal como está en el Excel, con `origen = 'excel'`. No se recalculan, porque es lo que se pagó.
-- **Días con la fórmula errada** (toda la jornada como extra): se importan con `revisar = true`.
+- **Asistencias:** se importan las cuatro horas y el monto tal como está en el Excel, con `source = 'excel'`. No se recalculan, porque es lo que se pagó.
+- **Días con la fórmula errada** (toda la jornada como extra): se importan con `needs_review = true`.
 - **Pagos:** se importan desde las columnas de cancelado y abonos. La fecha de pago del Excel no es fiable, así que se usa el último día del periodo y se anota "migrado".
 - **Planillas y campañas:** cada hoja migrada se convierte en una planilla con el nombre de la hoja. "ETI 5 AL 10 Junio" se asigna a una campaña "Etiquetado junio"; el resto a "Contenedor Chile".
 - **Modo de prueba:** el script primero genera un resumen (trabajadores, registros, totales por hoja comparados con los del Excel) sin escribir nada. Solo se ejecuta la carga real después de revisar ese resumen.
@@ -414,7 +413,7 @@ Reglas:
 
 ### Tablas y columnas
 
-Todas las tablas llevan `id`, `created_at` y `updated_at`.
+Las tablas de entidad llevan `id`, `created_at` y `updated_at`. Las tablas de relación (`user_areas`, `group_workers`, `payroll_workers`) solo llevan sus dos claves, y `audit_log` lleva `id` y `created_at`.
 
 | Tabla (español → inglés) | Columnas (español → inglés) |
 |---|---|

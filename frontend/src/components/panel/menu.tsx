@@ -3,50 +3,50 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { ETIQUETA_ROL, useYo } from '@/lib/yo'
+import { ROLE_LABEL, useMe } from '@/lib/me'
 
-// Las fases siguientes agregan aquí Asistencia, Planillas y Reportes.
-const ENLACES = [
-  { href: '/trabajadores', etiqueta: 'Trabajadores', soloAdmin: false },
-  { href: '/configuracion', etiqueta: 'Configuración', soloAdmin: true },
+// The following phases add Asistencia, Planillas and Reportes here.
+const LINKS = [
+  { href: '/workers', label: 'Trabajadores', adminOnly: false },
+  { href: '/settings', label: 'Configuración', adminOnly: true },
 ]
 
 export function Menu() {
-  const ruta = usePathname()
-  const { data: yo } = useYo()
-  const enlaces = ENLACES.filter((e) => !e.soloAdmin || yo?.rol === 'admin')
-  const activo = (href: string) => ruta === href || ruta.startsWith(`${href}/`)
+  const pathname = usePathname()
+  const { data: me } = useMe()
+  const links = LINKS.filter((l) => !l.adminOnly || me?.role === 'admin')
+  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`)
 
   return (
     <>
-      {/* Fijo a la altura de la pantalla: el enlace al perfil queda siempre a la vista aunque la página sea larga. */}
+      {/* Fixed to the screen height: the profile link is always in view even if the page is long. */}
       <nav aria-label="Principal" className="sticky top-0 hidden h-screen w-52 shrink-0 flex-col gap-1 overflow-y-auto bg-[#0f3d24] p-3 md:flex">
         <p className="px-3 pt-2 pb-5 font-semibold text-white">
           Agrosalas <span className="font-normal text-[#a7e3bd]">Admin</span>
         </p>
-        {enlaces.map((e) => (
+        {links.map((l) => (
           <Link
-            key={e.href}
-            href={e.href}
-            aria-current={activo(e.href) ? 'page' : undefined}
+            key={l.href}
+            href={l.href}
+            aria-current={isActive(l.href) ? 'page' : undefined}
             className={cn(
               'flex h-11 items-center rounded-lg px-3 text-sm text-[#cfe8d8]',
-              activo(e.href) && 'bg-[#1c5a37] font-semibold text-white',
+              isActive(l.href) && 'bg-[#1c5a37] font-semibold text-white',
             )}
           >
-            {e.etiqueta}
+            {l.label}
           </Link>
         ))}
         <Link
-          href="/perfil"
-          aria-current={activo('/perfil') ? 'page' : undefined}
+          href="/profile"
+          aria-current={isActive('/profile') ? 'page' : undefined}
           className={cn(
             'mt-auto rounded-lg border-t border-[#1c5a37] p-3 text-sm text-[#cfe8d8]',
-            activo('/perfil') && 'border-transparent bg-[#1c5a37] text-white',
+            isActive('/profile') && 'border-transparent bg-[#1c5a37] text-white',
           )}
         >
-          {yo?.nombre ?? '…'}
-          <span className="block text-[#a7e3bd]">{yo ? `${ETIQUETA_ROL[yo.rol]} · mi perfil` : ''}</span>
+          {me?.name ?? '…'}
+          <span className="block text-[#a7e3bd]">{me ? `${ROLE_LABEL[me.role]} · mi perfil` : ''}</span>
         </Link>
       </nav>
 
@@ -54,17 +54,17 @@ export function Menu() {
         aria-label="Principal"
         className="fixed inset-x-0 bottom-0 z-40 grid auto-cols-fr grid-flow-col border-t bg-background md:hidden"
       >
-        {[...enlaces, { href: '/perfil', etiqueta: 'Perfil' }].map((e) => (
+        {[...links, { href: '/profile', label: 'Perfil' }].map((l) => (
           <Link
-            key={e.href}
-            href={e.href}
-            aria-current={activo(e.href) ? 'page' : undefined}
+            key={l.href}
+            href={l.href}
+            aria-current={isActive(l.href) ? 'page' : undefined}
             className={cn(
               'flex h-14 items-center justify-center border-t-2 border-transparent text-sm text-muted-foreground',
-              activo(e.href) && 'border-primary font-semibold text-primary',
+              isActive(l.href) && 'border-primary font-semibold text-primary',
             )}
           >
-            {e.etiqueta}
+            {l.label}
           </Link>
         ))}
       </nav>

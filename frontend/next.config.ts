@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // El panel no se puede mostrar dentro de otra página (clickjacking) y el navegador no adivina tipos de archivo.
+  // The panel cannot be shown inside another page (clickjacking) and the browser does not guess file types.
   async headers() {
     return [
       {
@@ -15,12 +15,12 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  // Redirecciones en el servidor: no se ve "Cargando…" por una página que solo redirige.
-  // Hasta que exista Planillas (fase 2), la entrada del panel es Trabajadores.
+  // Server-side redirects: no "Cargando…" is shown for a page that only redirects.
+  // Until Payrolls exists (phase 2), the entry point of the panel is Workers.
   async redirects() {
     return [
-      { source: "/", destination: "/trabajadores", permanent: false },
-      { source: "/configuracion", destination: "/configuracion/cargos", permanent: false },
+      { source: "/", destination: "/workers", permanent: false },
+      { source: "/settings", destination: "/settings/positions", permanent: false },
     ];
   },
 };

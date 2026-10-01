@@ -1,10 +1,10 @@
 import { drizzle } from 'drizzle-orm/postgres-js'
 import postgres from 'postgres'
-import type { Db } from '../tipos'
+import type { Db } from '../types'
 import * as schema from './schema'
 
-// prepare: false es obligatorio con el pooler de Supabase en modo transacción.
-export function crearDb(url: string): { db: Db; cerrar: () => Promise<void> } {
-  const cliente = postgres(url, { prepare: false })
-  return { db: drizzle(cliente, { schema }), cerrar: () => cliente.end() }
+// prepare: false is required with the Supabase pooler in transaction mode.
+export function createDb(url: string): { db: Db; close: () => Promise<void> } {
+  const client = postgres(url, { prepare: false })
+  return { db: drizzle(client, { schema }), close: () => client.end() }
 }

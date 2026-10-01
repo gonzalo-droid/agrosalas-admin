@@ -10,9 +10,9 @@
     "dev": "tsx watch --env-file=.env src/server.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "db:generar": "drizzle-kit generate",
-    "db:migrar": "tsx --env-file=.env scripts/migrar.ts",
-    "crear-admin": "tsx --env-file=.env scripts/crear-admin.ts"
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx --env-file=.env scripts/migrate.ts",
+    "create-admin": "tsx --env-file=.env scripts/create-admin.ts"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.3",

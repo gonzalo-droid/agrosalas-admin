@@ -4,58 +4,58 @@ import { useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { Campo } from '@/components/campo'
-import { MarcoAcceso } from '@/components/marco-acceso'
+import { Field } from '@/components/field'
+import { AuthFrame } from '@/components/auth-frame'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { mensajeIngreso } from '@/lib/errores-acceso'
-import { supabaseNavegador } from '@/lib/supabase/navegador'
+import { signInMessage } from '@/lib/auth-errors'
+import { supabaseBrowser } from '@/lib/supabase/browser'
 
-export default function PaginaLogin() {
+export default function LoginPage() {
   const router = useRouter()
-  const cliente = useQueryClient()
+  const queryClient = useQueryClient()
   const [error, setError] = useState('')
-  // Tras entrar, el botón queda deshabilitado hasta que la navegación termine (evita un doble envío).
-  const [enviando, setEnviando] = useState(false)
+  // After signing in, the button stays disabled until the navigation finishes (avoids a double submit).
+  const [submitting, setSubmitting] = useState(false)
 
-  async function entrar(e: React.FormEvent<HTMLFormElement>) {
+  async function signIn(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    const datos = new FormData(e.currentTarget)
-    setEnviando(true)
+    const formData = new FormData(e.currentTarget)
+    setSubmitting(true)
     setError('')
-    const { error } = await supabaseNavegador()
-      .auth.signInWithPassword({ email: String(datos.get('correo')), password: String(datos.get('clave')) })
+    const { error } = await supabaseBrowser()
+      .auth.signInWithPassword({ email: String(formData.get('email')), password: String(formData.get('password')) })
       .catch((e: unknown) => ({ error: e }))
     if (error) {
-      setEnviando(false)
-      setError(mensajeIngreso(error))
+      setSubmitting(false)
+      setError(signInMessage(error))
       return
     }
-    // Nada de lo guardado en memoria (de una sesión anterior en esta pestaña) sirve para quien acaba de entrar.
-    cliente.clear()
+    // Nothing kept in memory (from a previous session in this tab) is useful to whoever has just signed in.
+    queryClient.clear()
     router.replace('/')
     router.refresh()
   }
 
   return (
-    <MarcoAcceso titulo="Iniciar sesión">
-      <form onSubmit={entrar} className="space-y-4">
-        <Campo id="correo" etiqueta="Correo">
-          <Input id="correo" name="correo" type="email" autoComplete="email" required className="h-11" />
-        </Campo>
-        <Campo id="clave" etiqueta="Contraseña" error={error}>
-          <Input id="clave" name="clave" type="password" autoComplete="current-password" required className="h-11" />
-        </Campo>
-        <Button type="submit" disabled={enviando} className="h-11 w-full">
-          {enviando ? 'Entrando…' : 'Entrar'}
+    <AuthFrame title="Iniciar sesión">
+      <form onSubmit={signIn} className="space-y-4">
+        <Field id="email" label="Correo">
+          <Input id="email" name="email" type="email" autoComplete="email" required className="h-11" />
+        </Field>
+        <Field id="password" label="Contraseña" error={error}>
+          <Input id="password" name="password" type="password" autoComplete="current-password" required className="h-11" />
+        </Field>
+        <Button type="submit" disabled={submitting} className="h-11 w-full">
+          {submitting ? 'Entrando…' : 'Entrar'}
         </Button>
       </form>
-      <Link href="/recuperar" className="inline-block py-2 text-sm font-medium text-primary">
+      <Link href="/forgot-password" className="inline-block py-2 text-sm font-medium text-primary">
         Olvidé mi contraseña
       </Link>
       <p className="rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
         Las cuentas las crea el administrador. No hay registro público.
       </p>
-    </MarcoAcceso>
+    </AuthFrame>
   )
 }
