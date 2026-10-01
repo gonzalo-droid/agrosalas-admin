@@ -38,3 +38,28 @@ function mensajeClaveNueva(error: unknown): string | null {
 
 // updateUser({ password }) en la pantalla de nueva contraseña (enlace del correo).
 export const mensajeRestablecer = (error: unknown) => mensajeClaveNueva(error) ?? 'No se pudo guardar la contraseña'
+
+// Credenciales rechazadas por Supabase, o faltantes (auth-js lo detecta antes de llamar).
+const sonCredencialesInvalidas = (error: unknown) => {
+  const { code, name } = forma(error)
+  return code === 'invalid_credentials' || name === 'AuthInvalidCredentialsError'
+}
+
+// signInWithPassword en la pantalla de ingreso.
+export const mensajeIngreso = (error: unknown) =>
+  sonCredencialesInvalidas(error)
+    ? 'Correo o contraseña incorrectos'
+    : (mensajeComun(error) ?? 'No se pudo iniciar sesión. Inténtalo de nuevo.')
+
+// resetPasswordForEmail en "Recuperar contraseña".
+export const mensajeRecuperacion = (error: unknown) =>
+  mensajeComun(error) ?? 'No se pudo enviar el enlace. Inténtalo de nuevo en unos minutos.'
+
+// Perfil: se vuelve a pedir la contraseña actual (signInWithPassword) antes de cambiarla.
+export const mensajeClaveActual = (error: unknown) =>
+  sonCredencialesInvalidas(error)
+    ? 'La contraseña actual no es correcta'
+    : (mensajeComun(error) ?? 'No se pudo comprobar la contraseña actual')
+
+// Perfil: updateUser({ password }).
+export const mensajeCambioClave = (error: unknown) => mensajeClaveNueva(error) ?? 'No se pudo cambiar la contraseña'

@@ -8,12 +8,14 @@ import { Campo } from '@/components/campo'
 import { MarcoAcceso } from '@/components/marco-acceso'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { mensajeIngreso } from '@/lib/errores-acceso'
 import { supabaseNavegador } from '@/lib/supabase/navegador'
 
 export default function PaginaLogin() {
   const router = useRouter()
   const cliente = useQueryClient()
   const [error, setError] = useState('')
+  // Tras entrar, el botón queda deshabilitado hasta que la navegación termine (evita un doble envío).
   const [enviando, setEnviando] = useState(false)
 
   async function entrar(e: React.FormEvent<HTMLFormElement>) {
@@ -21,12 +23,14 @@ export default function PaginaLogin() {
     const datos = new FormData(e.currentTarget)
     setEnviando(true)
     setError('')
-    const { error } = await supabaseNavegador().auth.signInWithPassword({
-      email: String(datos.get('correo')),
-      password: String(datos.get('clave')),
-    })
-    setEnviando(false)
-    if (error) return setError('Correo o contraseña incorrectos')
+    const { error } = await supabaseNavegador()
+      .auth.signInWithPassword({ email: String(datos.get('correo')), password: String(datos.get('clave')) })
+      .catch((e: unknown) => ({ error: e }))
+    if (error) {
+      setEnviando(false)
+      setError(mensajeIngreso(error))
+      return
+    }
     // Nada de lo guardado en memoria (de una sesión anterior en esta pestaña) sirve para quien acaba de entrar.
     cliente.clear()
     router.replace('/')

@@ -8,15 +8,18 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { api, leer, mensajeDeError } from '@/lib/api'
+import { mensajeCambioClave, mensajeClaveActual } from '@/lib/errores-acceso'
 import { useCerrarSesion } from '@/lib/sesion'
 import { supabaseNavegador } from '@/lib/supabase/navegador'
+import { hayErrores, validarClaveNueva } from '@/lib/validar-clave'
 import { ETIQUETA_ROL, useYo } from '@/lib/yo'
 
 export default function PaginaPerfil() {
   const cliente = useQueryClient()
   const cerrarSesion = useCerrarSesion()
   const { data: yo } = useYo()
-  const [errorClave, setErrorClave] = useState('')
+  const [erroresClave, setErroresClave] = useState<{ actual?: string; nueva?: string; repetir?: string; general?: string }>({})
+  const [cambiandoClave, setCambiandoClave] = useState(false)
   const { data: areas } = useQuery({ queryKey: ['areas'], queryFn: () => leer(api.v1.areas.$get()) })
 
   const guardarNombre = useMutation({
@@ -33,20 +36,24 @@ export default function PaginaPerfil() {
     const formulario = e.currentTarget
     const datos = new FormData(formulario)
     const nueva = String(datos.get('nueva'))
-    if (nueva.length < 8) return setErrorClave('Usa al menos 8 caracteres')
-    if (nueva !== String(datos.get('repetir'))) return setErrorClave('Las contraseñas no coinciden')
-    setErrorClave('')
-    const supabase = supabaseNavegador()
-    // Se vuelve a pedir la contraseña actual para confirmar que quien la cambia es el dueño de la cuenta.
-    const { error: errorActual } = await supabase.auth.signInWithPassword({
-      email: yo!.correo,
-      password: String(datos.get('actual')),
-    })
-    if (errorActual) return setErrorClave('La contraseña actual no es correcta')
-    const { error } = await supabase.auth.updateUser({ password: nueva })
-    if (error) return setErrorClave('No se pudo cambiar la contraseña')
-    formulario.reset()
-    toast.success('Contraseña actualizada')
+    const validacion = validarClaveNueva(nueva, String(datos.get('repetir')))
+    setErroresClave({ nueva: validacion.clave, repetir: validacion.repetir })
+    if (hayErrores(validacion)) return
+    setCambiandoClave(true)
+    try {
+      const supabase = supabaseNavegador()
+      // Se vuelve a pedir la contraseña actual para confirmar que quien la cambia es el dueño de la cuenta.
+      const { error: errorActual } = await supabase.auth
+        .signInWithPassword({ email: yo!.correo, password: String(datos.get('actual')) })
+        .catch((e: unknown) => ({ error: e }))
+      if (errorActual) return setErroresClave({ actual: mensajeClaveActual(errorActual) })
+      const { error } = await supabase.auth.updateUser({ password: nueva }).catch((e: unknown) => ({ error: e }))
+      if (error) return setErroresClave({ general: mensajeCambioClave(error) })
+      formulario.reset()
+      toast.success('Contraseña actualizada')
+    } finally {
+      setCambiandoClave(false)
+    }
   }
 
   if (!yo) return null
@@ -76,7 +83,9 @@ export default function PaginaPerfil() {
           <p className="text-sm">
             <span className="text-muted-foreground">Áreas asignadas: </span>
             {yo.areaIds.length === 0
-              ? 'Todas'
+              ? yo.rol === 'coordinador'
+                ? 'Ninguna'
+                : 'Todas'
               : yo.areaIds.map((id) => areas?.datos.find((a) => a.id === id)?.nombre ?? '…').join(', ')}
           </p>
           <Button type="submit" size="lg" disabled={guardarNombre.isPending}>
@@ -87,23 +96,28 @@ export default function PaginaPerfil() {
         <div className="space-y-4">
           <form onSubmit={cambiarClave} className="space-y-4 rounded-xl border bg-background p-5">
             <h2 className="font-semibold">Cambiar contraseña</h2>
-            <Campo id="actual" etiqueta="Contraseña actual">
+            <Campo id="actual" etiqueta="Contraseña actual" error={erroresClave.actual}>
               <Input id="actual" name="actual" type="password" autoComplete="current-password" required className="h-10" />
             </Campo>
-            <Campo id="nueva" etiqueta="Nueva contraseña">
+            <Campo id="nueva" etiqueta="Nueva contraseña" ayuda="Al menos 8 caracteres." error={erroresClave.nueva}>
               <Input id="nueva" name="nueva" type="password" autoComplete="new-password" required className="h-10" />
             </Campo>
-            <Campo id="repetir" etiqueta="Repetir nueva contraseña" error={errorClave}>
+            <Campo id="repetir" etiqueta="Repetir nueva contraseña" error={erroresClave.repetir}>
               <Input id="repetir" name="repetir" type="password" autoComplete="new-password" required className="h-10" />
             </Campo>
-            <Button type="submit" variant="outline" size="lg">
-              Cambiar contraseña
+            {erroresClave.general && (
+              <p role="alert" className="text-sm text-destructive">
+                {erroresClave.general}
+              </p>
+            )}
+            <Button type="submit" variant="outline" size="lg" disabled={cambiandoClave}>
+              {cambiandoClave ? 'Cambiando…' : 'Cambiar contraseña'}
             </Button>
           </form>
 
           <div className="flex items-center justify-between rounded-xl border bg-background p-5">
             <h2 className="font-semibold">Sesión</h2>
-            <Button variant="destructive" size="lg" onClick={cerrarSesion}>
+            <Button variant="destructive" size="lg" onClick={() => void cerrarSesion()}>
               Cerrar sesión
             </Button>
           </div>
