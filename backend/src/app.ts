@@ -6,6 +6,7 @@ import { rutasAreas, rutasCampanas, rutasTurnos } from './rutas/catalogos'
 import { rutasAuditoria } from './rutas/auditoria'
 import { rutasMe } from './rutas/me'
 import { rutasCargos } from './rutas/cargos'
+import { rutasTrabajadores } from './rutas/trabajadores'
 import type { Dependencias, Entorno } from './tipos'
 
 export function crearApp(deps: Dependencias) {
@@ -17,6 +18,7 @@ export function crearApp(deps: Dependencias) {
     .route('/turnos', rutasTurnos(deps))
     .route('/campanas', rutasCampanas(deps))
     .route('/cargos', rutasCargos(deps))
+    .route('/trabajadores', rutasTrabajadores(deps))
 
   return new Hono()
     .use(
