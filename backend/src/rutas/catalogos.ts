@@ -5,15 +5,15 @@ import { requiereRol } from '../auth/middleware'
 import { areas, campanas, turnos } from '../db/schema'
 import { registrarAuditoria } from '../lib/auditoria'
 import { noEncontrado } from '../lib/errores'
-import { esquemaId, validar } from '../lib/validar'
+import { conAlgunCampo, esquemaId, validar } from '../lib/validar'
 import type { Dependencias, Entorno } from '../tipos'
 
 const nombre = z.string().trim().min(2).max(60)
 const hora = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Usa el formato HH:MM')
-const fecha = z.string().date().nullable().optional()
+const fecha = z.iso.date().nullable().optional()
 
 const crearArea = z.object({ nombre })
-const editarArea = crearArea.extend({ activo: z.boolean() }).partial()
+const editarArea = conAlgunCampo(crearArea.extend({ activo: z.boolean() }).partial())
 
 export const rutasAreas = ({ db }: Dependencias) =>
   new Hono<Entorno>()
@@ -39,7 +39,7 @@ export const rutasAreas = ({ db }: Dependencias) =>
     })
 
 const crearTurno = z.object({ nombre, horaInicio: hora, horaFin: hora })
-const editarTurno = crearTurno.extend({ activo: z.boolean() }).partial()
+const editarTurno = conAlgunCampo(crearTurno.extend({ activo: z.boolean() }).partial())
 
 export const rutasTurnos = ({ db }: Dependencias) =>
   new Hono<Entorno>()
@@ -65,7 +65,7 @@ export const rutasTurnos = ({ db }: Dependencias) =>
     })
 
 const crearCampana = z.object({ nombre, fechaInicio: fecha, fechaFin: fecha })
-const editarCampana = crearCampana.extend({ activo: z.boolean() }).partial()
+const editarCampana = conAlgunCampo(crearCampana.extend({ activo: z.boolean() }).partial())
 
 export const rutasCampanas = ({ db }: Dependencias) =>
   new Hono<Entorno>()

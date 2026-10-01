@@ -68,4 +68,16 @@ describe('cargos y tarifas', () => {
     const crear = await p.pedir('gerencia', 'POST', '/v1/cargos', { nombre: 'X1', tipoPago: 'mensual', sueldoMensual: 1 })
     expect(crear.status).toBe(403)
   })
+
+  it('rechaza con 400 una edición sin ningún campo', async () => {
+    const { json: cargo } = await p.pedir('admin', 'POST', '/v1/cargos', {
+      nombre: 'Vigilante',
+      tipoPago: 'mensual',
+      sueldoMensual: 1200,
+    })
+    const r = await p.pedir('admin', 'PATCH', `/v1/cargos/${cargo.id}`, {})
+    expect(r.status).toBe(400)
+    expect(r.json.error.codigo).toBe('validacion')
+    expect(r.json.error.mensaje).toBe('Indica al menos un campo para editar')
+  })
 })

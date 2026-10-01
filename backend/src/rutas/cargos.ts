@@ -5,7 +5,7 @@ import { requiereRol } from '../auth/middleware'
 import { cargos } from '../db/schema'
 import { registrarAuditoria } from '../lib/auditoria'
 import { ErrorApi, noEncontrado } from '../lib/errores'
-import { esquemaId, validar } from '../lib/validar'
+import { conAlgunCampo, esquemaId, validar } from '../lib/validar'
 import type { Dependencias, Entorno } from '../tipos'
 
 const monto = z.number().positive().max(99999).nullable().optional()
@@ -17,7 +17,7 @@ const datosCargo = z.object({
   tarifaHoraExtra: monto,
   sueldoMensual: monto,
 })
-const editarCargo = datosCargo.extend({ activo: z.boolean() }).partial()
+const editarCargo = conAlgunCampo(datosCargo.extend({ activo: z.boolean() }).partial())
 
 type Tarifas = Pick<typeof cargos.$inferSelect, 'tipoPago' | 'tarifaHora' | 'tarifaHoraExtra' | 'sueldoMensual'>
 

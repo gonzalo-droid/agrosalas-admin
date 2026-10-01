@@ -15,3 +15,9 @@ export const validar = <D extends keyof ValidationTargets, E extends ZodType>(de
   })
 
 export const esquemaId = z.object({ id: z.uuid() })
+
+// Para PATCH: un cuerpo sin ningún campo conocido es un error de quien llama, no una edición.
+export const conAlgunCampo = <E extends z.ZodObject>(esquema: E) =>
+  esquema.refine((valores) => Object.keys(valores).length > 0, {
+    message: 'Indica al menos un campo para editar',
+  })

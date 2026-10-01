@@ -43,6 +43,14 @@ describe('áreas', () => {
     const r = await p.pedir('admin', 'GET', '/v1/auditoria?entidad=areas')
     expect(r.json.datos.map((f: { accion: string }) => f.accion).sort()).toEqual(['crear', 'crear', 'editar'])
   })
+
+  it('rechaza con 400 una edición sin ningún campo', async () => {
+    const { json: area } = await p.pedir('admin', 'POST', '/v1/areas', { nombre: 'Mantenimiento' })
+    const r = await p.pedir('admin', 'PATCH', `/v1/areas/${area.id}`, {})
+    expect(r.status).toBe(400)
+    expect(r.json.error.codigo).toBe('validacion')
+    expect(r.json.error.mensaje).toBe('Indica al menos un campo para editar')
+  })
 })
 
 describe('turnos', () => {
