@@ -1,11 +1,19 @@
 {
   "name": "agrosalas-admin",
   "private": true,
-  "workspaces": ["backend"],
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
   "scripts": {
     "dev:api": "npm run dev -w @agrosalas/backend",
+    "dev:web": "npm run dev -w @agrosalas/frontend",
     "test": "npm test --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint -w @agrosalas/frontend",
+    "build": "npm run build -w @agrosalas/frontend"
   },
-  "engines": { "node": ">=22" }
+  "engines": {
+    "node": ">=22"
+  }
 }
