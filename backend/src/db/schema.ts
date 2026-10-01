@@ -18,7 +18,7 @@ export const tipoPagoEnum = pgEnum('tipo_pago', ['por_hora', 'mensual'])
 export const tipoMetodoPagoEnum = pgEnum('tipo_metodo_pago', ['yape', 'plin', 'cuenta_bancaria'])
 export const accionAuditoriaEnum = pgEnum('accion_auditoria', ['crear', 'editar', 'eliminar'])
 
-// id = id del usuario en Supabase Auth
+// id = the user id in Supabase Auth
 export const usuarios = pgTable('usuarios', {
   id: uuid('id').primaryKey(),
   correo: text('correo').notNull().unique(),
