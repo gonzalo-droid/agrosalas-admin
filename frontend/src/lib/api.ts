@@ -26,13 +26,31 @@ export class ErrorApiCliente extends Error {
   }
 }
 
+const ERROR_GENERICO: ErrorCuerpo['error'] = { codigo: 'desconocido', mensaje: 'No se pudo completar la acción' }
+const ERROR_SIN_CONEXION: ErrorCuerpo['error'] = {
+  codigo: 'sin_conexion',
+  mensaje: 'No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.',
+}
+
+// Solo se usa el error del servidor si trae código y mensaje de texto; si no, el mensaje genérico.
+function errorDeLaApi(cuerpo: unknown): ErrorCuerpo['error'] {
+  const error = (cuerpo as { error?: Partial<ErrorCuerpo['error']> } | null)?.error
+  return typeof error?.codigo === 'string' && typeof error.mensaje === 'string'
+    ? (error as ErrorCuerpo['error'])
+    : ERROR_GENERICO
+}
+
 // Espera la respuesta de la API; si es un error, lo lanza con el mensaje que mandó el servidor.
 export async function leer<R extends RespuestaJson>(promesa: Promise<R>): Promise<Exclude<Cuerpo<R>, ErrorCuerpo>> {
-  const respuesta = await promesa
-  const cuerpo = await respuesta.json().catch(() => null)
-  if (!respuesta.ok) {
-    throw new ErrorApiCliente(cuerpo?.error ?? { codigo: 'desconocido', mensaje: 'No se pudo completar la acción' })
+  let respuesta: R
+  try {
+    respuesta = await promesa
+  } catch {
+    // fetch rechaza (con un mensaje en inglés del navegador) cuando no hay conexión con la API.
+    throw new ErrorApiCliente(ERROR_SIN_CONEXION)
   }
+  const cuerpo = await respuesta.json().catch(() => null)
+  if (!respuesta.ok) throw new ErrorApiCliente(errorDeLaApi(cuerpo))
   return cuerpo
 }
 
@@ -43,4 +61,5 @@ export const api = hc<AppType>(process.env.NEXT_PUBLIC_API_URL!, {
   },
 })
 
-export const mensajeDeError = (e: unknown) => (e instanceof Error ? e.message : 'No se pudo completar la acción')
+// Solo se muestran los mensajes que escribimos nosotros; cualquier otro error (p. ej. del navegador) va en genérico.
+export const mensajeDeError = (e: unknown) => (e instanceof ErrorApiCliente ? e.message : ERROR_GENERICO.mensaje)

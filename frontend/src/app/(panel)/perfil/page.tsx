@@ -1,7 +1,6 @@
 'use client'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Campo } from '@/components/campo'
@@ -9,12 +8,13 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { api, leer, mensajeDeError } from '@/lib/api'
+import { useCerrarSesion } from '@/lib/sesion'
 import { supabaseNavegador } from '@/lib/supabase/navegador'
 import { ETIQUETA_ROL, useYo } from '@/lib/yo'
 
 export default function PaginaPerfil() {
-  const router = useRouter()
   const cliente = useQueryClient()
+  const cerrarSesion = useCerrarSesion()
   const { data: yo } = useYo()
   const [errorClave, setErrorClave] = useState('')
   const { data: areas } = useQuery({ queryKey: ['areas'], queryFn: () => leer(api.v1.areas.$get()) })
@@ -47,13 +47,6 @@ export default function PaginaPerfil() {
     if (error) return setErrorClave('No se pudo cambiar la contraseña')
     formulario.reset()
     toast.success('Contraseña actualizada')
-  }
-
-  async function cerrarSesion() {
-    await supabaseNavegador().auth.signOut()
-    cliente.clear()
-    router.replace('/login')
-    router.refresh()
   }
 
   if (!yo) return null
