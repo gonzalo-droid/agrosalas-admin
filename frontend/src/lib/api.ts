@@ -7,12 +7,12 @@ type ErrorBody = { error: { code: string; message: string; field?: string } }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type JsonResponse = ClientResponse<any, any, any>
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Body<R> = R extends ClientResponse<infer T, any, any> ? T : never
+type BodyOf<R> = R extends ClientResponse<infer T, any, any> ? T : never
 
 // ResponseBody<typeof api.v1.areas.$get> = the body of the successful response of that call.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type ResponseBody<F extends (...args: any[]) => Promise<JsonResponse>> = Exclude<
-  Body<Awaited<ReturnType<F>>>,
+  BodyOf<Awaited<ReturnType<F>>>,
   ErrorBody
 >
 
@@ -42,7 +42,7 @@ function apiError(body: unknown): ErrorBody['error'] {
 }
 
 // Waits for the API response; if it is an error, throws it with the message the server sent.
-export async function unwrap<R extends JsonResponse>(promise: Promise<R>): Promise<Exclude<Body<R>, ErrorBody>> {
+export async function unwrap<R extends JsonResponse>(promise: Promise<R>): Promise<Exclude<BodyOf<R>, ErrorBody>> {
   let response: R
   try {
     response = await promise

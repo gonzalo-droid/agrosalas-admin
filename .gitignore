@@ -8,5 +8,5 @@ out/
 next-env.d.ts
 .DS_Store
 .vercel
-# El Excel de planilla tiene datos personales: nunca va al repo.
+# The payroll Excel file has personal data: it never goes in the repo.
 *.xlsx

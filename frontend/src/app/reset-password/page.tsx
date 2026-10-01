@@ -20,16 +20,16 @@ export default function ResetPasswordPage() {
   const linkCheck = useRef<Promise<LinkResult> | null>(null)
 
   useEffect(() => {
-    let current = true
+    let active = true
     // The URL is read before creating the client, which on creation exchanges the ?code= and removes it from the address bar.
     const params = new URLSearchParams(window.location.search)
     // In development React mounts twice: the (single-use) link is checked only once.
     linkCheck.current ??= checkRecoveryLink(supabaseBrowser().auth, params)
     void linkCheck.current.then((result) => {
-      if (current) setLink(result)
+      if (active) setLink(result)
     })
     return () => {
-      current = false
+      active = false
     }
   }, [])
 

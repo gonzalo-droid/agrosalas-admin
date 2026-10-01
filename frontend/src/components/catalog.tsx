@@ -130,24 +130,24 @@ export function Catalog(props: Props) {
                 </TableCell>
               </TableRow>
             )}
-            {data?.items.map((f) => (
-              <TableRow key={f.id}>
+            {data?.items.map((item) => (
+              <TableRow key={item.id}>
                 {props.columns.map((c) => (
                   <TableCell key={c.title} className={c.right ? 'text-right tabular-nums' : undefined}>
-                    {c.cell(f)}
+                    {c.cell(item)}
                   </TableCell>
                 ))}
                 <TableCell>
-                  <Badge variant={f.active === false ? 'outline' : 'secondary'}>{f.active === false ? 'Inactivo' : 'Activo'}</Badge>
+                  <Badge variant={item.active === false ? 'outline' : 'secondary'}>{item.active === false ? 'Inactivo' : 'Activo'}</Badge>
                 </TableCell>
                 <TableCell className="text-right">
-                  {props.rowActions?.(f)}
+                  {props.rowActions?.(item)}
                   {props.canEdit && (
                     <Button
                       variant="ghost"
                       size="lg"
-                      aria-label={typeof f.name === 'string' ? `Editar ${f.name}` : undefined}
-                      onClick={() => openDialog(f)}
+                      aria-label={typeof item.name === 'string' ? `Editar ${item.name}` : undefined}
+                      onClick={() => openDialog(item)}
                     >
                       Editar
                     </Button>
@@ -173,33 +173,33 @@ export function Catalog(props: Props) {
               save.mutate()
             }}
           >
-            {fields.map((c) => {
-              const id = `field-${c.name}`
-              const error = fieldError?.field === c.name ? fieldError.message : undefined
-              const value = values[c.name]
-              if (c.type === 'checkbox') {
+            {fields.map((field) => {
+              const id = `field-${field.name}`
+              const error = fieldError?.field === field.name ? fieldError.message : undefined
+              const value = values[field.name]
+              if (field.type === 'checkbox') {
                 return (
-                  <div key={c.name} className="space-y-1">
+                  <div key={field.name} className="space-y-1">
                     <label className="flex h-10 items-center gap-2 text-sm">
-                      <input type="checkbox" checked={Boolean(value)} onChange={(e) => change(c.name, e.target.checked)} />
-                      {c.label}
+                      <input type="checkbox" checked={Boolean(value)} onChange={(e) => change(field.name, e.target.checked)} />
+                      {field.label}
                     </label>
                     {error && <p className="text-xs text-destructive">{error}</p>}
                   </div>
                 )
               }
-              if (c.type === 'multiselect') {
+              if (field.type === 'multiselect') {
                 const chosen = (value as string[]) ?? []
                 return (
-                  <fieldset key={c.name} className="space-y-1">
-                    <legend className="text-sm font-medium">{c.label}</legend>
-                    {visibleOptions(c, row).map((o) => (
+                  <fieldset key={field.name} className="space-y-1">
+                    <legend className="text-sm font-medium">{field.label}</legend>
+                    {visibleOptions(field, row).map((o) => (
                       <label key={o.value} className="flex h-9 items-center gap-2 text-sm">
                         <input
                           type="checkbox"
                           checked={chosen.includes(o.value)}
                           onChange={(e) =>
-                            change(c.name, e.target.checked ? [...chosen, o.value] : chosen.filter((v) => v !== o.value))
+                            change(field.name, e.target.checked ? [...chosen, o.value] : chosen.filter((v) => v !== o.value))
                           }
                         />
                         {o.label}
@@ -208,16 +208,16 @@ export function Catalog(props: Props) {
                     {error ? (
                       <p className="text-xs text-destructive">{error}</p>
                     ) : (
-                      c.help && <p className="text-xs text-muted-foreground">{c.help}</p>
+                      field.help && <p className="text-xs text-muted-foreground">{field.help}</p>
                     )}
                   </fieldset>
                 )
               }
               return (
-                <Field key={c.name} id={id} label={c.label} help={c.help} error={error}>
-                  {c.type === 'select' ? (
-                    <select id={id} className={controlClass} value={String(value ?? '')} onChange={(e) => change(c.name, e.target.value)}>
-                      {visibleOptions(c, row).map((o) => (
+                <Field key={field.name} id={id} label={field.label} help={field.help} error={error}>
+                  {field.type === 'select' ? (
+                    <select id={id} className={controlClass} value={String(value ?? '')} onChange={(e) => change(field.name, e.target.value)}>
+                      {visibleOptions(field, row).map((o) => (
                         <option key={o.value} value={o.value}>
                           {o.label}
                         </option>
@@ -227,12 +227,12 @@ export function Catalog(props: Props) {
                     <Input
                       id={id}
                       className="h-10"
-                      type={INPUT_TYPE[c.type]}
-                      step={c.type === 'number' ? 'any' : undefined}
-                      required={c.required}
-                      autoComplete={AUTOCOMPLETE[c.type] ?? 'off'}
+                      type={INPUT_TYPE[field.type]}
+                      step={field.type === 'number' ? 'any' : undefined}
+                      required={field.required}
+                      autoComplete={AUTOCOMPLETE[field.type] ?? 'off'}
                       value={String(value ?? '')}
-                      onChange={(e) => change(c.name, e.target.value)}
+                      onChange={(e) => change(field.name, e.target.value)}
                     />
                   )}
                 </Field>
@@ -244,7 +244,7 @@ export function Catalog(props: Props) {
                 Activo
               </label>
             )}
-            {fieldError && !fields.some((c) => c.name === fieldError.field) && (
+            {fieldError && !fields.some((field) => field.name === fieldError.field) && (
               <p role="alert" className="text-sm text-destructive">
                 {fieldError.message}
               </p>
