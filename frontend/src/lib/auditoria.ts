@@ -1,42 +1,93 @@
 export const ETIQUETA_ENTIDAD: Record<string, string> = {
-  trabajadores: 'Trabajadores',
-  trabajador_metodos_pago: 'Métodos de pago',
-  usuarios: 'Usuarios',
-  cargos: 'Cargos',
-  grupos: 'Grupos',
+  workers: 'Trabajadores',
+  worker_payment_methods: 'Métodos de pago',
+  users: 'Usuarios',
+  positions: 'Cargos',
+  groups: 'Grupos',
   areas: 'Áreas',
-  turnos: 'Turnos',
-  campanas: 'Campañas',
+  shifts: 'Turnos',
+  campaigns: 'Campañas',
 }
 
-const IGNORADAS = new Set(['id', 'creadoEn', 'actualizadoEn'])
-// Datos personales y bancarios: la auditoría solo deja ver el final.
-const SENSIBLES = new Set(['dni', 'telefono', 'direccion', 'emergenciaTelefono', 'numero', 'cci'])
-
-const esObjeto = (valor: unknown): valor is Record<string, unknown> =>
-  typeof valor === 'object' && valor !== null && !Array.isArray(valor)
-
-function mostrar(clave: string, valor: unknown): string {
-  if (valor === null || valor === undefined) return '—'
-  const texto = typeof valor === 'string' ? valor : JSON.stringify(valor)
-  if (!SENSIBLES.has(clave)) return texto
-  return texto.length <= 4 ? '••••' : `••••${texto.slice(-4)}`
+export const FIELD_LABEL: Record<string, string> = {
+  name: 'Nombre',
+  email: 'Correo',
+  role: 'Rol',
+  active: 'Activo',
+  areaIds: 'Áreas',
+  startTime: 'Hora de inicio',
+  endTime: 'Hora de fin',
+  startDate: 'Fecha de inicio',
+  endDate: 'Fecha de fin',
+  payType: 'Tipo de pago',
+  hourlyRate: 'Tarifa por hora',
+  overtimeRate: 'Tarifa por hora extra',
+  monthlySalary: 'Sueldo mensual',
+  temporary: 'Temporal',
+  dni: 'DNI',
+  firstName: 'Nombres',
+  lastName: 'Apellidos',
+  phone: 'Teléfono',
+  address: 'Dirección',
+  emergencyContactName: 'Contacto de emergencia',
+  emergencyContactPhone: 'Teléfono de emergencia',
+  areaId: 'Área',
+  positionId: 'Cargo',
+  shiftId: 'Turno',
+  employmentType: 'Modalidad',
+  hireDate: 'Fecha de ingreso',
+  status: 'Estado',
+  notes: 'Notas',
+  workerId: 'Trabajador',
+  type: 'Tipo',
+  number: 'Número',
+  bank: 'Banco',
+  cci: 'CCI',
+  holderName: 'Titular',
+  isPrimary: 'Principal',
+  added: 'Agregados',
+  removed: 'Quitado',
 }
 
-// Resumen legible de una fila de auditoría. Nunca devuelve el JSON completo ni datos personales completos.
-export function resumenCambio(accion: 'crear' | 'editar' | 'eliminar', antes: unknown, despues: unknown): string {
-  if (accion === 'editar' && esObjeto(antes) && esObjeto(despues)) {
-    const claves = [...new Set([...Object.keys(antes), ...Object.keys(despues)])].filter((k) => !IGNORADAS.has(k))
-    const cambios = claves
-      .filter((k) => JSON.stringify(antes[k] ?? null) !== JSON.stringify(despues[k] ?? null))
-      .map((k) => `${k}: ${mostrar(k, antes[k])} → ${mostrar(k, despues[k])}`)
-    return cambios.length > 0 ? cambios.join('; ') : 'Sin cambios'
+// Enum values of the contract, by field. Anything missing here is shown as it comes.
+export const VALUE_LABEL: Record<string, Record<string, string>> = {
+  role: { admin: 'Administrador', management: 'Gerencia', accounting: 'Contabilidad', coordinator: 'Coordinador' },
+  employmentType: { temporary: 'Temporal', contract: 'Contrato' },
+  status: { active: 'Activo', terminated: 'Cesado' },
+  payType: { hourly: 'Por hora', monthly: 'Mensual' },
+  type: { yape: 'Yape', plin: 'Plin', bank_account: 'Cuenta bancaria' },
+}
+
+const IGNORED = new Set(['id', 'createdAt', 'updatedAt'])
+// Personal and bank data: the audit log only shows the last characters.
+const SENSITIVE = new Set(['dni', 'phone', 'address', 'emergencyContactPhone', 'number', 'cci'])
+
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+
+const label = (key: string) => FIELD_LABEL[key] ?? key
+
+function show(key: string, value: unknown): string {
+  if (value === null || value === undefined) return '—'
+  const text = typeof value === 'string' ? value : JSON.stringify(value)
+  if (SENSITIVE.has(key)) return text.length <= 4 ? '••••' : `••••${text.slice(-4)}`
+  return VALUE_LABEL[key]?.[text] ?? text
+}
+
+// Readable summary of an audit row. It never returns the full JSON or complete personal data.
+export function resumenCambio(action: 'create' | 'update' | 'delete', before: unknown, after: unknown): string {
+  if (action === 'update' && isObject(before) && isObject(after)) {
+    const keys = [...new Set([...Object.keys(before), ...Object.keys(after)])].filter((k) => !IGNORED.has(k))
+    const changes = keys
+      .filter((k) => JSON.stringify(before[k] ?? null) !== JSON.stringify(after[k] ?? null))
+      .map((k) => `${label(k)}: ${show(k, before[k])} → ${show(k, after[k])}`)
+    return changes.length > 0 ? changes.join('; ') : 'Sin cambios'
   }
 
-  const fila = accion === 'eliminar' ? antes : accion === 'crear' ? despues : (despues ?? antes)
-  if (!esObjeto(fila)) return '—'
-  const campos = Object.entries(fila)
-    .filter(([k, v]) => !IGNORADAS.has(k) && v !== null && v !== undefined)
-    .map(([k, v]) => `${k}: ${mostrar(k, v)}`)
-  return campos.length > 0 ? campos.join('; ') : '—'
+  const row = action === 'delete' ? before : action === 'create' ? after : (after ?? before)
+  if (!isObject(row)) return '—'
+  const fields = Object.entries(row)
+    .filter(([k, v]) => !IGNORED.has(k) && v !== null && v !== undefined)
+    .map(([k, v]) => `${label(k)}: ${show(k, v)}`)
+  return fields.length > 0 ? fields.join('; ') : '—'
 }

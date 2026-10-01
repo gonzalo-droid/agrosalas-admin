@@ -14,32 +14,32 @@ describe('leer', () => {
   })
 
   it('lanza el error de la API con su código, mensaje y campo', async () => {
-    const cuerpo = { error: { codigo: 'validacion', mensaje: 'El DNI debe tener 8 dígitos', campo: 'dni' } }
+    const cuerpo = { error: { code: 'validation', message: 'El DNI debe tener 8 dígitos', field: 'dni' } }
     const error = await leerRespuesta(new Response(JSON.stringify(cuerpo), { status: 400 })).catch((e) => e)
     expect(error).toBeInstanceOf(ErrorApiCliente)
     expect(error.message).toBe('El DNI debe tener 8 dígitos')
-    expect(error.codigo).toBe('validacion')
-    expect(error.campo).toBe('dni')
+    expect(error.code).toBe('validation')
+    expect(error.field).toBe('dni')
   })
 
   it('usa un mensaje genérico si la respuesta de error no es JSON', async () => {
     const error = await leerRespuesta(new Response('<html>Bad Gateway</html>', { status: 502 })).catch((e) => e)
     expect(error).toBeInstanceOf(ErrorApiCliente)
-    expect(error.codigo).toBe('desconocido')
+    expect(error.code).toBe('unknown')
     expect(error.message).toBe(GENERICO)
   })
 
   it('usa un mensaje genérico si el error no trae un mensaje de texto', async () => {
     const error = await leerRespuesta(new Response(JSON.stringify({ error: 'boom' }), { status: 500 })).catch((e) => e)
     expect(error).toBeInstanceOf(ErrorApiCliente)
-    expect(error.codigo).toBe('desconocido')
+    expect(error.code).toBe('unknown')
     expect(error.message).toBe(GENERICO)
   })
 
   it('convierte un fallo de red en un error en español', async () => {
     const error = await leer(Promise.reject(new TypeError('Failed to fetch')) as never).catch((e) => e)
     expect(error).toBeInstanceOf(ErrorApiCliente)
-    expect(error.codigo).toBe('sin_conexion')
+    expect(error.code).toBe('network_error')
     expect(error.message).toBe('No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.')
   })
 
@@ -51,7 +51,7 @@ describe('leer', () => {
 
 describe('mensajeDeError', () => {
   it('devuelve el mensaje de un error de la API', () => {
-    expect(mensajeDeError(new ErrorApiCliente({ codigo: 'validacion', mensaje: 'Dato inválido' }))).toBe('Dato inválido')
+    expect(mensajeDeError(new ErrorApiCliente({ code: 'validation', message: 'Dato inválido' }))).toBe('Dato inválido')
   })
 
   it('muestra qué variable de entorno falta', () => {

@@ -24,7 +24,7 @@ export default function PaginaPerfil() {
   const { data: areas } = useAreas()
 
   const guardarNombre = useMutation({
-    mutationFn: (nombre: string) => leer(api.v1.me.$patch({ json: { nombre } })),
+    mutationFn: (nombre: string) => leer(api.v1.me.$patch({ json: { name: nombre } })),
     onSuccess: () => {
       cliente.invalidateQueries({ queryKey: ['yo'] })
       toast.success('Nombre actualizado')
@@ -45,7 +45,7 @@ export default function PaginaPerfil() {
       const supabase = supabaseNavegador()
       // Se vuelve a pedir la contraseña actual para confirmar que quien la cambia es el dueño de la cuenta.
       const { error: errorActual } = await supabase.auth
-        .signInWithPassword({ email: yo!.correo, password: String(datos.get('actual')) })
+        .signInWithPassword({ email: yo!.email, password: String(datos.get('actual')) })
         .catch((e: unknown) => ({ error: e }))
       if (errorActual) return setErroresClave({ actual: mensajeClaveActual(errorActual) })
       const { error } = await supabase.auth.updateUser({ password: nueva }).catch((e: unknown) => ({ error: e }))
@@ -72,22 +72,22 @@ export default function PaginaPerfil() {
         >
           <h2 className="font-semibold">Mis datos</h2>
           <Campo id="nombre" etiqueta="Nombre">
-            <Input id="nombre" name="nombre" defaultValue={yo.nombre} required minLength={2} className="h-10" />
+            <Input id="nombre" name="nombre" defaultValue={yo.name} required minLength={2} className="h-10" />
           </Campo>
           <Campo id="correo" etiqueta="Correo" ayuda="Lo cambia el administrador.">
-            <Input id="correo" value={yo.correo} readOnly className="h-10 bg-muted text-muted-foreground" />
+            <Input id="correo" value={yo.email} readOnly className="h-10 bg-muted text-muted-foreground" />
           </Campo>
           <div className="flex items-center gap-3 text-sm">
             <span className="text-muted-foreground">Rol</span>
-            <Badge variant="secondary">{ETIQUETA_ROL[yo.rol]}</Badge>
+            <Badge variant="secondary">{ETIQUETA_ROL[yo.role]}</Badge>
           </div>
           <p className="text-sm">
             <span className="text-muted-foreground">Áreas asignadas: </span>
             {yo.areaIds.length === 0
-              ? yo.rol === 'coordinador'
+              ? yo.role === 'coordinator'
                 ? 'Ninguna'
                 : 'Todas'
-              : yo.areaIds.map((id) => areas?.datos.find((a) => a.id === id)?.nombre ?? '…').join(', ')}
+              : yo.areaIds.map((id) => areas?.items.find((a) => a.id === id)?.name ?? '…').join(', ')}
           </p>
           <Button type="submit" size="lg" disabled={guardarNombre.isPending}>
             Guardar

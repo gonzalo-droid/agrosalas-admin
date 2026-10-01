@@ -19,7 +19,7 @@ export default function LayoutConfiguracion({ children }: { children: React.Reac
   const ruta = usePathname()
   const { data: yo } = useYo()
 
-  if (yo && yo.rol !== 'admin') {
+  if (yo && yo.role !== 'admin') {
     return <p className="text-sm text-muted-foreground">Solo el administrador puede entrar a Configuración.</p>
   }
 

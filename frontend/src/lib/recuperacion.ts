@@ -1,6 +1,6 @@
 import { esSinConexion } from './errores-acceso'
 
-export type ResultadoEnlace = 'recuperacion' | 'invalido' | 'sin_conexion'
+export type ResultadoEnlace = 'recovery' | 'invalid' | 'network_error'
 
 // Lo que se usa de supabase.auth (así las pruebas pueden pasar uno falso).
 export type AuthParaRecuperar = {
@@ -25,8 +25,8 @@ export function comprobarEnlaceDeRecuperacion(
 async function verificarToken(auth: AuthParaRecuperar, tokenHash: string): Promise<ResultadoEnlace> {
   await auth.initialize()
   const { error } = await auth.verifyOtp({ type: 'recovery', token_hash: tokenHash })
-  if (!error) return 'recuperacion'
-  return esSinConexion(error) ? 'sin_conexion' : 'invalido'
+  if (!error) return 'recovery'
+  return esSinConexion(error) ? 'network_error' : 'invalid'
 }
 
 // Enlace por defecto con ?code=… (PKCE). Al crearse, el cliente de auth-js canjea el código en initialize()
@@ -46,7 +46,7 @@ function esperarAvisoDeRecuperacion(auth: AuthParaRecuperar, margenMs: number): 
     }
 
     const { data } = auth.onAuthStateChange((evento) => {
-      if (evento === 'PASSWORD_RECOVERY') terminar('recuperacion')
+      if (evento === 'PASSWORD_RECOVERY') terminar('recovery')
     })
     dejarDeEscuchar = () => data.subscription.unsubscribe()
     if (terminado) dejarDeEscuchar()
@@ -55,7 +55,7 @@ function esperarAvisoDeRecuperacion(auth: AuthParaRecuperar, margenMs: number): 
       .initialize()
       .then(({ error }) => error, (error: unknown) => error)
       .then((error) => {
-        setTimeout(() => terminar(esSinConexion(error) ? 'sin_conexion' : 'invalido'), margenMs)
+        setTimeout(() => terminar(esSinConexion(error) ? 'network_error' : 'invalid'), margenMs)
       })
   })
 }

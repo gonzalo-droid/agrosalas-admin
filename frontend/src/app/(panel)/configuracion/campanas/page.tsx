@@ -13,17 +13,17 @@ export default function PaginaCampanas() {
       claveConsulta="campanas"
       puedeEditar
       columnas={[
-        { titulo: 'Campaña', celda: (f) => String(f.nombre) },
-        { titulo: 'Fechas', celda: (f) => rangoFechas(f.fechaInicio as string | null, f.fechaFin as string | null) || 'Sin fechas' },
+        { titulo: 'Campaña', celda: (f) => String(f.name) },
+        { titulo: 'Fechas', celda: (f) => rangoFechas(f.startDate as string | null, f.endDate as string | null) || 'Sin fechas' },
       ]}
       campos={[
-        { nombre: 'nombre', etiqueta: 'Nombre', tipo: 'texto', obligatorio: true },
-        { nombre: 'fechaInicio', etiqueta: 'Fecha de inicio', tipo: 'fecha' },
-        { nombre: 'fechaFin', etiqueta: 'Fecha de fin', tipo: 'fecha' },
+        { nombre: 'name', etiqueta: 'Nombre', tipo: 'texto', obligatorio: true },
+        { nombre: 'startDate', etiqueta: 'Fecha de inicio', tipo: 'fecha' },
+        { nombre: 'endDate', etiqueta: 'Fecha de fin', tipo: 'fecha' },
       ]}
-      listar={() => leer(api.v1.campanas.$get())}
-      crear={(json) => leer(api.v1.campanas.$post({ json: json as never }))}
-      editar={(id, json) => leer(api.v1.campanas[':id'].$patch({ param: { id }, json: json as never }))}
+      listar={() => leer(api.v1.campaigns.$get())}
+      crear={(json) => leer(api.v1.campaigns.$post({ json: json as never }))}
+      editar={(id, json) => leer(api.v1.campaigns[':id'].$patch({ param: { id }, json: json as never }))}
     />
   )
 }

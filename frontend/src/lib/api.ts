@@ -3,7 +3,7 @@ import { hc, type ClientResponse } from 'hono/client'
 import { ErrorDeConfiguracion, variablesRequeridas } from './entorno'
 import { supabaseNavegador } from './supabase/navegador'
 
-type ErrorCuerpo = { error: { codigo: string; mensaje: string; campo?: string } }
+type ErrorCuerpo = { error: { code: string; message: string; field?: string } }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type RespuestaJson = ClientResponse<any, any, any>
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -17,26 +17,26 @@ export type Datos<F extends (...args: any[]) => Promise<RespuestaJson>> = Exclud
 >
 
 export class ErrorApiCliente extends Error {
-  codigo: string
-  campo?: string
+  code: string
+  field?: string
 
   constructor(error: ErrorCuerpo['error']) {
-    super(error.mensaje)
-    this.codigo = error.codigo
-    this.campo = error.campo
+    super(error.message)
+    this.code = error.code
+    this.field = error.field
   }
 }
 
-const ERROR_GENERICO: ErrorCuerpo['error'] = { codigo: 'desconocido', mensaje: 'No se pudo completar la acción' }
+const ERROR_GENERICO: ErrorCuerpo['error'] = { code: 'unknown', message: 'No se pudo completar la acción' }
 const ERROR_SIN_CONEXION: ErrorCuerpo['error'] = {
-  codigo: 'sin_conexion',
-  mensaje: 'No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.',
+  code: 'network_error',
+  message: 'No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.',
 }
 
 // Solo se usa el error del servidor si trae código y mensaje de texto; si no, el mensaje genérico.
 function errorDeLaApi(cuerpo: unknown): ErrorCuerpo['error'] {
   const error = (cuerpo as { error?: Partial<ErrorCuerpo['error']> } | null)?.error
-  return typeof error?.codigo === 'string' && typeof error.mensaje === 'string'
+  return typeof error?.code === 'string' && typeof error.message === 'string'
     ? (error as ErrorCuerpo['error'])
     : ERROR_GENERICO
 }
@@ -68,4 +68,4 @@ export const api = hc<AppType>(process.env.NEXT_PUBLIC_API_URL ?? '', {
 
 // Solo se muestran los mensajes que escribimos nosotros; cualquier otro error (p. ej. del navegador) va en genérico.
 export const mensajeDeError = (e: unknown) =>
-  e instanceof ErrorApiCliente || e instanceof ErrorDeConfiguracion ? e.message : ERROR_GENERICO.mensaje
+  e instanceof ErrorApiCliente || e instanceof ErrorDeConfiguracion ? e.message : ERROR_GENERICO.message

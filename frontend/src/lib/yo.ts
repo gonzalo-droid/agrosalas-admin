@@ -7,7 +7,7 @@ export const useYo = () => useQuery({ queryKey: ['yo'], queryFn: () => leer(api.
 
 export const ETIQUETA_ROL = {
   admin: 'Administrador',
-  gerencia: 'Gerencia',
-  contabilidad: 'Contabilidad',
-  coordinador: 'Coordinador',
+  management: 'Gerencia',
+  accounting: 'Contabilidad',
+  coordinator: 'Coordinador',
 } as const

@@ -21,10 +21,10 @@ export default function PaginaMiembrosGrupo() {
   const textoRetrasado = useValorRetrasado(texto)
   const puedeBuscarRetrasado = textoRetrasado.trim().length >= 2
 
-  const grupo = useQuery({ queryKey: ['grupos', id], queryFn: () => leer(api.v1.grupos[':id'].$get({ param: { id } })) })
+  const grupo = useQuery({ queryKey: ['grupos', id], queryFn: () => leer(api.v1.groups[':id'].$get({ param: { id } })) })
   const busqueda = useQuery({
     queryKey: ['trabajadores', 'buscar', textoRetrasado],
-    queryFn: () => leer(api.v1.trabajadores.$get({ query: { texto: textoRetrasado, estado: 'activo', tamano: '10' } })),
+    queryFn: () => leer(api.v1.workers.$get({ query: { search: textoRetrasado, status: 'active', pageSize: '10' } })),
     enabled: puedeBuscarRetrasado,
     placeholderData: keepPreviousData,
   })
@@ -36,18 +36,18 @@ export default function PaginaMiembrosGrupo() {
     ])
   const agregar = useMutation({
     mutationFn: (trabajadorId: string) =>
-      leer(api.v1.grupos[':id'].miembros.$post({ param: { id }, json: { trabajadorIds: [trabajadorId] } })),
+      leer(api.v1.groups[':id'].members.$post({ param: { id }, json: { workerIds: [trabajadorId] } })),
     onSuccess: refrescar,
     onError: (e) => toast.error(mensajeDeError(e)),
   })
   const quitar = useMutation({
     mutationFn: (trabajadorId: string) =>
-      leer(api.v1.grupos[':id'].miembros[':trabajadorId'].$delete({ param: { id, trabajadorId } })),
+      leer(api.v1.groups[':id'].members[':workerId'].$delete({ param: { id, workerId: trabajadorId } })),
     onSuccess: refrescar,
     onError: (e) => toast.error(mensajeDeError(e)),
   })
 
-  const yaEsta = (trabajadorId: string) => grupo.data?.miembros.some((m) => m.id === trabajadorId)
+  const yaEsta = (trabajadorId: string) => grupo.data?.members.some((m) => m.id === trabajadorId)
 
   return (
     <section className="space-y-4">
@@ -61,7 +61,7 @@ export default function PaginaMiembrosGrupo() {
         <h2 className="text-lg font-semibold">Cargando…</h2>
       ) : (
         <>
-          <h2 className="text-lg font-semibold">{grupo.data.nombre}</h2>
+          <h2 className="text-lg font-semibold">{grupo.data.name}</h2>
 
           <div className="grid items-start gap-4 lg:grid-cols-2">
             <div className="space-y-3 rounded-xl border bg-background p-4">
@@ -83,14 +83,14 @@ export default function PaginaMiembrosGrupo() {
                 </p>
               ) : !busqueda.data ? (
                 <p className="text-sm text-muted-foreground">Buscando…</p>
-              ) : busqueda.data.datos.length === 0 ? (
+              ) : busqueda.data.items.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Ningún trabajador activo coincide.</p>
               ) : (
                 <ul className="divide-y">
-                  {busqueda.data.datos.map((t) => (
+                  {busqueda.data.items.map((t) => (
                     <li key={t.id} className="flex items-center justify-between gap-3 py-1.5 text-sm">
                       <span>
-                        {t.apellidos}, {t.nombres}
+                        {t.lastName}, {t.firstName}
                       </span>
                       <Button variant="outline" size="lg" disabled={yaEsta(t.id) || agregar.isPending} onClick={() => agregar.mutate(t.id)}>
                         {yaEsta(t.id) ? 'Ya está' : 'Agregar'}
@@ -102,16 +102,16 @@ export default function PaginaMiembrosGrupo() {
             </div>
 
             <div className="space-y-2 rounded-xl border bg-background p-4">
-              <h3 className="text-sm font-medium">Miembros ({grupo.data.miembros.length})</h3>
+              <h3 className="text-sm font-medium">Miembros ({grupo.data.members.length})</h3>
               <ul className="flex flex-wrap gap-2">
-                {grupo.data.miembros.map((m) => (
+                {grupo.data.members.map((m) => (
                   <li key={m.id} className="flex h-9 items-center gap-1 rounded-full border pr-1 pl-3 text-sm">
-                    {m.apellidos}, {m.nombres}
+                    {m.lastName}, {m.firstName}
                     <Button
                       variant="ghost"
                       size="icon-sm"
                       className="rounded-full"
-                      aria-label={`Quitar a ${m.nombres} ${m.apellidos}`}
+                      aria-label={`Quitar a ${m.firstName} ${m.lastName}`}
                       disabled={quitar.isPending}
                       onClick={() => quitar.mutate(m.id)}
                     >

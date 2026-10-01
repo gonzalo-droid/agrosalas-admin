@@ -14,7 +14,7 @@ const ENLACES = [
 export function Menu() {
   const ruta = usePathname()
   const { data: yo } = useYo()
-  const enlaces = ENLACES.filter((e) => !e.soloAdmin || yo?.rol === 'admin')
+  const enlaces = ENLACES.filter((e) => !e.soloAdmin || yo?.role === 'admin')
   const activo = (href: string) => ruta === href || ruta.startsWith(`${href}/`)
 
   return (
@@ -45,8 +45,8 @@ export function Menu() {
             activo('/perfil') && 'border-transparent bg-[#1c5a37] text-white',
           )}
         >
-          {yo?.nombre ?? '…'}
-          <span className="block text-[#a7e3bd]">{yo ? `${ETIQUETA_ROL[yo.rol]} · mi perfil` : ''}</span>
+          {yo?.name ?? '…'}
+          <span className="block text-[#a7e3bd]">{yo ? `${ETIQUETA_ROL[yo.role]} · mi perfil` : ''}</span>
         </Link>
       </nav>
 

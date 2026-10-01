@@ -1,7 +1,7 @@
 import { ErrorApiCliente } from './api'
 
 // La API respondió 401: la sesión ya no vale (venció, se revocó o la cuenta se desactivó).
-export const esSesionVencida = (error: unknown) => error instanceof ErrorApiCliente && error.codigo === 'no_autenticado'
+export const esSesionVencida = (error: unknown) => error instanceof ErrorApiCliente && error.code === 'unauthenticated'
 
 // Devuelve una función que responde true como mucho una vez cada `intervaloMs`.
 // Sirve para que varias consultas que fallan juntas cierren la sesión una sola vez, y para que

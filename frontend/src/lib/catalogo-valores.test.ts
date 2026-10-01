@@ -22,41 +22,41 @@ describe('cuerpoParaEnviar', () => {
   })
 
   it('no recorta la contraseña', () => {
-    const campos = [campo({ nombre: 'clave', tipo: 'clave' })]
-    expect(cuerpoParaEnviar(campos, { clave: '  secreta 1  ' }, false)).toEqual({ clave: '  secreta 1  ' })
-    expect(cuerpoParaEnviar(campos, { clave: '' }, false)).toEqual({ clave: null })
+    const campos = [campo({ nombre: 'password', tipo: 'clave' })]
+    expect(cuerpoParaEnviar(campos, { password: '  secreta 1  ' }, false)).toEqual({ password: '  secreta 1  ' })
+    expect(cuerpoParaEnviar(campos, { password: '' }, false)).toEqual({ password: null })
   })
 
   it('omite los campos solo al crear cuando se edita y los incluye al crear', () => {
-    const campos = [campo({ nombre: 'correo', tipo: 'correo', soloAlCrear: true }), campo({ nombre: 'nombre', tipo: 'texto' })]
-    const valores: Valores = { correo: 'a@b.pe', nombre: 'Ana' }
-    expect(cuerpoParaEnviar(campos, valores, true)).toEqual({ nombre: 'Ana' })
-    expect(cuerpoParaEnviar(campos, valores, false)).toEqual({ correo: 'a@b.pe', nombre: 'Ana' })
+    const campos = [campo({ nombre: 'email', tipo: 'correo', soloAlCrear: true }), campo({ nombre: 'name', tipo: 'texto' })]
+    const valores: Valores = { email: 'a@b.pe', name: 'Ana' }
+    expect(cuerpoParaEnviar(campos, valores, true)).toEqual({ name: 'Ana' })
+    expect(cuerpoParaEnviar(campos, valores, false)).toEqual({ email: 'a@b.pe', name: 'Ana' })
   })
 
   it('manda null en un campo oculto por visibleSi y no lo cuenta entre los visibles', () => {
     const campos = [
-      campo({ nombre: 'tipoPago', tipo: 'opcion' }),
-      campo({ nombre: 'sueldo', tipo: 'numero', visibleSi: (v) => v.tipoPago === 'mensual' }),
+      campo({ nombre: 'payType', tipo: 'opcion' }),
+      campo({ nombre: 'monthlySalary', tipo: 'numero', visibleSi: (v) => v.payType === 'monthly' }),
     ]
-    const valores: Valores = { tipoPago: 'por_hora', sueldo: '1800' }
-    expect(cuerpoParaEnviar(campos, valores, false)).toEqual({ tipoPago: 'por_hora', sueldo: null })
-    expect(camposVisibles(campos, valores, false).map((c) => c.nombre)).toEqual(['tipoPago'])
-    expect(camposVisibles(campos, { ...valores, tipoPago: 'mensual' }, false).map((c) => c.nombre)).toEqual(['tipoPago', 'sueldo'])
+    const valores: Valores = { payType: 'hourly', monthlySalary: '1800' }
+    expect(cuerpoParaEnviar(campos, valores, false)).toEqual({ payType: 'hourly', monthlySalary: null })
+    expect(camposVisibles(campos, valores, false).map((c) => c.nombre)).toEqual(['payType'])
+    expect(camposVisibles(campos, { ...valores, payType: 'monthly' }, false).map((c) => c.nombre)).toEqual(['payType', 'monthlySalary'])
   })
 
   it('deja pasar las casillas y las listas de opciones', () => {
-    const campos = [campo({ nombre: 'temporal', tipo: 'casilla' }), campo({ nombre: 'areaIds', tipo: 'opciones' })]
-    expect(cuerpoParaEnviar(campos, { temporal: true, areaIds: ['x', 'y'] }, false)).toEqual({ temporal: true, areaIds: ['x', 'y'] })
-    expect(cuerpoParaEnviar(campos, { temporal: false, areaIds: [] }, false)).toEqual({ temporal: false, areaIds: [] })
+    const campos = [campo({ nombre: 'temporary', tipo: 'casilla' }), campo({ nombre: 'areaIds', tipo: 'opciones' })]
+    expect(cuerpoParaEnviar(campos, { temporary: true, areaIds: ['x', 'y'] }, false)).toEqual({ temporary: true, areaIds: ['x', 'y'] })
+    expect(cuerpoParaEnviar(campos, { temporary: false, areaIds: [] }, false)).toEqual({ temporary: false, areaIds: [] })
   })
 })
 
 describe('camposVisibles', () => {
   it('quita los campos solo al crear cuando se edita', () => {
-    const campos = [campo({ nombre: 'clave', tipo: 'clave', soloAlCrear: true }), campo({ nombre: 'nombre', tipo: 'texto' })]
-    expect(camposVisibles(campos, {}, true).map((c) => c.nombre)).toEqual(['nombre'])
-    expect(camposVisibles(campos, {}, false).map((c) => c.nombre)).toEqual(['clave', 'nombre'])
+    const campos = [campo({ nombre: 'password', tipo: 'clave', soloAlCrear: true }), campo({ nombre: 'name', tipo: 'texto' })]
+    expect(camposVisibles(campos, {}, true).map((c) => c.nombre)).toEqual(['name'])
+    expect(camposVisibles(campos, {}, false).map((c) => c.nombre)).toEqual(['password', 'name'])
   })
 })
 
@@ -99,7 +99,7 @@ describe('opcionesVisibles', () => {
   })
 
   it('vale también para una opción única', () => {
-    const rol = campo({ nombre: 'cargoId', tipo: 'opcion', opciones: [{ valor: 'c1', etiqueta: 'Viejo', inactiva: true }] })
-    expect(opcionesVisibles(rol, { id: 'x', cargoId: 'c1' })).toEqual([{ valor: 'c1', etiqueta: 'Viejo (inactiva)' }])
+    const rol = campo({ nombre: 'positionId', tipo: 'opcion', opciones: [{ valor: 'c1', etiqueta: 'Viejo', inactiva: true }] })
+    expect(opcionesVisibles(rol, { id: 'x', positionId: 'c1' })).toEqual([{ valor: 'c1', etiqueta: 'Viejo (inactiva)' }])
   })
 })

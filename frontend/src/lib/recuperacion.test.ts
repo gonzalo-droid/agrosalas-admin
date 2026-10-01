@@ -30,23 +30,23 @@ const conParametros = (texto: string) => new URLSearchParams(texto)
 describe('comprobarEnlaceDeRecuperacion con token_hash', () => {
   it('confirma la recuperación si Supabase acepta el token', async () => {
     const { auth } = authFalso()
-    await expect(comprobarEnlaceDeRecuperacion(auth, conParametros('token_hash=abc&type=recovery'))).resolves.toBe('recuperacion')
+    await expect(comprobarEnlaceDeRecuperacion(auth, conParametros('token_hash=abc&type=recovery'))).resolves.toBe('recovery')
     expect(auth.verifyOtp).toHaveBeenCalledWith({ type: 'recovery', token_hash: 'abc' })
   })
 
   it('no es una recuperación si el token venció o ya se usó', async () => {
     const { auth } = authFalso({ errorVerificacion: new AuthApiError('Token has expired', 403, 'otp_expired') })
-    await expect(comprobarEnlaceDeRecuperacion(auth, conParametros('token_hash=abc&type=recovery'))).resolves.toBe('invalido')
+    await expect(comprobarEnlaceDeRecuperacion(auth, conParametros('token_hash=abc&type=recovery'))).resolves.toBe('invalid')
   })
 
   it('distingue la falta de conexión', async () => {
     const { auth } = authFalso({ errorVerificacion: new AuthRetryableFetchError('Failed to fetch', 0) })
-    await expect(comprobarEnlaceDeRecuperacion(auth, conParametros('token_hash=abc&type=recovery'))).resolves.toBe('sin_conexion')
+    await expect(comprobarEnlaceDeRecuperacion(auth, conParametros('token_hash=abc&type=recovery'))).resolves.toBe('network_error')
   })
 
   it('ignora un token_hash que no es de recuperación', async () => {
     const { auth } = authFalso()
-    await expect(comprobarEnlaceDeRecuperacion(auth, conParametros('token_hash=abc&type=signup'), 5)).resolves.toBe('invalido')
+    await expect(comprobarEnlaceDeRecuperacion(auth, conParametros('token_hash=abc&type=signup'), 5)).resolves.toBe('invalid')
     expect(auth.verifyOtp).not.toHaveBeenCalled()
   })
 })
@@ -54,24 +54,24 @@ describe('comprobarEnlaceDeRecuperacion con token_hash', () => {
 describe('comprobarEnlaceDeRecuperacion con ?code=', () => {
   it('confirma la recuperación cuando llega PASSWORD_RECOVERY y deja de escuchar', async () => {
     const { auth, oyentes } = authFalso({ eventos: ['PASSWORD_RECOVERY'] })
-    await expect(comprobarEnlaceDeRecuperacion(auth, conParametros('code=xyz'), 5)).resolves.toBe('recuperacion')
+    await expect(comprobarEnlaceDeRecuperacion(auth, conParametros('code=xyz'), 5)).resolves.toBe('recovery')
     expect(oyentes.size).toBe(0)
   })
 
   it('una sesión normal ya abierta no cuenta como recuperación', async () => {
     const { auth, oyentes } = authFalso({ eventos: ['INITIAL_SESSION', 'SIGNED_IN'] })
-    await expect(comprobarEnlaceDeRecuperacion(auth, conParametros('code=xyz'), 5)).resolves.toBe('invalido')
+    await expect(comprobarEnlaceDeRecuperacion(auth, conParametros('code=xyz'), 5)).resolves.toBe('invalid')
     expect(oyentes.size).toBe(0)
   })
 
   it('sin código ni aviso, tampoco', async () => {
     const { auth } = authFalso()
-    await expect(comprobarEnlaceDeRecuperacion(auth, conParametros(''), 5)).resolves.toBe('invalido')
+    await expect(comprobarEnlaceDeRecuperacion(auth, conParametros(''), 5)).resolves.toBe('invalid')
   })
 
   it('distingue la falta de conexión al canjear el código', async () => {
     const { auth } = authFalso({ errorInicio: new AuthRetryableFetchError('Failed to fetch', 0) })
-    await expect(comprobarEnlaceDeRecuperacion(auth, conParametros('code=xyz'), 5)).resolves.toBe('sin_conexion')
+    await expect(comprobarEnlaceDeRecuperacion(auth, conParametros('code=xyz'), 5)).resolves.toBe('network_error')
   })
 
   it('se suscribe antes de que termine la inicialización', async () => {

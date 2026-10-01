@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils'
 
 const ENTIDADES = Object.keys(ETIQUETA_ENTIDAD)
 const etiquetaEntidad = (entidad: string) => ETIQUETA_ENTIDAD[entidad] ?? entidad
-const ACCION = { crear: 'Creó', editar: 'Editó', eliminar: 'Eliminó' } as const
+const ACCION = { create: 'Creó', update: 'Editó', delete: 'Eliminó' } as const
 const fechaHora = new Intl.DateTimeFormat('es-PE', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Lima' })
 
 export default function PaginaAuditoria() {
@@ -25,14 +25,14 @@ export default function PaginaAuditoria() {
     placeholderData: keepPreviousData,
     queryFn: () =>
       leer(
-        api.v1.auditoria.$get({
-          query: { pagina: String(pagina.pagina), tamano: String(pagina.tamano), ...(entidad ? { entidad } : {}) },
+        api.v1['audit-log'].$get({
+          query: { page: String(pagina.pagina), pageSize: String(pagina.tamano), ...(entidad ? { entity: entidad } : {}) },
         }),
       ),
   })
 
   // Si la página quedó más allá del final, se va a la última que existe.
-  const corregida = data && !isPlaceholderData ? paginaCorregida(pagina.pagina, pagina.tamano, data.total, data.datos.length) : null
+  const corregida = data && !isPlaceholderData ? paginaCorregida(pagina.pagina, pagina.tamano, data.total, data.items.length) : null
   if (corregida !== null) setPagina((p) => ({ ...p, pagina: corregida }))
 
   return (
@@ -96,14 +96,14 @@ export default function PaginaAuditoria() {
                 </TableCell>
               </TableRow>
             )}
-            {data?.datos.map((f) => (
+            {data?.items.map((f) => (
               <TableRow key={f.id}>
-                <TableCell className="whitespace-nowrap">{fechaHora.format(new Date(f.creadoEn))}</TableCell>
-                <TableCell>{f.usuarioNombre}</TableCell>
-                <TableCell>{ACCION[f.accion]}</TableCell>
-                <TableCell>{etiquetaEntidad(f.entidad)}</TableCell>
-                <TableCell className="max-w-md truncate font-mono text-xs" title={resumenCambio(f.accion, f.antes, f.despues)}>
-                  {resumenCambio(f.accion, f.antes, f.despues)}
+                <TableCell className="whitespace-nowrap">{fechaHora.format(new Date(f.createdAt))}</TableCell>
+                <TableCell>{f.userName}</TableCell>
+                <TableCell>{ACCION[f.action]}</TableCell>
+                <TableCell>{etiquetaEntidad(f.entity)}</TableCell>
+                <TableCell className="max-w-md truncate font-mono text-xs" title={resumenCambio(f.action, f.before, f.after)}>
+                  {resumenCambio(f.action, f.before, f.after)}
                 </TableCell>
               </TableRow>
             ))}

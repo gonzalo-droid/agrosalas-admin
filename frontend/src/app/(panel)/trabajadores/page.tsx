@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils'
 import { useValorRetrasado } from '@/lib/valor-retrasado'
 import { useYo } from '@/lib/yo'
 
-const FILTROS_INICIALES = { texto: '', areaId: '', modalidad: '', estado: 'activo' }
+const FILTROS_INICIALES = { search: '', areaId: '', employmentType: '', status: 'active' }
 
 export default function PaginaTrabajadores() {
   const { data: yo } = useYo()
@@ -27,18 +27,18 @@ export default function PaginaTrabajadores() {
   const [pagina, setPagina] = useState({ pagina: 1, tamano: 25 })
 
   // El input muestra lo que se escribe al instante; la consulta usa el texto retrasado.
-  const textoRetrasado = useValorRetrasado(filtros.texto)
-  const filtrosConsulta = { ...filtros, texto: textoRetrasado }
+  const textoRetrasado = useValorRetrasado(filtros.search)
+  const filtrosConsulta = { ...filtros, search: textoRetrasado }
 
   const { data, isPending, error, refetch, isPlaceholderData } = useQuery({
     queryKey: ['trabajadores', filtrosConsulta, pagina],
     placeholderData: keepPreviousData,
     queryFn: () =>
       leer(
-        api.v1.trabajadores.$get({
+        api.v1.workers.$get({
           query: {
-            pagina: String(pagina.pagina),
-            tamano: String(pagina.tamano),
+            page: String(pagina.pagina),
+            pageSize: String(pagina.tamano),
             // Solo se mandan los filtros con valor.
             ...Object.fromEntries(Object.entries(filtrosConsulta).filter(([, v]) => v.trim() !== '')),
           },
@@ -47,7 +47,7 @@ export default function PaginaTrabajadores() {
   })
 
   // Si la página quedó más allá del final (por ejemplo, porque hay menos trabajadores que antes), se va a la última.
-  const corregida = data && !isPlaceholderData ? paginaCorregida(pagina.pagina, pagina.tamano, data.total, data.datos.length) : null
+  const corregida = data && !isPlaceholderData ? paginaCorregida(pagina.pagina, pagina.tamano, data.total, data.items.length) : null
   if (corregida !== null) setPagina((p) => ({ ...p, pagina: corregida }))
 
   function filtrar(campo: keyof typeof FILTROS_INICIALES, valor: string) {
@@ -55,9 +55,9 @@ export default function PaginaTrabajadores() {
     setPagina((p) => ({ ...p, pagina: 1 }))
   }
 
-  const puedeCrear = yo?.rol === 'admin' || yo?.rol === 'contabilidad'
-  const nombreDe = (lista: { id: string; nombre: string }[] | undefined, id: string | null) =>
-    lista?.find((x) => x.id === id)?.nombre ?? '–'
+  const puedeCrear = yo?.role === 'admin' || yo?.role === 'accounting'
+  const nombreDe = (lista: { id: string; name: string }[] | undefined, id: string | null) =>
+    lista?.find((x) => x.id === id)?.name ?? '–'
 
   return (
     <div className="space-y-4">
@@ -75,25 +75,25 @@ export default function PaginaTrabajadores() {
           aria-label="Buscar por nombre o DNI"
           placeholder="Buscar por nombre o DNI"
           className="h-9"
-          value={filtros.texto}
-          onChange={(e) => filtrar('texto', e.target.value)}
+          value={filtros.search}
+          onChange={(e) => filtrar('search', e.target.value)}
         />
         <select aria-label="Área" className={claseControl} value={filtros.areaId} onChange={(e) => filtrar('areaId', e.target.value)}>
           <option value="">Todas las áreas</option>
-          {areas?.datos.map((a) => (
+          {areas?.items.map((a) => (
             <option key={a.id} value={a.id}>
-              {a.nombre}
+              {a.name}
             </option>
           ))}
         </select>
-        <select aria-label="Modalidad" className={claseControl} value={filtros.modalidad} onChange={(e) => filtrar('modalidad', e.target.value)}>
+        <select aria-label="Modalidad" className={claseControl} value={filtros.employmentType} onChange={(e) => filtrar('employmentType', e.target.value)}>
           <option value="">Toda modalidad</option>
-          <option value="temporal">Temporal</option>
-          <option value="contrato">Contrato</option>
+          <option value="temporary">Temporal</option>
+          <option value="contract">Contrato</option>
         </select>
-        <select aria-label="Estado" className={claseControl} value={filtros.estado} onChange={(e) => filtrar('estado', e.target.value)}>
-          <option value="activo">Activos</option>
-          <option value="cesado">Cesados</option>
+        <select aria-label="Estado" className={claseControl} value={filtros.status} onChange={(e) => filtrar('status', e.target.value)}>
+          <option value="active">Activos</option>
+          <option value="terminated">Cesados</option>
           <option value="">Todos</option>
         </select>
       </div>
@@ -133,21 +133,21 @@ export default function PaginaTrabajadores() {
                 </TableCell>
               </TableRow>
             )}
-            {data?.datos.map((t) => (
+            {data?.items.map((t) => (
               <TableRow key={t.id}>
                 <TableCell>
                   <Link href={`/trabajadores/${t.id}`} className="font-medium text-primary">
-                    {t.apellidos}, {t.nombres}
+                    {t.lastName}, {t.firstName}
                   </Link>
                   <span className={`block text-xs ${t.dni ? 'text-muted-foreground' : 'font-semibold text-amber-800'}`}>
                     {t.dni ? `DNI ${t.dni}` : 'DNI pendiente'}
                   </span>
                 </TableCell>
-                <TableCell>{nombreDe(areas?.datos, t.areaId)}</TableCell>
-                <TableCell>{nombreDe(cargos?.datos, t.cargoId)}</TableCell>
-                <TableCell>{t.modalidad === 'contrato' ? 'Contrato' : 'Temporal'}</TableCell>
+                <TableCell>{nombreDe(areas?.items, t.areaId)}</TableCell>
+                <TableCell>{nombreDe(cargos?.items, t.positionId)}</TableCell>
+                <TableCell>{t.employmentType === 'contract' ? 'Contrato' : 'Temporal'}</TableCell>
                 <TableCell>
-                  <Badge variant={t.estado === 'activo' ? 'secondary' : 'outline'}>{t.estado === 'activo' ? 'Activo' : 'Cesado'}</Badge>
+                  <Badge variant={t.status === 'active' ? 'secondary' : 'outline'}>{t.status === 'active' ? 'Activo' : 'Cesado'}</Badge>
                 </TableCell>
               </TableRow>
             ))}

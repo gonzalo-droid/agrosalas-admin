@@ -15,31 +15,31 @@ export default function PaginaGrupos() {
       claveConsulta="grupos"
       puedeEditar
       columnas={[
-        { titulo: 'Grupo', celda: (f) => String(f.nombre) },
+        { titulo: 'Grupo', celda: (f) => String(f.name) },
         {
           titulo: 'Tipo',
           celda: (f) => {
-            if (!f.temporal) return 'Fijo'
-            const rango = rangoFechas(f.fechaInicio as string | null, f.fechaFin as string | null)
+            if (!f.temporary) return 'Fijo'
+            const rango = rangoFechas(f.startDate as string | null, f.endDate as string | null)
             return rango ? `Temporal · ${rango}` : 'Temporal'
           },
         },
-        { titulo: 'Miembros', derecha: true, celda: (f) => String(f.miembros) },
+        { titulo: 'Miembros', derecha: true, celda: (f) => String(f.members) },
       ]}
       campos={[
-        { nombre: 'nombre', etiqueta: 'Nombre', tipo: 'texto', obligatorio: true },
-        { nombre: 'temporal', etiqueta: 'Es temporal (armado por unos días)', tipo: 'casilla' },
-        { nombre: 'fechaInicio', etiqueta: 'Desde', tipo: 'fecha' },
-        { nombre: 'fechaFin', etiqueta: 'Hasta', tipo: 'fecha' },
+        { nombre: 'name', etiqueta: 'Nombre', tipo: 'texto', obligatorio: true },
+        { nombre: 'temporary', etiqueta: 'Es temporal (armado por unos días)', tipo: 'casilla' },
+        { nombre: 'startDate', etiqueta: 'Desde', tipo: 'fecha' },
+        { nombre: 'endDate', etiqueta: 'Hasta', tipo: 'fecha' },
       ]}
       accionesFila={(f) => (
         <Link href={`/configuracion/grupos/${f.id}`} className={buttonVariants({ variant: 'ghost', size: 'lg' })}>
           Miembros
         </Link>
       )}
-      listar={() => leer(api.v1.grupos.$get())}
-      crear={(json) => leer(api.v1.grupos.$post({ json: json as never }))}
-      editar={(id, json) => leer(api.v1.grupos[':id'].$patch({ param: { id }, json: json as never }))}
+      listar={() => leer(api.v1.groups.$get())}
+      crear={(json) => leer(api.v1.groups.$post({ json: json as never }))}
+      editar={(id, json) => leer(api.v1.groups[':id'].$patch({ param: { id }, json: json as never }))}
     />
   )
 }

@@ -13,24 +13,24 @@ import { useAreas, useCargos, useTurnos } from '@/lib/catalogos'
 import { formatoSoles } from '@/lib/formato'
 import { nombreOpcion } from '@/lib/trabajador-vista'
 
-export type FichaTrabajador = Datos<(typeof api.v1.trabajadores)[':id']['$get']>
+export type FichaTrabajador = Datos<(typeof api.v1.workers)[':id']['$get']>
 
-const TEXTOS = ['dni', 'nombres', 'apellidos', 'telefono', 'correo', 'direccion', 'emergenciaNombre', 'emergenciaTelefono', 'fechaIngreso', 'notas'] as const
-const SELECTORES = ['areaId', 'cargoId', 'turnoId'] as const
+const TEXTOS = ['dni', 'firstName', 'lastName', 'phone', 'email', 'address', 'emergencyContactName', 'emergencyContactPhone', 'hireDate', 'notes'] as const
+const SELECTORES = ['areaId', 'positionId', 'shiftId'] as const
 type CampoTexto = (typeof TEXTOS)[number] | (typeof SELECTORES)[number]
 
 const MODALIDADES = [
-  { valor: 'temporal', etiqueta: 'Temporal (pago semanal)' },
-  { valor: 'contrato', etiqueta: 'Contrato (pago mensual)' },
+  { valor: 'temporary', etiqueta: 'Temporal (pago semanal)' },
+  { valor: 'contract', etiqueta: 'Contrato (pago mensual)' },
 ]
 const ESTADOS = [
-  { valor: 'activo', etiqueta: 'Activo' },
-  { valor: 'cesado', etiqueta: 'Cesado' },
+  { valor: 'active', etiqueta: 'Activo' },
+  { valor: 'terminated', etiqueta: 'Cesado' },
 ]
 
 function valoresIniciales(ficha?: FichaTrabajador) {
   const texto = Object.fromEntries([...TEXTOS, ...SELECTORES].map((c) => [c, ficha?.[c] ?? ''])) as Record<CampoTexto, string>
-  return { ...texto, modalidad: ficha?.modalidad ?? 'temporal', estado: ficha?.estado ?? 'activo' }
+  return { ...texto, employmentType: ficha?.employmentType ?? 'temporary', status: ficha?.status ?? 'active' }
 }
 
 export function FormularioTrabajador({ ficha, puedeEditar }: { ficha?: FichaTrabajador; puedeEditar: boolean }) {
@@ -44,7 +44,7 @@ export function FormularioTrabajador({ ficha, puedeEditar }: { ficha?: FichaTrab
   // Tras crear, el botón queda deshabilitado hasta que la navegación a la ficha termine.
   const [creado, setCreado] = useState(false)
 
-  const cargo = cargos?.datos.find((c) => c.id === v.cargoId)
+  const cargo = cargos?.items.find((c) => c.id === v.positionId)
   const fijar = (campo: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setV((actual) => ({ ...actual, [campo]: e.target.value }))
   const errorDe = (campo: string) => (error?.campo === campo ? error.mensaje : undefined)
@@ -53,18 +53,18 @@ export function FormularioTrabajador({ ficha, puedeEditar }: { ficha?: FichaTrab
     mutationFn: () => {
       // Los campos vacíos viajan como null; el DNI vacío no se manda al editar (queda pendiente).
       const opcionales = Object.fromEntries(
-        [...TEXTOS, ...SELECTORES].filter((c) => !['dni', 'nombres', 'apellidos'].includes(c)).map((c) => [c, v[c].trim() || null]),
+        [...TEXTOS, ...SELECTORES].filter((c) => !['dni', 'firstName', 'lastName'].includes(c)).map((c) => [c, v[c].trim() || null]),
       )
       const json = {
         ...opcionales,
-        nombres: v.nombres.trim(),
-        apellidos: v.apellidos.trim(),
-        modalidad: v.modalidad,
+        firstName: v.firstName.trim(),
+        lastName: v.lastName.trim(),
+        employmentType: v.employmentType,
         ...(v.dni.trim() ? { dni: v.dni.trim() } : {}),
       }
       return ficha
-        ? leer(api.v1.trabajadores[':id'].$patch({ param: { id: ficha.id }, json: { ...json, estado: v.estado } as never }))
-        : leer(api.v1.trabajadores.$post({ json: json as never }))
+        ? leer(api.v1.workers[':id'].$patch({ param: { id: ficha.id }, json: { ...json, status: v.status } as never }))
+        : leer(api.v1.workers.$post({ json: json as never }))
     },
     onSuccess: (guardado) => {
       cliente.invalidateQueries({ queryKey: ['trabajadores'] })
@@ -76,11 +76,11 @@ export function FormularioTrabajador({ ficha, puedeEditar }: { ficha?: FichaTrab
     },
     onError: (e) => {
       // El DNI es el único campo único del trabajador: un duplicado se muestra bajo ese campo.
-      if (e instanceof ErrorApiCliente && e.codigo === 'duplicado') {
+      if (e instanceof ErrorApiCliente && e.code === 'duplicate') {
         setError({ campo: 'dni', mensaje: 'Ya existe un trabajador con ese DNI' })
         return
       }
-      setError({ campo: e instanceof ErrorApiCliente ? e.campo : undefined, mensaje: mensajeDeError(e) })
+      setError({ campo: e instanceof ErrorApiCliente ? e.field : undefined, mensaje: mensajeDeError(e) })
     },
   })
 
@@ -96,22 +96,22 @@ export function FormularioTrabajador({ ficha, puedeEditar }: { ficha?: FichaTrab
       <Input id={id} className="h-10" value={texto} readOnly />
     </Campo>
   )
-  const selector = (campo: (typeof SELECTORES)[number], etiqueta: string, lista?: { id: string; nombre: string; activo: boolean }[]) =>
+  const selector = (campo: (typeof SELECTORES)[number], etiqueta: string, lista?: { id: string; name: string; active: boolean }[]) =>
     !puedeEditar ? (
       soloTexto(campo, etiqueta, nombreOpcion(lista, v[campo]))
     ) : (
       <Campo id={campo} etiqueta={etiqueta}>
         <select id={campo} className={`${claseControl} h-10`} value={v[campo]} onChange={fijar(campo)}>
           <option value="">Sin asignar</option>
-          {lista?.filter((x) => x.activo || x.id === v[campo]).map((x) => (
+          {lista?.filter((x) => x.active || x.id === v[campo]).map((x) => (
             <option key={x.id} value={x.id}>
-              {x.nombre}
+              {x.name}
             </option>
           ))}
         </select>
       </Campo>
     )
-  const opcionFija = (campo: 'modalidad' | 'estado', etiqueta: string, opciones: { valor: string; etiqueta: string }[]) =>
+  const opcionFija = (campo: 'employmentType' | 'status', etiqueta: string, opciones: { valor: string; etiqueta: string }[]) =>
     !puedeEditar ? (
       soloTexto(campo, etiqueta, opciones.find((o) => o.valor === v[campo])?.etiqueta ?? v[campo])
     ) : (
@@ -146,36 +146,36 @@ export function FormularioTrabajador({ ficha, puedeEditar }: { ficha?: FichaTrab
           <h2 className="font-semibold">Datos personales</h2>
           <div className="grid gap-3 sm:grid-cols-2">
             {entrada('dni', ficha ? 'DNI' : 'DNI (obligatorio)', { inputMode: 'numeric', maxLength: 8, required: !ficha })}
-            {entrada('telefono', 'Teléfono', { inputMode: 'tel', maxLength: 20 })}
-            {entrada('nombres', 'Nombres (obligatorio)', { required: true, maxLength: 80 })}
-            {entrada('apellidos', 'Apellidos (obligatorio)', { required: true, maxLength: 80 })}
-            {entrada('correo', 'Correo', { type: 'email' })}
-            {entrada('direccion', 'Dirección', { maxLength: 160 })}
-            {entrada('emergenciaNombre', 'Contacto de emergencia', { maxLength: 80 })}
-            {entrada('emergenciaTelefono', 'Teléfono de emergencia', { inputMode: 'tel', maxLength: 20 })}
+            {entrada('phone', 'Teléfono', { inputMode: 'tel', maxLength: 20 })}
+            {entrada('firstName', 'Nombres (obligatorio)', { required: true, maxLength: 80 })}
+            {entrada('lastName', 'Apellidos (obligatorio)', { required: true, maxLength: 80 })}
+            {entrada('email', 'Correo', { type: 'email' })}
+            {entrada('address', 'Dirección', { maxLength: 160 })}
+            {entrada('emergencyContactName', 'Contacto de emergencia', { maxLength: 80 })}
+            {entrada('emergencyContactPhone', 'Teléfono de emergencia', { inputMode: 'tel', maxLength: 20 })}
           </div>
         </section>
 
         <section className="space-y-3 rounded-xl border bg-background p-4">
           <h2 className="font-semibold">Trabajo</h2>
           <div className="grid gap-3 sm:grid-cols-2">
-            {selector('areaId', 'Área', areas?.datos)}
-            {selector('cargoId', 'Cargo', cargos?.datos)}
-            {selector('turnoId', 'Turno (referencial)', turnos?.datos)}
-            {opcionFija('modalidad', 'Modalidad', MODALIDADES)}
-            {entrada('fechaIngreso', 'Fecha de ingreso', { type: 'date' })}
-            {ficha && opcionFija('estado', 'Estado', ESTADOS)}
+            {selector('areaId', 'Área', areas?.items)}
+            {selector('positionId', 'Cargo', cargos?.items)}
+            {selector('shiftId', 'Turno (referencial)', turnos?.items)}
+            {opcionFija('employmentType', 'Modalidad', MODALIDADES)}
+            {entrada('hireDate', 'Fecha de ingreso', { type: 'date' })}
+            {ficha && opcionFija('status', 'Estado', ESTADOS)}
           </div>
-          {cargo && (cargo.tarifaHora != null || cargo.sueldoMensual != null) && (
+          {cargo && (cargo.hourlyRate != null || cargo.monthlySalary != null) && (
             <p className="rounded-lg bg-muted p-3 text-sm">
-              Tarifa de referencia del cargo {cargo.nombre}:{' '}
-              {cargo.tipoPago === 'mensual'
-                ? `${formatoSoles(cargo.sueldoMensual)} al mes`
-                : `${formatoSoles(cargo.tarifaHora)} hora normal · ${formatoSoles(cargo.tarifaHoraExtra)} hora extra`}
+              Tarifa de referencia del cargo {cargo.name}:{' '}
+              {cargo.payType === 'monthly'
+                ? `${formatoSoles(cargo.monthlySalary)} al mes`
+                : `${formatoSoles(cargo.hourlyRate)} hora normal · ${formatoSoles(cargo.overtimeRate)} hora extra`}
               <span className="block text-xs text-muted-foreground">Se define en Configuración. En cada planilla se puede cambiar por registro.</span>
             </p>
           )}
-          {entrada('notas', 'Notas', { maxLength: 500 })}
+          {entrada('notes', 'Notas', { maxLength: 500 })}
         </section>
       </div>
 

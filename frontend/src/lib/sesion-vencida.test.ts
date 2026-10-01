@@ -4,13 +4,13 @@ import { crearLimitador, esSesionVencida } from './sesion-vencida'
 
 describe('esSesionVencida', () => {
   it('reconoce el 401 de la API', () => {
-    expect(esSesionVencida(new ErrorApiCliente({ codigo: 'no_autenticado', mensaje: 'Inicia sesión para continuar' }))).toBe(true)
+    expect(esSesionVencida(new ErrorApiCliente({ code: 'unauthenticated', message: 'Inicia sesión para continuar' }))).toBe(true)
   })
 
   it('no confunde otros errores', () => {
-    expect(esSesionVencida(new ErrorApiCliente({ codigo: 'sin_permiso', mensaje: 'x' }))).toBe(false)
-    expect(esSesionVencida(new ErrorApiCliente({ codigo: 'sin_conexion', mensaje: 'x' }))).toBe(false)
-    expect(esSesionVencida(new Error('no_autenticado'))).toBe(false)
+    expect(esSesionVencida(new ErrorApiCliente({ code: 'forbidden', message: 'x' }))).toBe(false)
+    expect(esSesionVencida(new ErrorApiCliente({ code: 'network_error', message: 'x' }))).toBe(false)
+    expect(esSesionVencida(new Error('unauthenticated'))).toBe(false)
   })
 })
 

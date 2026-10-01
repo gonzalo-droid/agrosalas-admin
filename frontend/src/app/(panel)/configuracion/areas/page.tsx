@@ -11,8 +11,8 @@ export default function PaginaAreas() {
       textoNuevo="Nueva área"
       claveConsulta="areas"
       puedeEditar
-      columnas={[{ titulo: 'Área', celda: (f) => String(f.nombre) }]}
-      campos={[{ nombre: 'nombre', etiqueta: 'Nombre', tipo: 'texto', obligatorio: true }]}
+      columnas={[{ titulo: 'Área', celda: (f) => String(f.name) }]}
+      campos={[{ nombre: 'name', etiqueta: 'Nombre', tipo: 'texto', obligatorio: true }]}
       listar={() => leer(api.v1.areas.$get())}
       crear={(json) => leer(api.v1.areas.$post({ json: json as never }))}
       editar={(id, json) => leer(api.v1.areas[':id'].$patch({ param: { id }, json: json as never }))}

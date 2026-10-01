@@ -10,7 +10,7 @@ export default function PaginaNuevoTrabajador() {
   const { data: yo } = useYo()
 
   if (!yo) return <p className="text-sm text-muted-foreground">Cargando…</p>
-  if (!puedeCrearTrabajador(yo.rol)) {
+  if (!puedeCrearTrabajador(yo.role)) {
     return (
       <div className="space-y-4">
         <h1 className="text-2xl font-semibold">Nuevo trabajador</h1>

@@ -30,13 +30,13 @@ export function MetodosPago({ ficha, soloLectura = false }: { ficha: FichaTrabaj
     mutationFn: (datos: FormData) => {
       const texto = (campo: string) => String(datos.get(campo) ?? '').trim()
       return leer(
-        api.v1.trabajadores[':id']['metodos-pago'].$post({
+        api.v1.workers[':id']['payment-methods'].$post({
           param: { id },
           json: {
-            tipo,
-            numero: texto('numero'),
-            titular: texto('titular'),
-            banco: texto('banco') || null,
+            type: tipo,
+            number: texto('number'),
+            holderName: texto('holderName'),
+            bank: texto('bank') || null,
             cci: texto('cci') || null,
           },
         }),
@@ -50,17 +50,17 @@ export function MetodosPago({ ficha, soloLectura = false }: { ficha: FichaTrabaj
   })
   const hacerPrincipal = useMutation({
     mutationFn: (metodoId: string) =>
-      leer(api.v1.trabajadores[':id']['metodos-pago'][':metodoId'].$patch({ param: { id, metodoId }, json: { principal: true } })),
+      leer(api.v1.workers[':id']['payment-methods'][':methodId'].$patch({ param: { id, methodId: metodoId }, json: { isPrimary: true } })),
     ...opciones,
   })
   const quitar = useMutation({
     mutationFn: (metodoId: string) =>
-      leer(api.v1.trabajadores[':id']['metodos-pago'][':metodoId'].$delete({ param: { id, metodoId } })),
+      leer(api.v1.workers[':id']['payment-methods'][':methodId'].$delete({ param: { id, methodId: metodoId } })),
     ...opciones,
   })
   const ocupado = quitar.isPending || hacerPrincipal.isPending || agregar.isPending
 
-  function confirmarQuitar(metodo: (typeof ficha.metodosPago)[number]) {
+  function confirmarQuitar(metodo: (typeof ficha.paymentMethods)[number]) {
     if (window.confirm(`¿Quitar ${descripcionMetodo(metodo)}? Se borrarán sus datos.`)) quitar.mutate(metodo.id)
   }
 
@@ -71,20 +71,20 @@ export function MetodosPago({ ficha, soloLectura = false }: { ficha: FichaTrabaj
         {!soloLectura && <span className="text-xs text-muted-foreground">Opcional</span>}
       </div>
 
-      {ficha.metodosPago.length === 0 && <p className="text-sm text-muted-foreground">Aún no tiene métodos de pago.</p>}
+      {ficha.paymentMethods.length === 0 && <p className="text-sm text-muted-foreground">Aún no tiene métodos de pago.</p>}
       <ul className="space-y-2">
-        {ficha.metodosPago.map((m) => (
+        {ficha.paymentMethods.map((m) => (
           <li key={m.id} className="flex flex-wrap items-center gap-2 rounded-lg border p-3 text-sm">
             <div className="min-w-0 flex-1">
               <p className="font-medium">
-                {TIPO[m.tipo]} · {m.banco ? `${m.banco} ` : ''}
-                {m.numero} {m.principal && <Badge variant="secondary">Principal</Badge>}
+                {TIPO[m.type]} · {m.bank ? `${m.bank} ` : ''}
+                {m.number} {m.isPrimary && <Badge variant="secondary">Principal</Badge>}
               </p>
               <p className="text-xs text-muted-foreground">
-                {m.cci ? `CCI ${m.cci} · ` : ''}Titular: {m.titular}
+                {m.cci ? `CCI ${m.cci} · ` : ''}Titular: {m.holderName}
               </p>
             </div>
-            {!soloLectura && !m.principal && (
+            {!soloLectura && !m.isPrimary && (
               <Button
                 variant="ghost"
                 size="lg"
@@ -121,21 +121,21 @@ export function MetodosPago({ ficha, soloLectura = false }: { ficha: FichaTrabaj
               ))}
             </select>
           </Campo>
-          <Campo id="metodo-numero" etiqueta={tipo === 'cuenta_bancaria' ? 'Número de cuenta' : 'Celular'}>
+          <Campo id="metodo-numero" etiqueta={tipo === 'bank_account' ? 'Número de cuenta' : 'Celular'}>
             <Input
               id="metodo-numero"
-              name="numero"
+              name="number"
               required
               minLength={6}
               maxLength={30}
-              inputMode={tipo === 'cuenta_bancaria' ? undefined : 'numeric'}
+              inputMode={tipo === 'bank_account' ? undefined : 'numeric'}
               className="h-10"
             />
           </Campo>
-          {tipo === 'cuenta_bancaria' && (
+          {tipo === 'bank_account' && (
             <>
               <Campo id="metodo-banco" etiqueta="Banco">
-                <Input id="metodo-banco" name="banco" maxLength={40} className="h-10" />
+                <Input id="metodo-banco" name="bank" maxLength={40} className="h-10" />
               </Campo>
               <Campo id="metodo-cci" etiqueta="CCI">
                 <Input id="metodo-cci" name="cci" maxLength={30} className="h-10" />
@@ -143,7 +143,7 @@ export function MetodosPago({ ficha, soloLectura = false }: { ficha: FichaTrabaj
             </>
           )}
           <Campo id="metodo-titular" etiqueta="Titular" ayuda="Puede ser otra persona." className="sm:col-span-2">
-            <Input id="metodo-titular" name="titular" required minLength={2} maxLength={80} defaultValue={`${ficha.nombres} ${ficha.apellidos}`} className="h-10" />
+            <Input id="metodo-titular" name="holderName" required minLength={2} maxLength={80} defaultValue={`${ficha.firstName} ${ficha.lastName}`} className="h-10" />
           </Campo>
           <div className="flex gap-2 sm:col-span-2">
             <Button type="submit" size="lg" disabled={agregar.isPending}>

@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { ErrorApiCliente } from './api'
 import { crearClienteConsultas } from './cliente-consultas'
 
-const vencida = () => new ErrorApiCliente({ codigo: 'no_autenticado', mensaje: 'Inicia sesión para continuar' })
-const prohibida = () => new ErrorApiCliente({ codigo: 'sin_permiso', mensaje: 'No tienes permiso' })
+const vencida = () => new ErrorApiCliente({ code: 'unauthenticated', message: 'Inicia sesión para continuar' })
+const prohibida = () => new ErrorApiCliente({ code: 'forbidden', message: 'No tienes permiso' })
 
 describe('crearClienteConsultas', () => {
   it('avisa cuando una consulta falla por sesión vencida', async () => {
@@ -30,8 +30,8 @@ describe('crearClienteConsultas', () => {
 
   it('solo reintenta las consultas que fallaron por falta de conexión', () => {
     const reintentar = crearClienteConsultas(() => {}).getDefaultOptions().queries?.retry as (n: number, e: unknown) => boolean
-    expect(reintentar(0, new ErrorApiCliente({ codigo: 'sin_conexion', mensaje: 'x' }))).toBe(true)
-    expect(reintentar(1, new ErrorApiCliente({ codigo: 'sin_conexion', mensaje: 'x' }))).toBe(false)
+    expect(reintentar(0, new ErrorApiCliente({ code: 'network_error', message: 'x' }))).toBe(true)
+    expect(reintentar(1, new ErrorApiCliente({ code: 'network_error', message: 'x' }))).toBe(false)
     expect(reintentar(0, vencida())).toBe(false)
   })
 })

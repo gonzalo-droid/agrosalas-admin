@@ -3,31 +3,31 @@ import { descripcionMetodo, nombreOpcion, puedeCrearTrabajador, vistaTrabajador 
 
 describe('vistaTrabajador', () => {
   it('admin y contabilidad editan todo', () => {
-    for (const rol of ['admin', 'contabilidad'] as const) {
+    for (const rol of ['admin', 'accounting'] as const) {
       expect(vistaTrabajador(rol)).toEqual({ editarFicha: true, metodosPago: 'editar', grupos: 'editar' })
     }
   })
 
   it('gerencia ve los métodos de pago y los grupos sin editarlos', () => {
-    expect(vistaTrabajador('gerencia')).toEqual({ editarFicha: false, metodosPago: 'ver', grupos: 'ver' })
+    expect(vistaTrabajador('management')).toEqual({ editarFicha: false, metodosPago: 'ver', grupos: 'ver' })
   })
 
   it('el coordinador ve los grupos y no recibe métodos de pago', () => {
-    expect(vistaTrabajador('coordinador')).toEqual({ editarFicha: false, metodosPago: 'ocultar', grupos: 'ver' })
+    expect(vistaTrabajador('coordinator')).toEqual({ editarFicha: false, metodosPago: 'ocultar', grupos: 'ver' })
   })
 })
 
 describe('puedeCrearTrabajador', () => {
   it('solo admin y contabilidad', () => {
     expect(puedeCrearTrabajador('admin')).toBe(true)
-    expect(puedeCrearTrabajador('contabilidad')).toBe(true)
-    expect(puedeCrearTrabajador('gerencia')).toBe(false)
-    expect(puedeCrearTrabajador('coordinador')).toBe(false)
+    expect(puedeCrearTrabajador('accounting')).toBe(true)
+    expect(puedeCrearTrabajador('management')).toBe(false)
+    expect(puedeCrearTrabajador('coordinator')).toBe(false)
   })
 })
 
 describe('nombreOpcion', () => {
-  const lista = [{ id: 'a1', nombre: 'Envasado' }]
+  const lista = [{ id: 'a1', name: 'Envasado' }]
   it('muestra el nombre de la opción elegida', () => {
     expect(nombreOpcion(lista, 'a1')).toBe('Envasado')
   })
@@ -41,7 +41,7 @@ describe('nombreOpcion', () => {
 
 describe('descripcionMetodo', () => {
   it('nombra el tipo, el banco y el número', () => {
-    expect(descripcionMetodo({ tipo: 'yape', banco: null, numero: '987654321' })).toBe('Yape 987654321')
-    expect(descripcionMetodo({ tipo: 'cuenta_bancaria', banco: 'BCP', numero: '191-1234' })).toBe('Cuenta bancaria BCP 191-1234')
+    expect(descripcionMetodo({ type: 'yape', bank: null, number: '987654321' })).toBe('Yape 987654321')
+    expect(descripcionMetodo({ type: 'bank_account', bank: 'BCP', number: '191-1234' })).toBe('Cuenta bancaria BCP 191-1234')
   })
 })

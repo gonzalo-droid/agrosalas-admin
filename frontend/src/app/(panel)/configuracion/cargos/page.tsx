@@ -6,7 +6,7 @@ import type { Valores } from '@/lib/catalogo-valores'
 import { formatoSoles, horaExtraPropuesta } from '@/lib/formato'
 
 // Las tarifas por hora solo se piden (y se guardan) en los cargos por hora; el sueldo, en los mensuales.
-const esPorHora = (valores: Valores) => valores.tipoPago === 'por_hora'
+const esPorHora = (valores: Valores) => valores.payType === 'hourly'
 
 export default function PaginaCargos() {
   return (
@@ -17,41 +17,41 @@ export default function PaginaCargos() {
       claveConsulta="cargos"
       puedeEditar
       columnas={[
-        { titulo: 'Cargo', celda: (f) => String(f.nombre) },
-        { titulo: 'Pago', celda: (f) => (f.tipoPago === 'mensual' ? 'Sueldo mensual' : 'Por hora') },
-        { titulo: 'Hora normal', derecha: true, celda: (f) => formatoSoles(f.tarifaHora as number | null) },
-        { titulo: 'Hora extra', derecha: true, celda: (f) => formatoSoles(f.tarifaHoraExtra as number | null) },
-        { titulo: 'Sueldo', derecha: true, celda: (f) => formatoSoles(f.sueldoMensual as number | null) },
+        { titulo: 'Cargo', celda: (f) => String(f.name) },
+        { titulo: 'Pago', celda: (f) => (f.payType === 'monthly' ? 'Sueldo mensual' : 'Por hora') },
+        { titulo: 'Hora normal', derecha: true, celda: (f) => formatoSoles(f.hourlyRate as number | null) },
+        { titulo: 'Hora extra', derecha: true, celda: (f) => formatoSoles(f.overtimeRate as number | null) },
+        { titulo: 'Sueldo', derecha: true, celda: (f) => formatoSoles(f.monthlySalary as number | null) },
       ]}
       campos={[
-        { nombre: 'nombre', etiqueta: 'Nombre', tipo: 'texto', obligatorio: true },
+        { nombre: 'name', etiqueta: 'Nombre', tipo: 'texto', obligatorio: true },
         {
-          nombre: 'tipoPago',
+          nombre: 'payType',
           etiqueta: 'Forma de pago',
           tipo: 'opcion',
           opciones: [
-            { valor: 'por_hora', etiqueta: 'Por hora' },
-            { valor: 'mensual', etiqueta: 'Sueldo mensual' },
+            { valor: 'hourly', etiqueta: 'Por hora' },
+            { valor: 'monthly', etiqueta: 'Sueldo mensual' },
           ],
         },
-        { nombre: 'tarifaHora', etiqueta: 'Hora normal (S/)', tipo: 'numero', obligatorio: true, visibleSi: esPorHora },
+        { nombre: 'hourlyRate', etiqueta: 'Hora normal (S/)', tipo: 'numero', obligatorio: true, visibleSi: esPorHora },
         {
-          nombre: 'tarifaHoraExtra',
+          nombre: 'overtimeRate',
           etiqueta: 'Hora extra (S/)',
           tipo: 'numero',
           obligatorio: true,
           visibleSi: esPorHora,
           ayuda: 'Se propone la normal más 25 %; puedes cambiarla.',
         },
-        { nombre: 'sueldoMensual', etiqueta: 'Sueldo mensual (S/)', tipo: 'numero', obligatorio: true, visibleSi: (v) => v.tipoPago === 'mensual' },
+        { nombre: 'monthlySalary', etiqueta: 'Sueldo mensual (S/)', tipo: 'numero', obligatorio: true, visibleSi: (v) => v.payType === 'monthly' },
       ]}
       derivar={(campo, valores) => {
-        const normal = Number(valores.tarifaHora)
-        return campo === 'tarifaHora' && normal > 0 ? { tarifaHoraExtra: String(horaExtraPropuesta(normal)) } : {}
+        const normal = Number(valores.hourlyRate)
+        return campo === 'hourlyRate' && normal > 0 ? { overtimeRate: String(horaExtraPropuesta(normal)) } : {}
       }}
-      listar={() => leer(api.v1.cargos.$get())}
-      crear={(json) => leer(api.v1.cargos.$post({ json: json as never }))}
-      editar={(id, json) => leer(api.v1.cargos[':id'].$patch({ param: { id }, json: json as never }))}
+      listar={() => leer(api.v1.positions.$get())}
+      crear={(json) => leer(api.v1.positions.$post({ json: json as never }))}
+      editar={(id, json) => leer(api.v1.positions[':id'].$patch({ param: { id }, json: json as never }))}
     />
   )
 }

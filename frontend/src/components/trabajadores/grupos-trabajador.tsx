@@ -26,17 +26,17 @@ export function GruposTrabajador({ ficha, soloLectura = false }: { ficha: FichaT
     },
   }
   const agregar = useMutation({
-    mutationFn: (id: string) => leer(api.v1.grupos[':id'].miembros.$post({ param: { id }, json: { trabajadorIds: [trabajadorId] } })),
+    mutationFn: (id: string) => leer(api.v1.groups[':id'].members.$post({ param: { id }, json: { workerIds: [trabajadorId] } })),
     ...opciones,
   })
   const quitar = useMutation({
-    mutationFn: (id: string) => leer(api.v1.grupos[':id'].miembros[':trabajadorId'].$delete({ param: { id, trabajadorId } })),
+    mutationFn: (id: string) => leer(api.v1.groups[':id'].members[':workerId'].$delete({ param: { id, workerId: trabajadorId } })),
     ...opciones,
   })
 
   const ocupado = agregar.isPending || quitar.isPending
-  const propios = grupos?.datos.filter((g) => ficha.grupoIds.includes(g.id)) ?? []
-  const disponibles = grupos?.datos.filter((g) => g.activo && !ficha.grupoIds.includes(g.id)) ?? []
+  const propios = grupos?.items.filter((g) => ficha.groupIds.includes(g.id)) ?? []
+  const disponibles = grupos?.items.filter((g) => g.active && !ficha.groupIds.includes(g.id)) ?? []
 
   return (
     <section className="space-y-3 rounded-xl border bg-background p-4">
@@ -53,13 +53,13 @@ export function GruposTrabajador({ ficha, soloLectura = false }: { ficha: FichaT
             {propios.length === 0 && <li className="text-sm text-muted-foreground">No está en ningún grupo.</li>}
             {propios.map((g) => (
               <li key={g.id} className={`flex h-9 items-center gap-1 rounded-full border pl-3 text-sm ${soloLectura ? 'pr-3' : 'pr-1'}`}>
-                {g.nombre}
+                {g.name}
                 {!soloLectura && (
                   <Button
                     variant="ghost"
                     size="icon-sm"
                     className="rounded-full"
-                    aria-label={`Quitar del grupo ${g.nombre}`}
+                    aria-label={`Quitar del grupo ${g.name}`}
                     disabled={ocupado}
                     onClick={() => quitar.mutate(g.id)}
                   >
@@ -80,7 +80,7 @@ export function GruposTrabajador({ ficha, soloLectura = false }: { ficha: FichaT
               <option value="">+ Agregar a un grupo</option>
               {disponibles.map((g) => (
                 <option key={g.id} value={g.id}>
-                  {g.nombre}
+                  {g.name}
                 </option>
               ))}
             </select>

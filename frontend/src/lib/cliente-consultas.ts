@@ -14,7 +14,7 @@ export function crearClienteConsultas(alVencerseLaSesion: () => void) {
       queries: {
         staleTime: 30_000,
         // Si la API respondió con un error (401, 403, 404…) reintentar no sirve; solo se reintenta si no hubo conexión.
-        retry: (intentos, error) => !(error instanceof ErrorApiCliente && error.codigo !== 'sin_conexion') && intentos < 1,
+        retry: (intentos, error) => !(error instanceof ErrorApiCliente && error.code !== 'network_error') && intentos < 1,
         refetchOnWindowFocus: false,
       },
     },

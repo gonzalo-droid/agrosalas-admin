@@ -33,7 +33,7 @@ type Props = {
   puedeEditar: boolean
   columnas: { titulo: string; derecha?: boolean; celda: (fila: FilaCatalogo) => React.ReactNode }[]
   campos: CampoCatalogo[]
-  listar: () => Promise<{ datos: FilaCatalogo[] }>
+  listar: () => Promise<{ items: FilaCatalogo[] }>
   crear: (valores: Record<string, unknown>) => Promise<unknown>
   editar: (id: string, valores: Record<string, unknown>) => Promise<unknown>
   // Permite proponer un campo a partir de otro (por ejemplo, la hora extra desde la hora normal). Solo al crear.
@@ -54,11 +54,11 @@ export function Catalogo(props: Props) {
   const [errorCampo, setErrorCampo] = useState<{ campo?: string; mensaje: string } | null>(null)
 
   const campos = camposVisibles(props.campos, valores, fila !== null)
-  const tieneActivo = fila !== null && typeof fila.activo === 'boolean'
+  const tieneActivo = fila !== null && typeof fila.active === 'boolean'
 
   function abrir(paraEditar: FilaCatalogo | null) {
     const iniciales: Valores = Object.fromEntries(props.campos.map((c) => [c.nombre, valorInicial(c, paraEditar)]))
-    if (paraEditar && typeof paraEditar.activo === 'boolean') iniciales.activo = paraEditar.activo
+    if (paraEditar && typeof paraEditar.active === 'boolean') iniciales.active = paraEditar.active
     setFila(paraEditar)
     setValores(iniciales)
     setErrorCampo(null)
@@ -72,7 +72,7 @@ export function Catalogo(props: Props) {
   const guardar = useMutation({
     mutationFn: () => {
       const cuerpo = cuerpoParaEnviar(props.campos, valores, fila !== null)
-      if (tieneActivo) cuerpo.activo = valores.activo
+      if (tieneActivo) cuerpo.active = valores.active
       return fila ? props.editar(fila.id, cuerpo) : props.crear(cuerpo)
     },
     onSuccess: () => {
@@ -80,7 +80,7 @@ export function Catalogo(props: Props) {
       setAbierto(false)
       toast.success('Guardado')
     },
-    onError: (e) => setErrorCampo({ campo: e instanceof ErrorApiCliente ? e.campo : undefined, mensaje: mensajeDeError(e) }),
+    onError: (e) => setErrorCampo({ campo: e instanceof ErrorApiCliente ? e.field : undefined, mensaje: mensajeDeError(e) }),
   })
 
   return (
@@ -123,14 +123,14 @@ export function Catalogo(props: Props) {
                 </TableCell>
               </TableRow>
             )}
-            {data?.datos.length === 0 && (
+            {data?.items.length === 0 && (
               <TableRow>
                 <TableCell colSpan={props.columnas.length + 2} className="text-muted-foreground">
                   Aún no hay registros.
                 </TableCell>
               </TableRow>
             )}
-            {data?.datos.map((f) => (
+            {data?.items.map((f) => (
               <TableRow key={f.id}>
                 {props.columnas.map((c) => (
                   <TableCell key={c.titulo} className={c.derecha ? 'text-right tabular-nums' : undefined}>
@@ -138,7 +138,7 @@ export function Catalogo(props: Props) {
                   </TableCell>
                 ))}
                 <TableCell>
-                  <Badge variant={f.activo === false ? 'outline' : 'secondary'}>{f.activo === false ? 'Inactivo' : 'Activo'}</Badge>
+                  <Badge variant={f.active === false ? 'outline' : 'secondary'}>{f.active === false ? 'Inactivo' : 'Activo'}</Badge>
                 </TableCell>
                 <TableCell className="text-right">
                   {props.accionesFila?.(f)}
@@ -146,7 +146,7 @@ export function Catalogo(props: Props) {
                     <Button
                       variant="ghost"
                       size="lg"
-                      aria-label={typeof f.nombre === 'string' ? `Editar ${f.nombre}` : undefined}
+                      aria-label={typeof f.name === 'string' ? `Editar ${f.name}` : undefined}
                       onClick={() => abrir(f)}
                     >
                       Editar
@@ -240,7 +240,7 @@ export function Catalogo(props: Props) {
             })}
             {tieneActivo && (
               <label className="flex h-10 items-center gap-2 text-sm">
-                <input type="checkbox" checked={Boolean(valores.activo)} onChange={(e) => cambiar('activo', e.target.checked)} />
+                <input type="checkbox" checked={Boolean(valores.active)} onChange={(e) => cambiar('active', e.target.checked)} />
                 Activo
               </label>
             )}

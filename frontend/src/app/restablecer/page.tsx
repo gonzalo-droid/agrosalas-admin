@@ -39,10 +39,10 @@ export default function PaginaRestablecer() {
         <p role="status" className="text-sm text-muted-foreground">
           Comprobando el enlace…
         </p>
-      ) : enlace === 'recuperacion' ? (
+      ) : enlace === 'recovery' ? (
         <FormularioClaveNueva />
       ) : (
-        <EnlaceNoValido sinConexion={enlace === 'sin_conexion'} />
+        <EnlaceNoValido sinConexion={enlace === 'network_error'} />
       )}
     </MarcoAcceso>
   )

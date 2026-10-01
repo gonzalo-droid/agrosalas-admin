@@ -14,17 +14,17 @@ export default function PaginaTurnos() {
       claveConsulta="turnos"
       puedeEditar
       columnas={[
-        { titulo: 'Turno', celda: (f) => String(f.nombre) },
-        { titulo: 'Horario', celda: (f) => `${hora(f.horaInicio)} – ${hora(f.horaFin)}` },
+        { titulo: 'Turno', celda: (f) => String(f.name) },
+        { titulo: 'Horario', celda: (f) => `${hora(f.startTime)} – ${hora(f.endTime)}` },
       ]}
       campos={[
-        { nombre: 'nombre', etiqueta: 'Nombre', tipo: 'texto', obligatorio: true },
-        { nombre: 'horaInicio', etiqueta: 'Hora de inicio', tipo: 'hora', obligatorio: true },
-        { nombre: 'horaFin', etiqueta: 'Hora de fin', tipo: 'hora', obligatorio: true },
+        { nombre: 'name', etiqueta: 'Nombre', tipo: 'texto', obligatorio: true },
+        { nombre: 'startTime', etiqueta: 'Hora de inicio', tipo: 'hora', obligatorio: true },
+        { nombre: 'endTime', etiqueta: 'Hora de fin', tipo: 'hora', obligatorio: true },
       ]}
-      listar={() => leer(api.v1.turnos.$get())}
-      crear={(json) => leer(api.v1.turnos.$post({ json: json as never }))}
-      editar={(id, json) => leer(api.v1.turnos[':id'].$patch({ param: { id }, json: json as never }))}
+      listar={() => leer(api.v1.shifts.$get())}
+      crear={(json) => leer(api.v1.shifts.$post({ json: json as never }))}
+      editar={(id, json) => leer(api.v1.shifts[':id'].$patch({ param: { id }, json: json as never }))}
     />
   )
 }
