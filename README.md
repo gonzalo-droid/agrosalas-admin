@@ -31,6 +31,7 @@ Revisar en cada entorno (local, pruebas, producción):
 - **`PANEL_ORIGIN`** del backend es exactamente el origen del panel (esquema, dominio y puerto). En local el panel debe correr en ese puerto: si el 3000 está ocupado, Next elige otro y todas las llamadas a la API fallan por CORS.
 - **Correo de recuperación:** se recomienda que la plantilla *Reset password* enlace a `{{ .SiteURL }}/reset-password?token_hash={{ .TokenHash }}&type=recovery`. Así el enlace funciona en cualquier dispositivo; con el enlace por defecto (`?code=`) solo funciona en el mismo navegador donde se pidió.
 - **SMTP propio en producción:** el envío de correos de Supabase por defecto tiene un límite muy bajo y no sirve para producción.
+- **Migración inicial regenerada con los nombres en inglés:** una base migrada antes de ese cambio (con tablas como `usuarios` o `trabajadores`) hay que recrearla desde cero, y su cuenta de administrador borrarla en Authentication. Todavía no existe ninguna.
 
 ## Comandos
 
@@ -47,5 +48,5 @@ Revisar en cada entorno (local, pruebas, producción):
 
 - Los permisos se aplican en la API, no en la pantalla.
 - Toda tabla nueva lleva `.enableRLS()` y ninguna política: solo la API accede a la base.
-- Todo cambio de datos deja una fila en `auditoria`.
+- Todo cambio de datos deja una fila en `audit_log`.
 - Nunca se versionan `.env` ni archivos con datos personales.
