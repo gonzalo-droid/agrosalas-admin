@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest'
-import { crearPrueba } from './ayudas'
+import { crearPrueba, USUARIOS } from './ayudas'
+import { auditoria } from '../src/db/schema'
 
 let p: Awaited<ReturnType<typeof crearPrueba>>
 beforeAll(async () => {
@@ -39,5 +40,33 @@ describe('/v1/auditoria', () => {
     const r = await p.pedir('admin', 'GET', '/v1/auditoria?tamano=101')
     expect(r.status).toBe(400)
     expect(r.json.error.campo).toBe('tamano')
+  })
+
+  it('pagina sin repetir ni saltar filas aunque compartan la misma fecha', async () => {
+    // Insertar 5 filas de auditoría con exactamente la misma creadoEn
+    await p.db.insert(auditoria).values(
+      Array.from({ length: 5 }, () => ({
+        usuarioId: USUARIOS.admin,
+        accion: 'crear' as const,
+        entidad: 'empate',
+        entidadId: USUARIOS.admin,
+        antes: null,
+        despues: null,
+        creadoEn: new Date('2026-01-01T00:00:00Z'),
+      })),
+    )
+
+    // Solicitar las 5 páginas de a 1 fila por página
+    const ids: string[] = []
+    const r1 = await p.pedir('admin', 'GET', '/v1/auditoria?entidad=empate&tamano=1&pagina=1')
+    expect(r1.json.total).toBe(5)
+    for (let pagina = 1; pagina <= 5; pagina++) {
+      const res = await p.pedir('admin', 'GET', `/v1/auditoria?entidad=empate&tamano=1&pagina=${pagina}`)
+      expect(res.json.datos).toHaveLength(1)
+      ids.push(res.json.datos[0].id)
+    }
+
+    // Verificar que todos los ids son diferentes
+    expect(new Set(ids).size).toBe(5)
   })
 })

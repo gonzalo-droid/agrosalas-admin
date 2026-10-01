@@ -19,7 +19,7 @@ export const rutasAuditoria = ({ db }: Dependencias) =>
       .from(auditoria)
       .innerJoin(usuarios, eq(usuarios.id, auditoria.usuarioId))
       .where(condicion)
-      .orderBy(desc(auditoria.creadoEn))
+      .orderBy(desc(auditoria.creadoEn), desc(auditoria.id))
       .limit(f.tamano)
       .offset(desplazamiento(f))
     return c.json(paginado(datos, total, f))
