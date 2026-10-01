@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest'
-import { crearPrueba } from './ayudas'
+import { usuarioAreas } from '../src/db/schema'
+import { crearPrueba, USUARIOS } from './ayudas'
 
 let p: Awaited<ReturnType<typeof crearPrueba>>
 let ids: string[]
@@ -99,5 +100,35 @@ describe('grupos de trabajadores', () => {
     })
     expect(r.status).toBe(400)
     expect(r.json.error).toEqual({ codigo: 'referencia_invalida', mensaje: 'Uno de los registros indicados no existe' })
+  })
+})
+
+describe('alcance del coordinador en los grupos', () => {
+  let grupoMixto: string
+  let propio: string
+  let ajeno: string
+
+  beforeAll(async () => {
+    const produccion = (await p.pedir('admin', 'POST', '/v1/areas', { nombre: 'Producción' })).json.id
+    const almacen = (await p.pedir('admin', 'POST', '/v1/areas', { nombre: 'Almacén' })).json.id
+    await p.db.insert(usuarioAreas).values({ usuarioId: USUARIOS.coordinador, areaId: produccion })
+    const nuevo = (areaId: string, dni: string) =>
+      p.pedir('admin', 'POST', '/v1/trabajadores', { nombres: 'Alcance', apellidos: dni, dni, modalidad: 'temporal', areaId })
+    propio = (await nuevo(produccion, '70000001')).json.id
+    ajeno = (await nuevo(almacen, '70000002')).json.id
+    grupoMixto = (await p.pedir('admin', 'POST', '/v1/grupos', { nombre: 'Grupo mixto' })).json.id
+    await p.pedir('admin', 'POST', `/v1/grupos/${grupoMixto}/miembros`, { trabajadorIds: [propio, ajeno] })
+  })
+
+  it('el administrador ve a todos los miembros', async () => {
+    const { json } = await p.pedir('admin', 'GET', `/v1/grupos/${grupoMixto}`)
+    expect(json.miembros.map((m: { id: string }) => m.id).sort()).toEqual([propio, ajeno].sort())
+  })
+
+  it('el coordinador solo ve a los miembros de sus áreas', async () => {
+    const r = await p.pedir('coordinador', 'GET', `/v1/grupos/${grupoMixto}`)
+    expect(r.status).toBe(200)
+    expect(r.json.miembros.map((m: { id: string }) => m.id)).toEqual([propio])
+    expect(JSON.stringify(r.json)).not.toContain('70000002')
   })
 })

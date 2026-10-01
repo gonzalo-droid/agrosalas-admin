@@ -7,6 +7,7 @@ import { registrarAuditoria } from '../lib/auditoria'
 import { noEncontrado } from '../lib/errores'
 import { conAlgunCampo, esquemaId, validar } from '../lib/validar'
 import type { Dependencias, Entorno } from '../tipos'
+import { alcance } from './trabajadores'
 
 const nombre = z.string().trim().min(2).max(60)
 const fecha = z.iso.date().nullable().optional()
@@ -47,7 +48,8 @@ export const rutasGrupos = ({ db }: Dependencias) =>
         })
         .from(grupoTrabajadores)
         .innerJoin(trabajadores, eq(trabajadores.id, grupoTrabajadores.trabajadorId))
-        .where(eq(grupoTrabajadores.grupoId, id))
+        // El coordinador solo ve a los miembros de sus áreas.
+        .where(and(eq(grupoTrabajadores.grupoId, id), alcance(c.get('usuario'))))
         .orderBy(asc(trabajadores.apellidos), asc(trabajadores.nombres))
       return c.json({ ...grupo, miembros })
     })
