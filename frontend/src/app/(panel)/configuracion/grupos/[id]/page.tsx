@@ -8,19 +8,23 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { api, leer, mensajeDeError } from '@/lib/api'
+import { useValorRetrasado } from '@/lib/valor-retrasado'
 
 export default function PaginaMiembrosGrupo() {
   const { id } = useParams<{ id: string }>()
   const cliente = useQueryClient()
   const [texto, setTexto] = useState('')
 
+  // El aviso de "al menos 2 letras" usa lo escrito ahora; la consulta, el texto retrasado.
   const puedeBuscar = texto.trim().length >= 2
+  const textoRetrasado = useValorRetrasado(texto)
+  const puedeBuscarRetrasado = textoRetrasado.trim().length >= 2
 
   const grupo = useQuery({ queryKey: ['grupos', id], queryFn: () => leer(api.v1.grupos[':id'].$get({ param: { id } })) })
   const busqueda = useQuery({
-    queryKey: ['trabajadores', 'buscar', texto],
-    queryFn: () => leer(api.v1.trabajadores.$get({ query: { texto, estado: 'activo', tamano: '10' } })),
-    enabled: puedeBuscar,
+    queryKey: ['trabajadores', 'buscar', textoRetrasado],
+    queryFn: () => leer(api.v1.trabajadores.$get({ query: { texto: textoRetrasado, estado: 'activo', tamano: '10' } })),
+    enabled: puedeBuscarRetrasado,
     placeholderData: keepPreviousData,
   })
 

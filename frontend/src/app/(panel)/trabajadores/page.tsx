@@ -1,6 +1,6 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { useState } from 'react'
 import { claseControl } from '@/components/campo'
@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { api, leer, mensajeDeError } from '@/lib/api'
 import { useAreas, useCargos } from '@/lib/catalogos'
+import { useValorRetrasado } from '@/lib/valor-retrasado'
 import { useYo } from '@/lib/yo'
 
 const FILTROS_INICIALES = { texto: '', areaId: '', modalidad: '', estado: 'activo' }
@@ -22,8 +23,13 @@ export default function PaginaTrabajadores() {
   const [filtros, setFiltros] = useState(FILTROS_INICIALES)
   const [pagina, setPagina] = useState({ pagina: 1, tamano: 25 })
 
+  // El input muestra lo que se escribe al instante; la consulta usa el texto retrasado.
+  const textoRetrasado = useValorRetrasado(filtros.texto)
+  const filtrosConsulta = { ...filtros, texto: textoRetrasado }
+
   const { data, isPending, error } = useQuery({
-    queryKey: ['trabajadores', filtros, pagina],
+    queryKey: ['trabajadores', filtrosConsulta, pagina],
+    placeholderData: keepPreviousData,
     queryFn: () =>
       leer(
         api.v1.trabajadores.$get({
@@ -31,7 +37,7 @@ export default function PaginaTrabajadores() {
             pagina: String(pagina.pagina),
             tamano: String(pagina.tamano),
             // Solo se mandan los filtros con valor.
-            ...Object.fromEntries(Object.entries(filtros).filter(([, v]) => v.trim() !== '')),
+            ...Object.fromEntries(Object.entries(filtrosConsulta).filter(([, v]) => v.trim() !== '')),
           },
         }),
       ),
@@ -138,7 +144,7 @@ export default function PaginaTrabajadores() {
         </Table>
       </div>
 
-      <Paginador pagina={pagina.pagina} tamano={pagina.tamano} total={data?.total ?? 0} alCambiar={setPagina} />
+      {data && <Paginador pagina={pagina.pagina} tamano={pagina.tamano} total={data.total} alCambiar={setPagina} />}
     </div>
   )
 }
