@@ -10,16 +10,16 @@
 
 **Spec:** `docs/superpowers/specs/2026-10-01-planilla-design.md`, sección 17 (convención de nombres y glosario). Las tablas de la sección 17 son la autoridad para todo nombre de dominio; este plan agrega los mapas de archivos e identificadores del código.
 
-**Planes previos:** `2026-10-01-planilla-fase-1a-backend.md` (ejecutado, PR #1) y `2026-10-01-planilla-fase-1b-frontend.md` (tareas 1 a 11 hechas; tanda final de arreglos en curso al escribir este plan).
+**Planes previos:** `2026-10-01-planilla-fase-1a-backend.md` (ejecutado; PR #1 mergeado en `master`, commit `e16be05`) y `2026-10-01-planilla-fase-1b-frontend.md` (ejecutado; PR #2 mergeado en `master`, commit `3cb13fc`, 2026-10-01).
 
 ## Dónde estamos y qué sigue
 
 | Orden | Paso | Estado al 2026-10-01 |
 |---|---|---|
-| 1 | Plan 1A: API base | Hecho. PR #1 abierto (`feat/fase-1-base`) |
-| 2 | Plan 1B: pantallas base | Tareas 1 a 11 hechas. Tanda final de arreglos (grupos A a H) en curso en `feat/fase-1b-frontend` |
-| 3 | PR del plan 1B | Pendiente: se abre al terminar la tanda final |
-| 4 | **Plan 1C (este): nombres en inglés** | Tareas 1 a 6 hechas en `refactor/english-naming` (ver "Estado de ejecución"); falta la revisión de la rama y su PR |
+| 1 | Plan 1A: API base | Hecho. PR #1 mergeado en `master` (`e16be05`, 2026-10-01) |
+| 2 | Plan 1B: pantallas base | Hecho, con su tanda final de arreglos (grupos A a H) |
+| 3 | PR del plan 1B | Hecho. PR #2 mergeado en `master` (`3cb13fc`, 2026-10-01) |
+| 4 | **Plan 1C (este): nombres en inglés** | Ejecutado en `refactor/english-naming` (ver "Estado de ejecución"); revisión final hecha. Falta su PR contra `master` |
 | 5 | Proyecto Supabase de desarrollo y primer administrador (tarea 12 del plan 1A) y prueba manual de punta a punta (tarea 11, paso 4, del plan 1B) | Pendiente; lo hace Gonzalo. **Va después del plan 1C**, para crear la base ya con los nombres en inglés |
 | 6 | Plan de la fase 2 (Asistencia) | Sin escribir. Se escribe con los nombres de la sección 17 del spec |
 
@@ -35,22 +35,34 @@ Gonzalo pidió el 2026-10-01 que variables, clases, carpetas y demás estén en 
 
 ## Estado de ejecución
 
-**Fecha:** 2026-10-01. **Rama:** `refactor/english-naming`, creada desde `feat/fase-1b-frontend`. Tareas 1 a 6 ejecutadas; la revisión de toda la rama (tarea 6, paso 6) la pide quien coordina antes del PR.
+**Fecha:** 2026-10-01. **Rama:** `refactor/english-naming`, creada desde `feat/fase-1b-frontend`. Tareas 1 a 6 ejecutadas y revisión final de la rama hecha.
 
-Commits (`git log --oneline feat/fase-1b-frontend..HEAD`, del más antiguo al más nuevo; el commit de documentación de la tarea 6 cierra la lista):
+Commits (`git log --oneline feat/fase-1b-frontend..HEAD`, del más antiguo al más nuevo; hasta el commit de este último arreglo):
 
 | Commit | Qué hizo |
 |---|---|
+| `8a7d4d2` | Merge de `feat/fase-1-base`: trae a la rama el plan, la sección 17 y los últimos docs del plan 1B |
 | `178ce65` | `refactor(api): rename backend files, identifiers, env vars and scripts to English` (tarea 1) |
-| `8a7d4d2`, `a813a13` | Dos merges que traen a la rama el plan, la sección 17 y los últimos docs del plan 1B |
+| `a813a13` | Merge de `origin/feat/fase-1b-frontend`: trae los últimos docs del plan 1B |
 | `198bea5` | `refactor(api)!: rename tables, columns, routes, JSON keys and error codes to English` (tarea 2) |
 | `1675578` | `refactor(web): consume the English API contract and label audit fields in Spanish` (tarea 3) |
 | `3dc16ed` | `refactor(web): rename frontend files, components, hooks and helpers to English` (tarea 4) |
 | `9817cf4` | `refactor(web): rename panel URLs to English` (tarea 5) |
 | `3a1bfe8` | `refactor: rename the last Spanish identifiers found by the final sweep` (tarea 6, barrido) |
-| siguiente | `docs: bring the spec, README and plans in line with the English naming` (tarea 6) |
+| `4de935a` | `docs: bring the spec, README and plans in line with the English naming` (tarea 6) |
+| `274f4c4` | `refactor: tidy the last names flagged by the final review` (arreglos de código de la revisión final) |
+| este commit | `docs: record the final review and the merged PRs in plan 1C` (arreglos de documentación de la revisión final) |
 
 **Totales finales** (con `frontend/.env.local` apartado, como en CI): lint y typecheck limpios; backend 148 pruebas (13 archivos); frontend 94 pruebas (15 archivos), que son 91 de la línea base más las 3 de las etiquetas de auditoría; build con 16 rutas, todas en inglés. Los tres barridos del paso 3 salen vacíos.
+
+Revisión final de la rama: sin hallazgos críticos ni importantes; lista para mergear.
+
+### Pendiente para la fase 2
+
+1. Unificar el nombre de las constantes de esquemas Zod: `createWorker` y `updateUser` se leen como funciones junto a `positionInput` y `workerFilters`.
+2. Dejar una sola fuente para las etiquetas de los enums: las de rol y método de pago se repiten en `lib/audit-log.ts`, `lib/me.ts` y `lib/worker-view.ts`; las de tipo de empleo y estado, en tres lugares.
+3. `members` es un conteo en `GET /v1/groups` y una lista en `GET /v1/groups/:id`: considerar `memberCount`.
+4. El resumen de la auditoría todavía muestra los booleanos como `true`/`false` y los ids como UUID crudos, contra la regla de la sección 17 del spec de que ningún valor del contrato se muestra crudo.
 
 ### En qué difirió la ejecución del texto del plan
 
@@ -1155,7 +1167,7 @@ git add -A docs README.md
 git commit -m "docs: bring the spec, README and plans in line with the English naming"
 ```
 
-- [ ] **Step 6: Revisión de la rama**
+- [x] **Step 6: Revisión de la rama**
 
 Pedir una revisión de toda la rama (`feat/fase-1b-frontend..refactor/english-naming`) con dos preguntas: si quedó algún nombre, comentario o prueba en español, y si algún cambio altera el comportamiento. Corregir lo que encuentre antes de abrir el PR.
 

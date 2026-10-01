@@ -98,7 +98,7 @@ Que el coordinador vea horas pero no montos es un supuesto (sección 16).
 
 ## 5. Modelo de datos
 
-Todas las tablas llevan `id` (uuid), `created_at` y `updated_at`. Los nombres de tablas, columnas y valores siguen la sección 17.
+Las tablas de entidad llevan `id` (uuid), `created_at` y `updated_at`. Las tablas de relación (`user_areas`, `group_workers`, `payroll_workers`) solo llevan sus dos claves, y `audit_log` lleva `id` y `created_at`. Los nombres de tablas, columnas y valores siguen la sección 17.
 
 ### `users`
 
@@ -413,7 +413,7 @@ Reglas:
 
 ### Tablas y columnas
 
-Todas las tablas llevan `id`, `created_at` y `updated_at`.
+Las tablas de entidad llevan `id`, `created_at` y `updated_at`. Las tablas de relación (`user_areas`, `group_workers`, `payroll_workers`) solo llevan sus dos claves, y `audit_log` lleva `id` y `created_at`.
 
 | Tabla (español → inglés) | Columnas (español → inglés) |
 |---|---|
