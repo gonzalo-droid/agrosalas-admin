@@ -237,6 +237,8 @@ Estado que ve el usuario:
 | Por pagar | Abierta y el periodo ya terminó |
 | Cerrada | Cerrada por contabilidad o administrador |
 
+Además, una planilla abierta cuyo periodo todavía no empieza se muestra como "Por iniciar".
+
 Cierre:
 
 - Bloquea crear, editar y eliminar asistencias, conceptos y pagos de esa planilla.
@@ -281,15 +283,15 @@ Todas las listas (planillas, trabajadores, pagos, auditoría) se paginan en el s
 
 ## 10. Pantallas
 
-Menú: Asistencia, Planillas, Trabajadores, Reportes, Configuración, y abajo el usuario con acceso a su perfil. Lateral en PC, barra inferior en celular. Los pagos no tienen entrada propia en el menú: son una pestaña dentro de cada planilla. El coordinador solo ve Asistencia, Planillas (sin montos ni pestaña de pagos) y Trabajadores de sus áreas.
+Menú: Asistencia, Planillas, Trabajadores, Reportes, Configuración, y abajo el usuario con acceso a su perfil. Lateral y fijo en PC. En celular es un panel lateral que se abre desde una barra superior (decidido el 2026-10-02; no hay barra inferior), y su entrada es Asistencia. Los pagos no tienen entrada propia en el menú: son una pestaña dentro de cada planilla. El coordinador solo ve Asistencia, Planillas (sin montos ni pestaña de pagos) y Trabajadores de sus áreas. Gerencia ve los montos solo en lectura (también las tarifas en el diálogo del registro) y el coordinador nunca los ve: la API no se los envía.
 
 Prototipo visual de referencia: https://claude.ai/artifact/CQCMfcsgQu5ceS96UMBXmU (privado, del autor).
 
 Relación entre asistencia y planilla: la asistencia es el registro de un trabajador en un día (horas y monto); la planilla es el periodo que agrupa esos registros, más los conceptos y los pagos, y da el total a pagar. "Asistencia" en el menú es el atajo para marcar el día de hoy; escribe en la misma planilla que se ve en "Planillas".
 
 1. **Login y perfil.** Inicio de sesión con correo y contraseña, recuperación de contraseña por correo, y "Mi perfil" (nombre, rol y áreas en solo lectura, cambio de contraseña, cerrar sesión).
-2. **Asistencia del día** (prioridad celular). Selector de planilla (por defecto, la abierta que incluye hoy), filtro por área, botón "Marcar ingreso a todos". Cada fila tiene un solo botón con el siguiente paso (ingreso, refrigerio, regreso, salida). Editar abre el registro completo, incluido marcar falta o permiso. Las marcas se reflejan al instante y se reintentan si la conexión falla.
-3. **Planillas (lista).** Una fila por planilla: nombre y fechas, etiqueta de campaña, tipo, número de personas, total, pagado, pendiente, estado. Filtros por texto, rango de fechas, campaña y estado. Arriba: pendiente acumulado, planillas por pagar, pagado en el mes. Botón "Nueva planilla" que abre el formulario de la sección 7.
+2. **Asistencia del día** (prioridad celular). Selector de planilla (por defecto, la abierta que incluye hoy), filtro por área, botón "Marcar ingreso a todos". Cada fila tiene un solo botón con el siguiente paso (ingreso, refrigerio, regreso, salida). Editar abre el registro completo, incluido marcar falta o permiso. Si ayer quedaron registros sin salida (turno de noche abierto), un aviso lleva a ese día. La marca se muestra de inmediato con el texto "guardando…"; cada marca se envía una sola vez, en el momento del toque, y si falla la fila vuelve a su estado anterior y la persona vuelve a tocar el botón (marcar es idempotente). No se reintenta sola porque una marca enviada más tarde quedaría con la hora de ese momento. El botón principal solo aparece cuando el día elegido es hoy; los otros días se corrigen desde el diálogo del registro.
+3. **Planillas (lista).** Una fila por planilla: nombre y fechas, etiqueta de campaña, tipo, número de personas, total, pagado, pendiente, estado (En curso, Por pagar, Cerrada, y Por iniciar cuando está abierta y todavía no empieza). Filtros por texto, rango de fechas, campaña y estado. Arriba: pendiente acumulado, planillas por pagar, pagado en el mes. Las columnas Pagado y Pendiente y las tres cifras de arriba llegan con la fase 3, porque dependen de los pagos; hoy la lista muestra las personas y el total. Botón "Nueva planilla" que abre el formulario de la sección 7.
 4. **Planilla (detalle semanal)** (prioridad PC). Grilla como el Excel: trabajadores en filas, días en columnas con horas normales y extra, y columnas Total, Pagado, Pendiente. Totales por día y por semana. Clic en una celda abre el registro del día. Acciones: exportar, cerrar.
 5. **Trabajadores.** Lista con búsqueda y filtros; ficha con datos, cargo (con su tarifa de referencia), grupos, métodos de pago (varios, con botón para agregar Yape, Plin o cuenta bancaria) e historial de planillas y pagos. Los migrados sin DNI se señalan como pendientes.
 6. **Pagos (pestaña de la planilla).** Saldo de cada trabajador, historial de pagos del periodo con su evidencia, formulario de nuevo pago que propone el pendiente y el método principal, recibo. La planilla tiene tres pestañas: Asistencia, Pagos y Trabajadores.
@@ -345,7 +347,7 @@ Observación: la hoja "9 MAYO" dice "LUNES 09/05/2026", pero ese día fue sábad
 - **API:** pruebas por endpoint contra una base de pruebas, incluidas las de permisos: cada rol recibe lo que le corresponde y el coordinador nunca recibe campos de dinero.
 - **Cierre:** una planilla cerrada rechaza cambios.
 - **Migración:** los totales por hoja del modo de prueba coinciden con los del Excel.
-- **Frontend:** pruebas de componentes para la grilla semanal y el flujo de marcar asistencia. Las pruebas de punta a punta con Playwright quedan para después.
+- **Frontend:** la lógica de la grilla semanal y del flujo de marcar asistencia está cubierta con pruebas de módulos puros (`frontend/src/lib/`). Las pruebas de componentes con DOM siguen pendientes: el frontend no tiene ese arnés y montarlo es una dependencia nueva. Las pruebas de punta a punta con Playwright quedan para después.
 
 ## 15. Fases de construcción
 

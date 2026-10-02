@@ -21,9 +21,68 @@
 5. **Trabajadores al crear la planilla.** El formulario ofrece una sola forma de cargarlos (uno por uno, un grupo, otra planilla, todos los temporales activos o ninguno), que es lo que acepta la API en el alta. Después se pueden agregar más desde la pestaña Trabajadores.
 6. **Trabajadores cesados.** El buscador para agregar a una planilla solo ofrece trabajadores activos. Un cesado puede llegar por un grupo o por otra planilla; se muestra con su etiqueta "Cesado" y se puede quitar.
 7. **Turno de noche abierto.** La asistencia de hoy avisa si ayer quedaron registros sin salida y lleva a ese día con un toque.
-8. **Marca al instante.** Al tocar el botón la fila muestra la hora de inmediato con el texto "guardando…"; si la API falla, la fila vuelve a su estado y se avisa. La petición se reintenta sola hasta tres veces cuando el fallo es de conexión (marcar es idempotente).
+8. **Marca al instante.** Al tocar el botón la fila muestra la hora de inmediato con el texto "guardando…"; si la API falla, la fila vuelve a su estado y se avisa. **Cambiada durante la ejecución:** la petición NO se reintenta sola (`retry: false`, `networkMode: 'always'`), porque un reintento puede correr más tarde y la marca quedaría con la hora de ese momento; cada marca se envía una sola vez, en el momento del toque, y si falla la persona vuelve a tocar el botón (marcar es idempotente). El texto original decía que se reintentaba hasta tres veces cuando el fallo era de conexión.
 9. **Pruebas.** La lógica de la grilla y del flujo de marcar se extrae a módulos puros con pruebas unitarias. Las pruebas de componentes con DOM que menciona el spec quedan para después: el frontend no tiene ese arnés y montarlo es una dependencia nueva. A cambio, el plan termina con una verificación en el navegador contra la base de desarrollo.
 10. **Horas en pantalla.** Siempre en hora de Lima, calculada con un desfase fijo de −5 horas; nunca con la zona horaria del dispositivo.
+
+## Estado de ejecución
+
+Ejecutado el 2026-10-02 en la rama `feat/phase-2b-attendance-screens`. Las siete tareas están hechas y sus pasos marcados, salvo el Step 4 de la Tarea 7 (verificación en el navegador), que hace el controlador con la sesión de Gonzalo y que sigue pendiente.
+
+Commits (`git log --oneline --reverse --no-merges 149df56..HEAD`; el último es este commit, que registra esta sección):
+
+- `50a5b3e` feat(web): add Lima time, attendance and payroll view helpers
+- `812db6d` feat(web): add the payroll grid builder with its totals
+- `851f6c8` feat(web): add attendance and payrolls to the menu, with a slide-in menu on phones
+- `da7670d` feat(web): add the payroll list and the new payroll form
+- `0d3e2a4` fix(web): do not reopen the phone menu by itself after going back
+- `5596521` feat(web): add the daily attendance screen with one-tap marks and the record dialog
+- `f7220ec` feat(web): add the payroll detail with the weekly grid and its workers
+- `124b25f` fix(web): do not queue attendance marks offline, keep sibling lists in sync and pin the dialog to its date
+- `c7ee986` fix(web): show money read-only to management and name the mark button after its worker
+- `fa438e3` fix(web): send each attendance mark once, at the moment of the tap
+- este commit: docs(planilla): record the execution of plan 2B
+
+Pruebas del frontend, en total, al terminar cada paso:
+
+| Después de | Pruebas |
+|---|---|
+| Base (fin de la fase 2A) | 94 |
+| Tarea 1 | 121 |
+| Tarea 2 | 131 |
+| Tarea 3 | 131 |
+| Tarea 4 | 131 |
+| Tarea 5 | 169 |
+| Tarea 6 | 190 |
+| Tanda de correcciones de la Tarea 5 | 193 |
+
+Las del backend siguen en 285 en todos los pasos (el backend no cambia en este plan).
+
+Verificación final, desde la raíz y sin `frontend/.env.local` (como en CI): `npm ci && npm run lint && npm run typecheck && npm test && npm run build`, todo en verde. Pruebas: backend 285 (17 archivos), frontend 193 (21 archivos). El build lista 20 rutas: `/_not-found`, `/attendance`, `/forgot-password`, `/login`, `/payrolls`, `/payrolls/[id]`, `/payrolls/new`, `/profile`, `/reset-password`, `/settings/areas`, `/settings/audit-log`, `/settings/campaigns`, `/settings/groups`, `/settings/groups/[id]`, `/settings/positions`, `/settings/shifts`, `/settings/users`, `/workers`, `/workers/[id]` y `/workers/new` (más el proxy). Las nuevas respecto de la fase 1 son `/attendance`, `/payrolls`, `/payrolls/new` y `/payrolls/[id]`.
+
+Lo que difirió del texto del plan:
+
+- **Decisión 8 reemplazada.** Las marcas no se reintentan solas (`retry: false`, `networkMode: 'always'`, también en "Marcar ingreso a todos"), porque un reintento puede correr más tarde y la marca quedaría con la hora de ese momento. Con el modo de red por defecto, además, una marca tocada sin conexión quedaba en pausa y se enviaba al volver la señal. Ahora cada marca se envía una sola vez, en el momento del toque; si falla, la fila vuelve a su estado, se avisa con "Vuelve a tocar el botón." y se vuelve a pedir la lista, porque el servidor pudo haber aplicado una marca cuya respuesta se perdió.
+- **Menú.** El estado abierto del panel se deriva de la ruta, con un reinicio durante el render (`openedOn` se compara con `pathname`), así que no puede reabrirse solo al volver atrás; un efecto lo cierra si la ventana crece al ancho de PC (si no, el bloqueo de scroll del diálogo seguiría activo con el panel oculto por CSS). El panel muestra además la marca "Agrosalas Admin" junto al botón de cerrar.
+- **Archivos que no estaban en el mapa.** La Tarea 5 agregó `lib/record-changes.ts` (qué se envía al guardar un registro) con 38 pruebas, y un validador de fecha, `isRealDate` en `lib/lima-time.ts`, con 3 pruebas (la URL de asistencia puede traer una fecha imposible como `2026-02-30`). La Tarea 6 agregó `lib/payroll-detail.ts` con 21 pruebas. La Tarea 4 agregó `useCampaigns` en `lib/catalogs.ts`.
+- **Cachés de las marcas.** Una marca actualiza todas las listas en caché de esa planilla y esa fecha (`setQueriesData` sobre el prefijo `['attendance', payrollId, date]`), no solo la de la vista actual: así el filtro por área no muestra "Sin marcar" tras marcar desde "Todas las áreas". El diálogo del registro queda fijado a la fecha y a la planilla con las que se abrió: si la URL cambia (por ejemplo, con Atrás) el diálogo se cierra, y no puede guardar un registro en otro día.
+- **Dinero para gerencia.** Gerencia ve el dinero solo en lectura en el diálogo del registro (resumen y tarifas con campos de solo lectura); el plan lo ataba a `canEditMoney`, con lo que gerencia no veía nada. El coordinador sigue sin ver ningún monto.
+- **Tareas 1 y 2** se ejecutaron en un solo envío.
+- **Verificación.** Los implementadores no pudieron verificar nada en un navegador (no tenían sesión). Todo lo visual y de interacción (menú, anchos a 375 px, diálogos, flujos de marcar, grilla, roles) está comprobado solo por lectura, lint, tipos, pruebas de módulos puros y build. La verificación en el navegador es el Step 4 de la Tarea 7, a cargo del controlador.
+- **Textos que el plan no daba y los implementadores escribieron.** "Elige un grupo." y "Elige la planilla de la que copiar." en el formulario de alta (en vez de enviar un cuerpo inválido); "Es el resumen de lo guardado; se actualiza al guardar.", "Vacío: se calculan las sugeridas." y "Vacío: se toma del cargo, si es por hora." en el diálogo; "Ver ayer"; "Agregar trabajadores a la planilla" (enlace a la planilla, solo para administración y contabilidad con "Todas las áreas"); "Marcando…" y "Guardando…".
+- **Otros ajustes menores.** "Marcar ingreso a todos" se oculta cuando no hay a quién marcar y excluye a quien ya tiene una marca en vuelo. Los nombres se muestran como "Apellido, Nombre", igual que en la lista de trabajadores. En la fila, "+1 día" va una vez tras el resumen si alguna marca guardada cae al día siguiente. El botón principal de la fila lleva `aria-label` "<acción> de <Apellido, Nombre>". En la grilla, el aviso "Se muestran los primeros 62 días de la planilla." aparece si el periodo es más largo; las celdas vacías no tienen botón para gerencia; los totales por día ocultan el monto cuando es 0; el diálogo de edición de la planilla vive en `payrolls/[id]/page.tsx` y no en un cuarto archivo. El filtro de área de la asistencia es estado local (no va en la URL).
+
+### Pendiente
+
+Detalles menores que valen la pena conservar para una próxima vuelta:
+
+- La clave de caché de la búsqueda de trabajadores (`['workers', 'search', texto]`) la comparte el selector de la planilla (8 por página) con la pantalla de miembros de un grupo, que pide otro tamaño de página: pueden pisarse los resultados.
+- "Elige un grupo." aparece en el aviso general del formulario de alta y no junto al selector de grupo.
+- Los selectores del formulario de alta (campañas, grupos, planillas recientes) no muestran ningún texto de carga mientras llegan.
+- Una planilla cerrada todavía muestra sus controles de edición ("Editar", "Quitar", "Agregar trabajadores"); la API responde `payroll_closed` y el mensaje se ve, pero conviene ocultarlos cuando llegue el cierre en la fase 3.
+- Los totales por día de la grilla ocultan un monto en 0 aunque haya horas (una jornada con tarifa 0 se ve sin monto).
+- Agregar o quitar trabajadores en la planilla no refresca de inmediato la lista de asistencia del día si ya estaba cargada.
+- Las pruebas de componentes con DOM siguen sin existir (decisión 9).
 
 ## Global Constraints
 
@@ -71,7 +130,7 @@ Todas las rutas son relativas a `frontend/src/`.
 - Consumes: nada.
 - Produces: `limaDate`, `limaTime`, `addDays`, `dayOffset`, `datesBetween`, `weekdayOf`, `weekOf`, `monthOf`, `isoWeek`; `MARKS`, `Mark`, `MARK_ACTION`, `MARK_LABEL`, `ATTENDANCE_TYPE_LABEL`, `AttendanceType`, `nextMark`, `formatMinutes`, `formatHours`, `marksSummary`; `PAYROLL_TYPE_LABEL`, `PAYROLL_STATUS_LABEL`, `PayrollDisplayStatus`, `payrollDisplayStatus`, `suggestedPayroll`; `formatCents`.
 
-- [ ] **Step 1: Escribir las pruebas**
+- [x] **Step 1: Escribir las pruebas**
 
 `frontend/src/lib/lima-time.test.ts`:
 
@@ -275,12 +334,12 @@ describe('formatCents', () => {
 
 (con `formatCents` agregado al `import` de ese archivo).
 
-- [ ] **Step 2: Ver que fallan**
+- [x] **Step 2: Ver que fallan**
 
 Run: `npx vitest run src/lib/lima-time.test.ts src/lib/attendance.test.ts src/lib/payroll-view.test.ts src/lib/format.test.ts` (desde `frontend/`)
 Expected: FAIL. Los tres módulos nuevos no existen y `formatCents` no está exportado.
 
-- [ ] **Step 3: Escribir `frontend/src/lib/lima-time.ts`**
+- [x] **Step 3: Escribir `frontend/src/lib/lima-time.ts`**
 
 ```ts
 // Lima has no daylight saving time: it is always five hours behind UTC. The device's time zone is never used.
@@ -337,7 +396,7 @@ export function isoWeek(date: string): number {
 }
 ```
 
-- [ ] **Step 4: Escribir `frontend/src/lib/attendance.ts`**
+- [x] **Step 4: Escribir `frontend/src/lib/attendance.ts`**
 
 ```ts
 import { limaTime } from './lima-time'
@@ -397,7 +456,7 @@ export const marksSummary = (record: Marks): string =>
   [stretch(record.clockIn1, record.clockOut1), stretch(record.clockIn2, record.clockOut2)].filter(Boolean).join(' · ')
 ```
 
-- [ ] **Step 5: Escribir `frontend/src/lib/payroll-view.ts` y `formatCents`**
+- [x] **Step 5: Escribir `frontend/src/lib/payroll-view.ts` y `formatCents`**
 
 `frontend/src/lib/payroll-view.ts`:
 
@@ -443,12 +502,12 @@ En `frontend/src/lib/format.ts`, después de `formatSoles`:
 export const formatCents = (cents: number | null | undefined) => (cents == null ? '—' : `S/ ${soles.format(cents / 100)}`)
 ```
 
-- [ ] **Step 6: Verificar**
+- [x] **Step 6: Verificar**
 
 Run: `npm run lint && npm run typecheck && npm test`
 Expected: sin avisos ni errores; backend 285; frontend 94 + 9 + 9 + 7 + 2 = 121.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add frontend/src/lib
@@ -467,7 +526,7 @@ git commit -m "feat(web): add Lima time, attendance and payroll view helpers"
 - Consumes: `AttendanceType`, `formatHours` de `lib/attendance.ts`.
 - Produces: `GridRecord`, `Totals`, `buildGrid(workers, dates, records)`, `cellLabel(record)`.
 
-- [ ] **Step 1: Escribir las pruebas**
+- [x] **Step 1: Escribir las pruebas**
 
 `frontend/src/lib/payroll-grid.test.ts`:
 
@@ -562,7 +621,7 @@ describe('cellLabel', () => {
 Run: `npx vitest run src/lib/payroll-grid.test.ts` (desde `frontend/`)
 Expected: FAIL, el módulo no existe.
 
-- [ ] **Step 2: Escribir `frontend/src/lib/payroll-grid.ts`**
+- [x] **Step 2: Escribir `frontend/src/lib/payroll-grid.ts`**
 
 ```ts
 import { formatHours, type AttendanceType } from './attendance'
@@ -626,12 +685,12 @@ export function cellLabel(record: GridRecord | null): string {
 }
 ```
 
-- [ ] **Step 3: Verificar**
+- [x] **Step 3: Verificar**
 
 Run: `npm run lint && npm run typecheck && npm test`
 Expected: sin avisos ni errores; frontend 121 + 10 = 131.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add frontend/src/lib/payroll-grid.ts frontend/src/lib/payroll-grid.test.ts
@@ -659,9 +718,9 @@ Comportamiento:
 - `frontend/src/app/(panel)/layout.tsx`: el contenido deja de reservar espacio para la barra inferior (`pb-20` desaparece) y el contenedor pasa a columna en celular (barra arriba, contenido debajo) y fila desde `md`.
 - `frontend/next.config.ts`: `/` redirige a `/attendance`; el comentario se actualiza.
 
-- [ ] **Step 1: Implementar** lo anterior. Leer antes `components/ui/dialog.tsx` para ver las piezas de Base UI (`Root`, `Trigger`, `Portal`, `Backdrop`, `Popup`, `Close`) y sus clases de animación; el panel lateral usa las piezas directamente con sus propias clases (`fixed inset-y-0 left-0`), sin tocar `ui/dialog.tsx`.
+- [x] **Step 1: Implementar** lo anterior. Leer antes `components/ui/dialog.tsx` para ver las piezas de Base UI (`Root`, `Trigger`, `Portal`, `Backdrop`, `Popup`, `Close`) y sus clases de animación; el panel lateral usa las piezas directamente con sus propias clases (`fixed inset-y-0 left-0`), sin tocar `ui/dialog.tsx`.
 
-- [ ] **Step 2: Verificar**
+- [x] **Step 2: Verificar**
 
 Run: `npm run lint && npm run typecheck && npm test && npm run build`
 Expected: todo limpio; mismas pruebas (131). `/attendance` y `/payrolls` todavía no existen: los enlaces darán 404 hasta las tareas 4 y 5; está previsto.
@@ -678,7 +737,7 @@ kill $SERVER_PID
 
 Expected: `307 http://localhost:3111/attendance` (y de ahí, sin sesión, al login).
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add frontend/src/components/panel/menu.tsx "frontend/src/app/(panel)/layout.tsx" frontend/next.config.ts
@@ -728,14 +787,14 @@ git commit -m "feat(web): add attendance and payrolls to the menu, with a slide-
 - Cada resultado es un botón que agrega al trabajador; los ya elegidos no se ofrecen.
 - Los elegidos se muestran como etiquetas con su nombre y un botón `aria-label="Quitar a <nombre>"`.
 
-- [ ] **Step 1: Implementar** `useCampaigns`, la lista, el formulario y el buscador.
+- [x] **Step 1: Implementar** `useCampaigns`, la lista, el formulario y el buscador.
 
-- [ ] **Step 2: Verificar**
+- [x] **Step 2: Verificar**
 
 Run: `npm run lint && npm run typecheck && npm test && npm run build`
 Expected: todo limpio; 131 pruebas de frontend; el build lista `/payrolls` y `/payrolls/new`.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add frontend/src
@@ -783,7 +842,7 @@ con `DayRecord` = el tipo de `record` en `ResponseBody<typeof api.v1.attendance.
 - Nombre (apellido, nombre) y DNI ("DNI pendiente" si no tiene).
 - Estado del día: sin registro, "Sin marcar"; trabajado, `marksSummary(record)` y `formatMinutes(record.workedMinutes)`; no trabajado, un `Badge` con `ATTENDANCE_TYPE_LABEL`. Una marca que cae al día siguiente lleva "+1 día" (`dayOffset`). Un registro con `needsReview` lleva el `Badge` "Por revisar".
 - **Un solo botón principal** (44 px, ancho completo en celular) con `MARK_ACTION[nextMark(record)]`. Si no hay siguiente paso, no hay botón: se muestra "Completo" (o el tipo). Al tocarlo: `POST /v1/attendance/clock` con `payrollId`, `workerId`, `date`, `mark` y sin `at` (la hora la pone el servidor).
-- **Marca al instante**: mientras la petición está en curso, la fila muestra la hora local de Lima del toque y "guardando…", y el botón queda desactivado. Con éxito, el registro de la respuesta reemplaza al de la fila en la caché de la consulta (`setQueryData`), sin volver a pedir la lista. Con error, la fila vuelve a su estado y se muestra el mensaje en un aviso. La mutación reintenta hasta 3 veces solo cuando el error es `network_error`.
+- **Marca al instante**: mientras la petición está en curso, la fila muestra la hora local de Lima del toque y "guardando…", y el botón queda desactivado. Con éxito, el registro de la respuesta reemplaza al de la fila en la caché de la consulta (`setQueryData`), sin volver a pedir la lista. Con error, la fila vuelve a su estado y se muestra el mensaje en un aviso. (Cambiado durante la ejecución: la mutación no reintenta; ver la decisión 8.)
 - Botón secundario "Editar" (o "Registrar", si no hay registro), que abre `RecordDialog`. Gerencia lo ve como "Ver" y el diálogo se abre en solo lectura. Si la fecha no es hoy no hay botón principal: solo el secundario (las marcas con hora actual son para el día en curso).
 
 `RecordDialog`:
@@ -808,14 +867,14 @@ con `DayRecord` = el tipo de `record` en `ResponseBody<typeof api.v1.attendance.
 
 La lógica de "qué se envía" (comparar el formulario con el registro cargado y armar el cuerpo) va en un módulo puro `frontend/src/lib/record-changes.ts` con pruebas escritas primero, que cubran al menos: sin cambios → cuerpo vacío; solo una hora cambiada → solo esa clave; hora borrada → `null`; paso a falta → `type` sin horas ni horas extra; horas extra vaciadas estando fijadas → `overtimeMinutes: null`; horas extra vaciadas sin estar fijadas → no se envía; tarifa cambiada → incluye `needsReview: false`; tarifa cambiada con "Por revisar" marcado a mano → respeta lo marcado; alta de una falta → `{ type: 'absence' }` más la nota si la hay.
 
-- [ ] **Step 1: Escribir las pruebas de `record-changes.ts`** y verlas fallar.
-- [ ] **Step 2: Implementar** `record-changes.ts`, `RecordDialog`, `DayRow` y la página.
-- [ ] **Step 3: Verificar**
+- [x] **Step 1: Escribir las pruebas de `record-changes.ts`** y verlas fallar.
+- [x] **Step 2: Implementar** `record-changes.ts`, `RecordDialog`, `DayRow` y la página.
+- [x] **Step 3: Verificar**
 
 Run: `npm run lint && npm run typecheck && npm test && npm run build`
 Expected: todo limpio; frontend 131 más las pruebas de `record-changes` (anotar el total); el build lista `/attendance`.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add frontend/src
@@ -863,14 +922,14 @@ git commit -m "feat(web): add the daily attendance screen with one-tap marks and
 - Tras agregar o quitar se invalidan `['payrolls', id]` y `['payrolls']`.
 - El coordinador y gerencia ven la lista sin acciones.
 
-- [ ] **Step 1: Implementar** la página, la grilla y la pestaña de trabajadores.
+- [x] **Step 1: Implementar** la página, la grilla y la pestaña de trabajadores.
 
-- [ ] **Step 2: Verificar**
+- [x] **Step 2: Verificar**
 
 Run: `npm run lint && npm run typecheck && npm test && npm run build`
 Expected: todo limpio; mismas pruebas que al final de la tarea 5; el build lista `/payrolls/[id]`.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add frontend/src
@@ -884,13 +943,13 @@ git commit -m "feat(web): add the payroll detail with the weekly grid and its wo
 **Files:**
 - Modify: `README.md`, `docs/superpowers/specs/2026-10-01-planilla-design.md`, este plan.
 
-- [ ] **Step 1: Documentación**
+- [x] **Step 1: Documentación**
 
 - Spec, sección 10: el menú en celular es un panel lateral desplegable (no una barra inferior); el estado "Por iniciar"; en la pantalla 2, el aviso de registros de ayer sin salida.
 - Spec, sección 14: las pruebas de componentes con DOM siguen pendientes; la lógica de la grilla y del flujo de marcar está cubierta con pruebas de módulos puros.
 - Este plan: sección "Estado de ejecución" con fecha, commits (`git log --oneline --reverse --no-merges <base>..HEAD`), totales de pruebas y lo que difirió del texto.
 
-- [ ] **Step 2: Verificación final**
+- [x] **Step 2: Verificación final**
 
 ```bash
 mv frontend/.env.local /tmp/agrosalas-env-local.bak
@@ -900,7 +959,7 @@ mv /tmp/agrosalas-env-local.bak frontend/.env.local
 
 Expected: todo en verde sin variables de entorno, como en CI. El build lista, además de las rutas de la fase 1: `/attendance`, `/payrolls`, `/payrolls/new`, `/payrolls/[id]`. Si un comando falla, restaurar igual el `.env.local`.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add README.md docs
@@ -918,4 +977,4 @@ A 375 px y a 1280 px: el menú desplegable abre, navega y cierra; crear una plan
 - Pestaña Pagos, conceptos, cierre y reapertura, recibo, y las columnas Pagado y Pendiente: fase 3.
 - Reportes y exportación a Excel: fase 4.
 - Pruebas de componentes con DOM y de punta a punta con Playwright.
-- Uso sin conexión: la marca se reintenta, pero no se guarda en el dispositivo si no hay señal.
+- Uso sin conexión: la marca no se reintenta ni se guarda en el dispositivo; sin señal falla y se vuelve a tocar (decisión 8).
