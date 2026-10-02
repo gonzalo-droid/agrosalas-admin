@@ -10,6 +10,7 @@ import { ApiError, notFound } from '../lib/errors'
 import { offsetOf, pageSchema, paginated } from '../lib/pagination'
 import { idSchema, validate, withAtLeastOneField } from '../lib/validate'
 import { redactMoney } from '../payroll/attendance-service'
+import { findOpenPayroll } from '../payroll/open-payroll'
 import type { AppEnv, Db, Dependencies, Tx } from '../types'
 import { workerScope } from './workers'
 
@@ -46,14 +47,6 @@ const payrollFilters = pageSchema.extend({
 const memberIds = z.object({ id: z.uuid(), workerId: z.uuid() })
 
 type WorkerSource = z.infer<typeof workerSource>
-
-// Returns the payroll, or fails if it does not exist (404) or is closed (409).
-export async function findOpenPayroll(db: Db | Tx, id: string) {
-  const [payroll] = await db.select().from(payrolls).where(eq(payrolls.id, id))
-  if (!payroll) throw notFound('La planilla')
-  if (payroll.status === 'closed') throw new ApiError(409, 'payroll_closed', 'La planilla está cerrada')
-  return payroll
-}
 
 async function resolveWorkerIds(tx: Db | Tx, source: WorkerSource): Promise<string[]> {
   if (source.workerIds) {
