@@ -94,8 +94,8 @@ export async function applyClock(
       areaId: worker.areaId,
       employmentType: worker.employmentType,
       recordedBy: user.id,
-      // A temporary worker without a rate is paid nothing until accounting sets one.
-      needsReview: worker.employmentType === 'temporary' && hourlyRate === 0 && overtimeRate === 0,
+      // A temporary worker without an hourly rate is paid nothing until accounting sets one.
+      needsReview: worker.employmentType === 'temporary' && hourlyRate === 0,
     })
     .onConflictDoNothing()
     .returning()
