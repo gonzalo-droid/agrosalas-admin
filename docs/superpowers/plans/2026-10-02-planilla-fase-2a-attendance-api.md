@@ -32,12 +32,10 @@ Resuelven lo que el spec deja abierto y lo que las fases 1A y 1C dejaron anotado
 
 Ejecutado el 2026-10-02 en la rama `feat/phase-2a-attendance-api`. Las seis tareas están hechas y todos sus pasos marcados.
 
-Commits (`git log --oneline --reverse 04527e1..HEAD`; el commit de documentación que registra esta sección viene después de estos):
+Commits (`git log --oneline --reverse --no-merges 04527e1..HEAD`; el último es este commit, que registra esta sección):
 
-- `5187a37` fix(web): solid page background, paginator that does not break and a bottom menu that stays on screen
+- `5187a37` fix(web): solid page background, paginator that does not break and a bottom menu that stays on screen (viene de `master` con la fusión de la rama)
 - `769b6a8` feat(api): add the pure payroll calculation and Lima time modules
-- `713dd5b` Merge pull request #4 from gonzalo-droid/fix/panel-theme-and-mobile-layout
-- `07ca42e` Merge remote-tracking branch 'origin/master' into feat/phase-2a-attendance-api
 - `caf9b50` feat(api): add payroll, payroll worker and attendance record tables
 - `4d9abd4` feat(api): add payrolls with their workers, list filters and detail
 - `3f4b0e9` feat(api): add the daily attendance list and clock marks
@@ -48,6 +46,11 @@ Commits (`git log --oneline --reverse 04527e1..HEAD`; el commit de documentació
 - `ae320d9` test(api): assert the exact payroll total in the list test
 - `364bd94` feat(api): add full attendance records, deletion and bulk clock marks
 - `0d3fe70` test(api): cover payroll and attendance routes in the role matrix and the coordinator sweep
+- `66c4e40` docs(planilla): record the execution of plan 2A and the calculation rules it fixed
+- `7628294` fix(api): keep stored attendance marks untouched when only some hours are edited
+- `7df209a` fix(api): store clock marks by the minute, flag unpaid worked days and reject overtime above the hours worked
+- `1d4e721` fix(api): skip audit rows for requests that change nothing and share the next-day rule
+- este commit: docs(planilla): record the final review of plan 2A and the new error codes
 
 Pruebas del backend, en total, al terminar cada tarea:
 
@@ -58,8 +61,10 @@ Pruebas del backend, en total, al terminar cada tarea:
 | Tarea 4 | 228 |
 | Tarea 5 | 254 |
 | Tarea 6 | 268 |
+| Tras conservar las marcas guardadas en la edición | 273 |
+| Tanda final de correcciones | 285 |
 
-Las del frontend siguen en 94 (el frontend no cambia en este plan). Verificación final desde la raíz: `npm run lint && npm run typecheck && npm test && npm run build`, todo en verde.
+Total final del backend: 285. Las del frontend siguen en 94 (el frontend no cambia en este plan). Verificación final desde la raíz: `npm run lint && npm run typecheck && npm test && npm run build`, todo en verde.
 
 Lo que difirió del texto del plan:
 
@@ -70,6 +75,34 @@ Lo que difirió del texto del plan:
 - El objeto de opciones compartido para `.refine` perdió su mensaje en Zod 4, y se cambió por una constante de texto (`END_BEFORE_START`).
 - Las pruebas por tarea superaron los mínimos que pedía el plan.
 - La prueba de control del administrador en `permissions.test.ts` usa un segundo trabajador, temporal y con cargo por hora, porque el de la preparación es de contrato y cobra 0 por día.
+- En la edición, la marca que el cuerpo no manda conserva su instante guardado; solo las marcas que llegan se leen como `HH:MM` de Lima. El texto de la tarea 5 las convertía con `limaTime`, y eso colapsaba un tramo de 24 horas exactas.
+- El alcance del coordinador se comprueba antes que "planilla cerrada": un registro fuera de su alcance responde igual (404) esté la planilla abierta o cerrada.
+- `needsReview` es automático solo para registros trabajados de un trabajador temporal con tarifa por hora 0, al crear y también al editar (una falta que pasa a día trabajado). Nunca se desmarca solo; un valor explícito de administración o contabilidad gana.
+- Las marcas se guardan por minuto: la hora recibida (`at` o el reloj inyectado) se lleva al inicio de su minuto al marcar, porque los segundos no se pagan (regla 10 del spec) y una hora editada como `HH:MM` debe poder igualar a la guardada.
+- Las horas extra mayores que las horas trabajadas se rechazan (400 `validation`, campo `overtimeMinutes`, "Las horas extra no pueden superar las horas trabajadas") en `POST` y `PATCH`. Si al recalcular un registro sus horas extra fijadas a mano ya no caben en las horas trabajadas, el valor fijado se descarta (`overtimeEdited` pasa a false) y vuelve la sugerencia. El tope de `computeRecord` queda como última defensa.
+- Una petición que no cambia nada no deja auditoría: `PATCH` de una planilla o de un registro con los mismos valores responde 200 sin escribir, y agregar trabajadores sin agregar a nadie no audita; cuando agrega, la auditoría lista solo los ids realmente insertados.
+- Código de error nuevo `conflict` (409): el registro cambió o desapareció mientras se guardaba; se puede reintentar.
+- En las pruebas, `SENSITIVE_KEYS` se dividió en `BANK_KEYS` (no pueden aparecer) y `NULLABLE_MONEY_KEYS` (pueden aparecer solo con `null`).
+- `time.ts` expone `notBefore` como la única regla de "pasar al día siguiente"; la usan `marksFromTimes` y la edición. `limaTime` y `addDays` se eliminaron porque nada los usaba.
+
+Revisión final de la rama: sin hallazgos críticos; dos defectos que afectaban el pago en la edición, corregidos en la tanda final.
+
+Pendiente para la fase 3:
+
+- Bloquear la fila de la planilla: `FOR SHARE` en las escrituras de asistencia y `FOR UPDATE` en las ediciones de planilla y al cerrarla.
+- En la migración de la fase 3: clave foránea compuesta de `attendance_records (payroll_id, worker_id)` hacia `payroll_workers` y CHECK de no negativos.
+- `payroll_items` y `payments` no deben borrarse en cascada con `payroll_id`.
+
+Pendiente para el plan 2B:
+
+- Confirmar o avisar con una insignia cuando una salida cae al día siguiente.
+- Decidir si se puede agregar a una planilla a trabajadores cesados.
+- La lista del día de hoy no muestra un turno de noche que sigue abierto desde ayer.
+- Las marcas salen como instantes UTC y entran como `HH:MM` de Lima.
+
+Pendiente para la fase 5:
+
+- Los registros importados desde el Excel no se deben recalcular al editarlos.
 
 ## Global Constraints
 
@@ -937,7 +970,7 @@ const bulkClockInput = z.object({
 })
 ```
 
-En `PATCH`, las horas que no llegan se toman del registro guardado (convertidas a `HH:MM` con `limaTime`) antes de validar el orden, para que editar solo la salida no rompa el ingreso.
+En `PATCH`, la marca que el cuerpo no manda conserva el instante guardado (no se convierte a `HH:MM` ni se vuelve a leer); solo las que llegan se leen como `HH:MM` de Lima. Si la edición deja una marca guardada antes de la que la precede, responde 400. Así editar solo la salida no rompe el ingreso, y un tramo de 24 horas exactas no se colapsa.
 
 `saveFullRecord` concentra: precondiciones, permiso sobre tarifas, validación de horas, `marksFromTimes`, `computeRecord`, insert o update y auditoría. `POST` y `PATCH` la llaman con el registro existente o sin él.
 
