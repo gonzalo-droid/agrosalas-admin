@@ -28,6 +28,49 @@ Resuelven lo que el spec deja abierto y lo que las fases 1A y 1C dejaron anotado
 10. **Nombres de los esquemas Zod.** Los esquemas nuevos se nombran como sustantivos (`payrollInput`, `payrollUpdate`, `payrollFilters`, `clockInput`), no como verbos. Los de la fase 1 no se tocan aquí.
 11. **Búsqueda sin acentos:** se deja como está; no es de esta fase.
 
+## Estado de ejecución
+
+Ejecutado el 2026-10-02 en la rama `feat/phase-2a-attendance-api`. Las seis tareas están hechas y todos sus pasos marcados.
+
+Commits (`git log --oneline --reverse 04527e1..HEAD`; el commit de documentación que registra esta sección viene después de estos):
+
+- `5187a37` fix(web): solid page background, paginator that does not break and a bottom menu that stays on screen
+- `769b6a8` feat(api): add the pure payroll calculation and Lima time modules
+- `713dd5b` Merge pull request #4 from gonzalo-droid/fix/panel-theme-and-mobile-layout
+- `07ca42e` Merge remote-tracking branch 'origin/master' into feat/phase-2a-attendance-api
+- `caf9b50` feat(api): add payroll, payroll worker and attendance record tables
+- `4d9abd4` feat(api): add payrolls with their workers, list filters and detail
+- `3f4b0e9` feat(api): add the daily attendance list and clock marks
+- `ed6d0e8` refactor(api): move findOpenPayroll to payroll/open-payroll to break the import cycle
+- `64d1448` fix(api): make the first clock mark safe against a double tap
+- `c9026a5` refactor(api): compare clock marks against the previous mark that is set
+- `b1e5842` fix(api): flag a new record for review when a temporary worker has no hourly rate
+- `ae320d9` test(api): assert the exact payroll total in the list test
+- `364bd94` feat(api): add full attendance records, deletion and bulk clock marks
+- `0d3fe70` test(api): cover payroll and attendance routes in the role matrix and the coordinator sweep
+
+Pruebas del backend, en total, al terminar cada tarea:
+
+| Después de | Pruebas |
+|---|---|
+| Tareas 1 y 2 | 170 |
+| Tarea 3 | 205 |
+| Tarea 4 | 228 |
+| Tarea 5 | 254 |
+| Tarea 6 | 268 |
+
+Las del frontend siguen en 94 (el frontend no cambia en este plan). Verificación final desde la raíz: `npm run lint && npm run typecheck && npm test && npm run build`, todo en verde.
+
+Lo que difirió del texto del plan:
+
+- `findOpenPayroll` vive en `backend/src/payroll/open-payroll.ts` y no en `routes/payrolls.ts`: en `routes/payrolls.ts` creaba un ciclo de imports con el servicio de asistencia.
+- `applyClock` devuelve `{ record, created }` (no solo el registro), para que la ruta responda 201 al crear y 200 si la marca ya existía.
+- La primera marca de ingreso se inserta con `onConflictDoNothing`: dos toques seguidos buscan el registro a la vez y no lo encuentran; el índice único deja ganar a uno y el otro sigue como marca sobre el registro del ganador. Así la marca sigue siendo idempotente.
+- `needsReview` se activa cuando la tarifa por hora copiada de un trabajador temporal es 0 (el plan decía: cuando ambas tarifas son 0).
+- El objeto de opciones compartido para `.refine` perdió su mensaje en Zod 4, y se cambió por una constante de texto (`END_BEFORE_START`).
+- Las pruebas por tarea superaron los mínimos que pedía el plan.
+- La prueba de control del administrador en `permissions.test.ts` usa un segundo trabajador, temporal y con cargo por hora, porque el de la preparación es de contrato y cobra 0 por día.
+
 ## Global Constraints
 
 - Todo nombre de código, tabla, columna, ruta, clave JSON y código de error va en inglés (spec, sección 17). Los textos que lee el usuario (`message` de los errores, mensajes de validación) van en español.
@@ -76,7 +119,7 @@ Código puro, sin base de datos. Es el corazón de la planilla: las reglas de la
 - Consumes: nada.
 - Produces: `limaDate(instant: Date): string`, `limaTime(instant: Date): string`, `limaInstant(date: string, time: string): Date`, `addDays(date: string, days: number): string`, `marksFromTimes(date: string, times: (string | null)[]): (Date | null)[]`; `WORKDAY_MINUTES`, `Marks`, `workedMinutes(marks)`, `suggestedOvertime(worked)`, `amountCents(regularMinutes, overtimeMinutes, hourlyRate, overtimeRate)`, `RecordInput`, `RecordTotals`, `computeRecord(input)`.
 
-- [ ] **Step 1: Escribir las pruebas de tiempo**
+- [x] **Step 1: Escribir las pruebas de tiempo**
 
 `backend/test/time.test.ts`:
 
@@ -133,12 +176,12 @@ describe('marksFromTimes', () => {
 })
 ```
 
-- [ ] **Step 2: Ver que fallan**
+- [x] **Step 2: Ver que fallan**
 
 Run: `npx vitest run test/time.test.ts` (desde `backend/`)
 Expected: FAIL, no existe `../src/payroll/time`.
 
-- [ ] **Step 3: Escribir `backend/src/payroll/time.ts`**
+- [x] **Step 3: Escribir `backend/src/payroll/time.ts`**
 
 ```ts
 // Lima has no daylight saving time: it is always five hours behind UTC.
@@ -176,7 +219,7 @@ export function marksFromTimes(date: string, times: (string | null)[]): (Date | 
 Run: `npx vitest run test/time.test.ts` (desde `backend/`)
 Expected: PASS, 7 pruebas.
 
-- [ ] **Step 4: Escribir las pruebas de cálculo**
+- [x] **Step 4: Escribir las pruebas de cálculo**
 
 `backend/test/calc.test.ts`:
 
@@ -320,7 +363,7 @@ describe('computeRecord', () => {
 Run: `npx vitest run test/calc.test.ts` (desde `backend/`)
 Expected: FAIL, no existe `../src/payroll/calc`.
 
-- [ ] **Step 5: Escribir `backend/src/payroll/calc.ts`**
+- [x] **Step 5: Escribir `backend/src/payroll/calc.ts`**
 
 ```ts
 export const WORKDAY_MINUTES = 480
@@ -380,12 +423,12 @@ export function computeRecord(input: RecordInput): RecordTotals {
 }
 ```
 
-- [ ] **Step 6: Verificar**
+- [x] **Step 6: Verificar**
 
 Run: `npm run typecheck -w @agrosalas/backend && npm test -w @agrosalas/backend`
 Expected: sin errores de tipos; 148 + 7 + 15 = 170 pruebas en verde.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add backend/src/payroll backend/test/time.test.ts backend/test/calc.test.ts
@@ -404,7 +447,7 @@ git commit -m "feat(api): add the pure payroll calculation and Lima time modules
 - Consumes: `users`, `workers`, `areas`, `campaigns`, `employmentTypeEnum`, `timestamps` de `schema.ts`.
 - Produces: `payrollTypeEnum`, `payrollStatusEnum`, `attendanceTypeEnum`, `payrolls`, `payrollWorkers`, `attendanceRecords`.
 
-- [ ] **Step 1: Actualizar primero la prueba de migraciones**
+- [x] **Step 1: Actualizar primero la prueba de migraciones**
 
 En `backend/test/health.test.ts`, la prueba `create the phase 1 tables with RLS enabled` pasa a llamarse `create every table with RLS enabled` y su lista esperada a:
 
@@ -430,7 +473,7 @@ expect(rows.map((row) => row.tablename)).toEqual([
 Run: `npx vitest run test/health.test.ts` (desde `backend/`)
 Expected: FAIL, faltan `attendance_records`, `payroll_workers` y `payrolls`.
 
-- [ ] **Step 2: Agregar las tablas al final de `backend/src/db/schema.ts`**
+- [x] **Step 2: Agregar las tablas al final de `backend/src/db/schema.ts`**
 
 Agregar `integer` a la lista de imports de `drizzle-orm/pg-core`, y al final del archivo:
 
@@ -503,7 +546,7 @@ export const attendanceRecords = pgTable(
 ).enableRLS()
 ```
 
-- [ ] **Step 3: Generar la migración**
+- [x] **Step 3: Generar la migración**
 
 ```bash
 npm run db:generate -w @agrosalas/backend -- --name payrolls_attendance
@@ -517,12 +560,12 @@ Expected: `3`
 Run: `git status --short backend/drizzle`
 Expected: solo archivos nuevos y `meta/_journal.json` modificado; `0000_initial.sql` sin cambios.
 
-- [ ] **Step 4: Verificar**
+- [x] **Step 4: Verificar**
 
 Run: `npm run typecheck -w @agrosalas/backend && npm test -w @agrosalas/backend`
 Expected: sin errores; 170 pruebas en verde.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend/src/db/schema.ts backend/drizzle backend/test/health.test.ts
@@ -569,7 +612,7 @@ Reglas y errores:
 - Toda escritura sobre una planilla cerrada: 409 `payroll_closed` (vía `findOpenPayroll`).
 - Auditoría: `create` y `update` con `entity: 'payrolls'`; agregar y quitar trabajadores se auditan como `update` de la planilla con `after: { added: [...] }` y `before: { removed: workerId }`, igual que los grupos.
 
-- [ ] **Step 1: Escribir las pruebas**
+- [x] **Step 1: Escribir las pruebas**
 
 `backend/test/payrolls.test.ts`. Preparación en `beforeAll`: un área `Producción` y otra `Almacén`; un cargo `Operario` por hora (6.25 / 7.8125); cuatro trabajadores (`w1` y `w2` temporales en Producción, `w3` temporal en Almacén, `w4` de contrato en Producción); un grupo con `w1` y `w3`; el coordinador con el área Producción (`insert` directo en `userAreas`, como en `permissions.test.ts`); una campaña `Contenedor Chile`.
 
@@ -593,7 +636,7 @@ Los casos de `records_outside_range` y `has_records` necesitan registros de asis
 Run: `npx vitest run test/payrolls.test.ts` (desde `backend/`)
 Expected: FAIL, la ruta `/v1/payrolls` responde 404.
 
-- [ ] **Step 2: `redactMoney` en `backend/src/payroll/attendance-service.ts`**
+- [x] **Step 2: `redactMoney` en `backend/src/payroll/attendance-service.ts`**
 
 ```ts
 import type { SessionUser } from '../types'
@@ -608,7 +651,7 @@ export function redactMoney<T extends Record<MoneyKey, number>>(user: SessionUse
 }
 ```
 
-- [ ] **Step 3: Escribir `backend/src/routes/payrolls.ts`**
+- [x] **Step 3: Escribir `backend/src/routes/payrolls.ts`**
 
 Esquemas (nombres exactos):
 
@@ -671,12 +714,12 @@ En `GET /:id`, los trabajadores se filtran con `and(eq(payrollWorkers.payrollId,
 
 Montar en `backend/src/app.ts`: `.route('/payrolls', payrollsRoutes(deps))` después de `/users`.
 
-- [ ] **Step 4: Verificar**
+- [x] **Step 4: Verificar**
 
 Run: `npm run typecheck -w @agrosalas/backend && npm test -w @agrosalas/backend`
 Expected: sin errores; 170 + 12 = 182 pruebas en verde (más si un caso se partió en varios `it`; anotar el total real en el reporte).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend/src/routes/payrolls.ts backend/src/payroll/attendance-service.ts backend/src/app.ts backend/test/payrolls.test.ts
@@ -726,7 +769,7 @@ Reglas de `applyClock`, en este orden:
 9. Tras poner la marca se recalcula con `computeRecord` (`overtimeMinutes: record.overtimeEdited ? record.overtimeMinutes : null`) y se guardan `workedMinutes`, `regularMinutes`, `overtimeMinutes` y `amountCents`.
 10. Auditoría en la misma transacción: `create` o `update` con `entity: 'attendance_records'`.
 
-- [ ] **Step 1: Escribir las pruebas**
+- [x] **Step 1: Escribir las pruebas**
 
 `backend/test/attendance.test.ts`. Preparación en `beforeAll`: áreas `Producción` y `Almacén`; cargos `Operario` (por hora, 6.25 / 7.8125) y `Supervisor` (mensual, sueldo 1800); trabajadores `temp` (temporal, Producción, Operario), `noRate` (temporal, Producción, sin cargo), `staff` (contrato, Producción, Supervisor), `other` (temporal, Almacén, Operario); el coordinador con el área Producción; planilla `week` del 2026-10-05 al 2026-10-11 con los cuatro; planilla `week2` con las mismas fechas y solo `temp`.
 
@@ -753,7 +796,7 @@ Casos:
 Run: `npx vitest run test/attendance.test.ts` (desde `backend/`)
 Expected: FAIL, `/v1/attendance` responde 404.
 
-- [ ] **Step 2: Reloj inyectado**
+- [x] **Step 2: Reloj inyectado**
 
 En `backend/src/types.ts`, agregar a `Dependencies`:
 
@@ -764,7 +807,7 @@ En `backend/src/types.ts`, agregar a `Dependencies`:
 
 `backend/src/server.ts` pasa `now: () => new Date()`. `backend/test/helpers.ts` pasa el reloj fijo descrito arriba y devuelve `setNow`.
 
-- [ ] **Step 3: `applyClock` en `attendance-service.ts` y la ruta**
+- [x] **Step 3: `applyClock` en `attendance-service.ts` y la ruta**
 
 `backend/src/routes/attendance.ts`, esquemas:
 
@@ -787,12 +830,12 @@ La ruta `POST /clock` abre una transacción, llama a `applyClock` y responde 201
 
 Montar en `backend/src/app.ts`: `.route('/attendance', attendanceRoutes(deps))` después de `/payrolls`.
 
-- [ ] **Step 4: Verificar**
+- [x] **Step 4: Verificar**
 
 Run: `npm run typecheck -w @agrosalas/backend && npm test -w @agrosalas/backend`
 Expected: sin errores; todas las pruebas en verde (total anterior + 15; anotar el total real).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend/src backend/test
@@ -842,7 +885,7 @@ Reglas:
 - Siempre se recalcula con `computeRecord` y se audita (`create`, `update` con antes y después, `delete` con el registro eliminado).
 - Carga en bloque: cada trabajador en su propia transacción, uno tras otro. Un fallo (cualquier `ApiError`) no detiene a los demás: se anota en su resultado con `code` y `message`. Un error que no es `ApiError` se relanza. Los registros se redactan para el coordinador.
 
-- [ ] **Step 1: Escribir las pruebas**
+- [x] **Step 1: Escribir las pruebas**
 
 Nuevos `describe` en `backend/test/attendance.test.ts`:
 
@@ -864,7 +907,7 @@ Nuevos `describe` en `backend/test/attendance.test.ts`:
 Run: `npx vitest run test/attendance.test.ts` (desde `backend/`)
 Expected: FAIL en los `describe` nuevos (404 o 405 en las rutas que faltan).
 
-- [ ] **Step 2: Implementar**
+- [x] **Step 2: Implementar**
 
 Esquemas en `backend/src/routes/attendance.ts` (nombres exactos):
 
@@ -898,12 +941,12 @@ En `PATCH`, las horas que no llegan se toman del registro guardado (convertidas 
 
 `saveFullRecord` concentra: precondiciones, permiso sobre tarifas, validación de horas, `marksFromTimes`, `computeRecord`, insert o update y auditoría. `POST` y `PATCH` la llaman con el registro existente o sin él.
 
-- [ ] **Step 3: Verificar**
+- [x] **Step 3: Verificar**
 
 Run: `npm run typecheck -w @agrosalas/backend && npm test -w @agrosalas/backend`
 Expected: sin errores; todas en verde (total anterior + 14; anotar el total real).
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add backend/src backend/test
@@ -921,7 +964,7 @@ git commit -m "feat(api): add full attendance records, deletion and bulk clock m
 - Consumes: todas las rutas de las tareas 3 a 5.
 - Produces: el repo listo para el PR.
 
-- [ ] **Step 1: Ampliar la matriz de roles**
+- [x] **Step 1: Ampliar la matriz de roles**
 
 En `backend/test/permissions.test.ts`, el `beforeAll` crea además una planilla (`payrollId`) con el trabajador y un registro de asistencia del día (`recordId`) con las cuatro marcas; `path` reemplaza también `:payroll` y `:record`.
 
@@ -942,7 +985,7 @@ Casos nuevos en la matriz (cada combinación prohibida debe responder 403 `forbi
 Run: `npx vitest run test/permissions.test.ts` (desde `backend/`)
 Expected: PASS. Si algún caso responde otra cosa que 403, es un defecto de la tarea que hizo esa ruta: se corrige ahí.
 
-- [ ] **Step 2: Ampliar el barrido del coordinador**
+- [x] **Step 2: Ampliar el barrido del coordinador**
 
 A `SENSITIVE_KEYS` se agregan `amountCents` y `totalCents`. Como esas claves viajan en `null` para el coordinador (no se omiten), el barrido cambia de "la clave no aparece" a "la clave no aparece o vale `null`" **solo para las claves de dinero de asistencia y planillas** (`hourlyRate`, `overtimeRate`, `amountCents`, `totalCents`); las claves bancarias siguen sin poder aparecer. A la lista de rutas `GET` que recorre el barrido se agregan `/v1/payrolls`, `/v1/payrolls/:payroll` y `/v1/attendance?payrollId=:payroll&date=<fecha del registro>`.
 
@@ -951,14 +994,14 @@ La prueba de control con `admin` (la que demuestra que el barrido no pasa en vac
 Run: `npx vitest run test/permissions.test.ts` (desde `backend/`)
 Expected: PASS.
 
-- [ ] **Step 3: Documentación**
+- [x] **Step 3: Documentación**
 
 - `README.md`: en "Reglas", una línea: `El cálculo de horas y montos vive en backend/src/payroll/calc.ts y trabaja con enteros (minutos y céntimos).`
 - Spec, sección 9: en la fila de `/attendance`, precisar que `POST /clock` recibe `payrollId`, `workerId`, `date`, `mark` y `at` opcional, y que es idempotente; en la de `/payrolls`, que cerrar, reabrir y exportar llegan en las fases 3 y 4.
 - Spec, sección 5, `attendance_records`: agregar que `source` vale `'panel'` para lo registrado en el sistema.
 - Este plan: sección "Estado de ejecución" con fecha, commits, total de pruebas y lo que difirió del texto.
 
-- [ ] **Step 4: Verificación final**
+- [x] **Step 4: Verificación final**
 
 ```bash
 npm run lint && npm run typecheck && npm test && npm run build
@@ -966,7 +1009,7 @@ npm run lint && npm run typecheck && npm test && npm run build
 
 Expected: todo en verde. El frontend no cambia en este plan: sus 94 pruebas y sus 16 rutas siguen igual. Anotar el total de pruebas del backend.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend/test/permissions.test.ts README.md docs

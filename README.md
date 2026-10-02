@@ -49,4 +49,5 @@ Revisar en cada entorno (local, pruebas, producción):
 - Los permisos se aplican en la API, no en la pantalla.
 - Toda tabla nueva lleva `.enableRLS()` y ninguna política: solo la API accede a la base.
 - Todo cambio de datos deja una fila en `audit_log`.
+- El cálculo de horas y montos vive en backend/src/payroll/calc.ts y trabaja con enteros (minutos y céntimos).
 - Nunca se versionan `.env` ni archivos con datos personales.
