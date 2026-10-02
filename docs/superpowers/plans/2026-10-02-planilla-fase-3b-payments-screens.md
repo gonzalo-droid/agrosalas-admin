@@ -30,6 +30,69 @@ Se pueden cambiar antes de fusionar.
 12. **Pruebas:** como en el plan 2B, sin pruebas de componentes con DOM; lógica en módulos puros con pruebas, y recorrido en el navegador del controlador.
 13. **Base de desarrollo:** para el recorrido en el navegador el controlador aplica la migración `0002` y crea el bucket en el proyecto de desarrollo antes de la tarea 7 (la consulta previa del plan 3A ya dio cuatro ceros).
 
+## Estado de ejecución
+
+Ejecutado el 2026-10-02 en la rama `feat/phase-3b-payments-screens`, en un worktree aparte, apilada sobre `feat/phase-3a-payments-api` (`dba9250`). Las siete tareas están hechas y todos sus pasos marcados.
+
+Commits (`git log --oneline --reverse dba9250..HEAD`; el último es el de la tarea 7):
+
+- `6520fe8` docs(planilla): add the phase 3B plan (payments, items, closing and receipt screens)
+- `3b8e834` feat(web): add money, payment, evidence, closing and receipt helpers
+- `13e4f71` feat(web): show paid and pending amounts and the summary in the payroll list
+- `b0a15e2` feat(web): add the payments tab with balances, payroll items and payments
+- `589533f` feat(web): record a payment with its evidence, compressing photos before the upload
+- `0d5f1b2` feat(web): close and reopen a payroll and keep a closed one read-only
+- `6d25f71` feat(web): add the printable receipt and the payroll and payment history of a worker
+- el commit siguiente: docs(planilla): record the execution of plan 3B (con el spec y esta sección)
+
+Pruebas del frontend, en total, al terminar cada tarea:
+
+| Después de | Pruebas |
+|---|---|
+| Inicio | 234 |
+| Tareas 1 y 2 | 257 |
+| Tarea 3 | 266 |
+| Tarea 4 | 267 |
+| Tarea 5 | 268 |
+| Tarea 6 | 268 |
+
+Las del backend siguen en 409 (no cambia en este plan). Cada tarea pasó revisión de especificación y de calidad, sin hallazgos críticos ni importantes. Verificación final desde la raíz: ver "Resultado de la verificación final" más abajo.
+
+Lo que difirió del texto del plan:
+
+- Las tareas 1 y 2 se despacharon juntas.
+- Las claves de las consultas de pagos y del historial del trabajador llevan también el tamaño de página (`['payments', { payrollId }, paging]`), porque el paginador deja cambiarlo.
+- Se agregaron: el título "Saldos"; los avisos "Pago eliminado" y el de la ventana bloqueada al pulsar "Ver"; `isEvidenceType` y `EvidenceType` en `lib/evidence.ts` (el cliente tipado pide la unión de los cuatro tipos); el botón de pago deshabilitado mientras se reduce una foto o cargan los métodos del trabajador, con el texto "Preparando el archivo…"; una alerta bajo "Medio" si los métodos no cargan; `invalidateClosing` (cerrar y reabrir también refrescan `['attendance']` y `['workers']`); el flujo de "Ver" se movió al hook `lib/evidence-viewer.ts`, que comparten la pestaña Pagos y la ficha del trabajador.
+- Toda imagen que el navegador pueda leer se vuelve a codificar como JPEG antes de comprobar el tipo, así que un GIF puede pasar si su JPEG pesa menos (punto abierto, ver "Pendiente").
+- Base de desarrollo: antes del recorrido, el controlador aplicó la migración `0002` y creó el bucket `payment-evidence` en el proyecto de desarrollo.
+
+Recorrido en el navegador (controlador, 2026-10-02, sesión de administrador, base de desarrollo, a 375 px y en escritorio):
+
+- Lista de planillas: las tres cifras de arriba y las columnas Total, Pagado y Pendiente.
+- Pestaña Pagos sin desborde horizontal a 375 px.
+- Concepto Bono de S/ 20.00 a una trabajadora: el saldo quedó en 84.58.
+- Pago por Yape de S/ 30.00 con una foto PNG de 3.3 MB, reducida a un JPEG de 333 KB; el `PUT` a la URL firmada funcionó y el archivo quedó en el bucket, enlazado al pago.
+- "Ver": el navegador de pruebas bloquea las ventanas emergentes y se mostró el aviso; con la ventana simulada, la URL firmada devolvió la imagen.
+- Pago en efectivo y su eliminación.
+- Cierre con un pendiente (lista y aviso de 5 días con un tramo sin salida), planilla cerrada en solo lectura y reapertura.
+- Recibo con días, conceptos, pagos y resumen que cuadran; el menú se oculta al imprimir (clases `print`).
+- Historial de planillas y pagos en la ficha del trabajador.
+- Sin errores en la consola.
+- No se probó: las vistas de gerencia y de coordinador (no hay usuarios con esos roles en la base de desarrollo), la vista de impresión real del navegador ni el 409 `pending_balances` real.
+
+Resultado de la verificación final: `npm run lint && npm run typecheck && npm test && npm run build` desde la raíz, todo en verde: backend 409 pruebas, frontend 268, y la compilación incluye las rutas `/payrolls/[id]` y `/payrolls/[id]/receipt/[workerId]`.
+
+Pendiente (hallazgos menores de las revisiones de cada tarea, sin corregir; la revisión final de la rama decide cuáles se corrigen antes de fusionar):
+
+- Un GIF pasa o no según si su JPEG pesa menos: hay que definir una regla.
+- Si la respuesta de un pago se pierde después de guardarse, reintentar lo duplica (la API no tiene idempotencia); al reintentar se sube el archivo otra vez y el anterior queda huérfano.
+- Cancelar el selector de archivo mientras se reduce una foto deja el botón deshabilitado.
+- El monto propuesto no se completa si los saldos llegan después de abrir el diálogo de pago.
+- La lista del diálogo de cierre puede tener hasta 30 s de antigüedad; un 409 `payroll_closed` o `not_closed` no recarga la planilla; "Reabrir" reaparece un instante tras reabrir.
+- Con la ventana emergente bloqueada igual se pide la URL firmada.
+- Código repetido (`PENDING_CLASS`, `h-11`, los esqueletos de tablas) y `payments-tab.tsx` crece.
+- Sin pruebas de componentes (decisión 12): el diálogo de pago, el de cierre y `useEvidenceViewer` solo se verificaron leyendo el código y en el navegador.
+
 ## Global Constraints
 
 - Todo nombre de código, archivo, carpeta, clave de consulta y prueba va en inglés; todo texto que lee una persona, en español y exactamente como lo da la tarea. Ningún valor del contrato se muestra tal cual: pasa por un mapa de etiquetas (`ITEM_TYPE_LABEL`, `PAYMENT_MEDIUM_LABEL`, etc.).
@@ -82,7 +145,7 @@ Rutas relativas a `frontend/src/`.
 - Consumes: `formatCents` (`lib/format.ts`), `hasOpenStretch`, `formatHours`, `ATTENDANCE_TYPE_LABEL`, `AttendanceType` (`lib/attendance.ts`), `limaTime` (`lib/lima-time.ts`).
 - Produces: el código de abajo, con estos nombres exactos.
 
-- [ ] **Step 1: Escribir las pruebas (fallan)**
+- [x] **Step 1: Escribir las pruebas (fallan)**
 
 `frontend/src/lib/money.test.ts`:
 
@@ -317,7 +380,7 @@ describe('receiptDays', () => {
 Run: `npm test -w @agrosalas/frontend`
 Expected: FAIL, los módulos no existen.
 
-- [ ] **Step 2: Escribir los módulos**
+- [x] **Step 2: Escribir los módulos**
 
 `frontend/src/lib/money.ts`:
 
@@ -493,12 +556,12 @@ export function receiptDays(records: ReceiptRecord[]) {
 }
 ```
 
-- [ ] **Step 3: Verificar**
+- [x] **Step 3: Verificar**
 
 Run: `npm test -w @agrosalas/frontend && npm run lint && npm run typecheck`
 Expected: PASS; 234 + las nuevas.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add frontend/src/lib/money.ts frontend/src/lib/money.test.ts frontend/src/lib/payments.ts frontend/src/lib/payments.test.ts frontend/src/lib/evidence.ts frontend/src/lib/evidence.test.ts frontend/src/lib/closing.ts frontend/src/lib/closing.test.ts frontend/src/lib/receipt.ts frontend/src/lib/receipt.test.ts
@@ -523,9 +586,9 @@ Comportamiento:
 - Clave de consulta del resumen: `['payrolls', 'summary']`, con `enabled: seesMoney(me?.role)`. No depende de los filtros (la API no los recibe).
 - El coordinador no ve ni las columnas de dinero ni las tarjetas, y no se pide el resumen.
 
-- [ ] **Step 1: Implementar** según el comportamiento de arriba.
-- [ ] **Step 2: Verificar** — Run: `npm run lint && npm run typecheck && npm test -w @agrosalas/frontend`. Expected: PASS.
-- [ ] **Step 3: Commit**
+- [x] **Step 1: Implementar** según el comportamiento de arriba.
+- [x] **Step 2: Verificar** — Run: `npm run lint && npm run typecheck && npm test -w @agrosalas/frontend`. Expected: PASS.
+- [x] **Step 3: Commit**
 
 ```bash
 git add "frontend/src/app/(panel)/payrolls/page.tsx"
@@ -577,10 +640,10 @@ Abrir la evidencia sin que el navegador bloquee la ventana: abrir primero, dentr
 
 Toda escritura invalida `['payrolls']`, `['payroll-items']`, `['payments']` y `['workers']`.
 
-- [ ] **Step 1: Pruebas de `tabFromParam`** en `payroll-detail.test.ts` (fallan).
-- [ ] **Step 2: Implementar** `lib/payroll-detail.ts`, la página, la grilla, `PaymentsTab` e `ItemDialog`.
-- [ ] **Step 3: Verificar** — Run: `npm run lint && npm run typecheck && npm test -w @agrosalas/frontend`. Expected: PASS.
-- [ ] **Step 4: Commit**
+- [x] **Step 1: Pruebas de `tabFromParam`** en `payroll-detail.test.ts` (fallan).
+- [x] **Step 2: Implementar** `lib/payroll-detail.ts`, la página, la grilla, `PaymentsTab` e `ItemDialog`.
+- [x] **Step 3: Verificar** — Run: `npm run lint && npm run typecheck && npm test -w @agrosalas/frontend`. Expected: PASS.
+- [x] **Step 4: Commit**
 
 ```bash
 git add frontend/src
@@ -620,9 +683,9 @@ Todo el envío es una sola mutación con `networkMode: 'always'` y `retry: false
 
 Si al probarlo en el navegador el `PUT` crudo a la URL firmada no funcionara, la alternativa es mandar el archivo en un `FormData` con el campo vacío `''` (lo que hace `uploadToSignedUrl` de Supabase): se anota en el reporte.
 
-- [ ] **Step 1: Implementar** `compress-image.ts`, `payment-dialog.tsx` y la conexión en la página.
-- [ ] **Step 2: Verificar** — Run: `npm run lint && npm run typecheck && npm test -w @agrosalas/frontend`. Expected: PASS.
-- [ ] **Step 3: Commit**
+- [x] **Step 1: Implementar** `compress-image.ts`, `payment-dialog.tsx` y la conexión en la página.
+- [x] **Step 2: Verificar** — Run: `npm run lint && npm run typecheck && npm test -w @agrosalas/frontend`. Expected: PASS.
+- [x] **Step 3: Commit**
 
 ```bash
 git add frontend/src
@@ -658,9 +721,9 @@ git commit -m "feat(web): record a payment with its evidence, compressing photos
 
 **Reabrir** (solo administrador, planilla cerrada): `window.confirm('¿Reabrir la planilla? Se podrán volver a registrar asistencias, conceptos y pagos.')`; luego `POST /reopen`; aviso "Planilla reabierta" e invalidación como al cerrar; un error se muestra con `toast.error(errorMessage(e))`.
 
-- [ ] **Step 1: Implementar.**
-- [ ] **Step 2: Verificar** — Run: `npm run lint && npm run typecheck && npm test -w @agrosalas/frontend`. Expected: PASS.
-- [ ] **Step 3: Commit**
+- [x] **Step 1: Implementar.**
+- [x] **Step 2: Verificar** — Run: `npm run lint && npm run typecheck && npm test -w @agrosalas/frontend`. Expected: PASS.
+- [x] **Step 3: Commit**
 
 ```bash
 git add frontend/src
@@ -696,9 +759,9 @@ git commit -m "feat(web): close and reopen a payroll and keep a closed one read-
 - `WorkerPayrolls`: título "Planillas"; tabla paginada (10 por página) con Planilla (enlace a `/payrolls/<id>`, con `dateRange` debajo), Estado (`PAYROLL_STATUS_LABEL[payrollDisplayStatus(fila, hoy)]`), Total, Pagado, Pendiente (`pendingText`) y un enlace **Recibo**. Vacío: "Todavía no está en ninguna planilla.". Clave: `['workers', id, 'payrolls', page]`.
 - `WorkerPayments`: título "Pagos"; tabla paginada (10 por página) con Fecha, Planilla (`payrollName`, enlace), Medio y detalle, Monto y Evidencia (botón **Ver**, igual que en la pestaña Pagos). Vacío: "Todavía no tiene pagos.". Clave: `['payments', { workerId: id }, page]`.
 
-- [ ] **Step 1: Implementar.** Antes de crear la ruta anidada, leer en `node_modules/next/dist/docs/` cómo se reciben los parámetros dinámicos en Next 16 (la página es de cliente y usa `useParams`, como las demás).
-- [ ] **Step 2: Verificar** — Run: `npm run lint && npm run typecheck && npm test -w @agrosalas/frontend && npm run build`. Expected: PASS; el build lista la ruta nueva del recibo.
-- [ ] **Step 3: Commit**
+- [x] **Step 1: Implementar.** Antes de crear la ruta anidada, leer en `node_modules/next/dist/docs/` cómo se reciben los parámetros dinámicos en Next 16 (la página es de cliente y usa `useParams`, como las demás).
+- [x] **Step 2: Verificar** — Run: `npm run lint && npm run typecheck && npm test -w @agrosalas/frontend && npm run build`. Expected: PASS; el build lista la ruta nueva del recibo.
+- [x] **Step 3: Commit**
 
 ```bash
 git add frontend/src
@@ -712,11 +775,12 @@ git commit -m "feat(web): add the printable receipt and the payroll and payment 
 **Files:**
 - Modify: `docs/superpowers/specs/2026-10-01-planilla-design.md`, `README.md` (si algo de la puesta en marcha cambió), este plan.
 
-- [ ] **Step 1: Spec**: §10, pantallas 3, 4 y 6: quitar las notas "llegan con la fase 3" y describir lo que hay (columnas, resumen, pestañas Asistencia, Pagos y Trabajadores, cerrar y reabrir, planilla cerrada en solo lectura, recibo); dejar "exportar" como fase 4. Pantalla 5: el historial de planillas y pagos. §8: el flujo de la evidencia en tres pasos y la reducción de las fotos.
-- [ ] **Step 2: Verificación en el navegador** (la hace el controlador con la sesión de Gonzalo, después de aplicar la migración `0002` y crear el bucket en el proyecto de desarrollo): a 375 px y en escritorio, la lista con sus cifras; la pestaña Pagos; agregar, editar y eliminar un concepto; registrar un pago en efectivo, uno con un método registrado y uno con una foto como evidencia; ver la evidencia; eliminar un pago; cerrar con pendientes (lista y confirmación) y ver la planilla en solo lectura; reabrir; el recibo y su vista de impresión; el historial en la ficha del trabajador; sin desborde horizontal ni errores en la consola.
-- [ ] **Step 3: Este plan**: sección "Estado de ejecución" (fecha, commits, pruebas, lo que difirió, resultado del recorrido) y "Pendiente".
-- [ ] **Step 4: Verificación final** — Run: `npm run lint && npm run typecheck && npm test && npm run build`. Expected: todo en verde.
-- [ ] **Step 5: Commit**
+- [x] **Step 1: Spec**: §10, pantallas 3, 4 y 6: quitar las notas "llegan con la fase 3" y describir lo que hay (columnas, resumen, pestañas Asistencia, Pagos y Trabajadores, cerrar y reabrir, planilla cerrada en solo lectura, recibo); dejar "exportar" como fase 4. Pantalla 5: el historial de planillas y pagos. §8: el flujo de la evidencia en tres pasos y la reducción de las fotos.
+- [x] **Step 2: Verificación en el navegador** (la hace el controlador con la sesión de Gonzalo, después de aplicar la migración `0002` y crear el bucket en el proyecto de desarrollo): a 375 px y en escritorio, la lista con sus cifras; la pestaña Pagos; agregar, editar y eliminar un concepto; registrar un pago en efectivo, uno con un método registrado y uno con una foto como evidencia; ver la evidencia; eliminar un pago; cerrar con pendientes (lista y confirmación) y ver la planilla en solo lectura; reabrir; el recibo y su vista de impresión; el historial en la ficha del trabajador; sin desborde horizontal ni errores en la consola.
+  Resultado (2026-10-02, controlador, administrador, base de desarrollo, 375 px y escritorio): se recorrieron la lista con sus cifras, la pestaña Pagos sin desborde, un concepto (Bono de S/ 20.00), un pago por Yape de S/ 30.00 con una foto PNG de 3.3 MB reducida a un JPEG de 333 KB y subida a la URL firmada, "Ver" (el aviso de ventana bloqueada y, con la ventana simulada, la imagen), un pago en efectivo y su eliminación, el cierre con un pendiente y un tramo sin salida, la planilla cerrada en solo lectura, la reapertura, el recibo (cuadra y oculta el menú al imprimir) y el historial en la ficha del trabajador; sin errores en la consola. No se probó: gerencia y coordinador (sin usuarios con esos roles), la impresión real ni el 409 `pending_balances` real. Detalle en "Estado de ejecución".
+- [x] **Step 3: Este plan**: sección "Estado de ejecución" (fecha, commits, pruebas, lo que difirió, resultado del recorrido) y "Pendiente".
+- [x] **Step 4: Verificación final** — Run: `npm run lint && npm run typecheck && npm test && npm run build`. Expected: todo en verde.
+- [x] **Step 5: Commit**
 
 ```bash
 git add docs README.md
