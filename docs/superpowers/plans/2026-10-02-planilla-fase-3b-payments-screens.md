@@ -71,26 +71,32 @@ Recorrido en el navegador (controlador, 2026-10-02, sesión de administrador, ba
 - Lista de planillas: las tres cifras de arriba y las columnas Total, Pagado y Pendiente.
 - Pestaña Pagos sin desborde horizontal a 375 px.
 - Concepto Bono de S/ 20.00 a una trabajadora: el saldo quedó en 84.58.
-- Pago por Yape de S/ 30.00 con una foto PNG de 3.3 MB, reducida a un JPEG de 333 KB; el `PUT` a la URL firmada funcionó y el archivo quedó en el bucket, enlazado al pago.
+- Pago por Yape de S/ 30.00 (con el Yape registrado de la trabajadora) con una foto PNG de 3.3 MB, reducida a un JPEG de 333 KB; el `PUT` a la URL firmada funcionó y el archivo quedó en el bucket, enlazado al pago.
 - "Ver": el navegador de pruebas bloquea las ventanas emergentes y se mostró el aviso; con la ventana simulada, la URL firmada devolvió la imagen.
 - Pago en efectivo y su eliminación.
 - Cierre con un pendiente (lista y aviso de 5 días con un tramo sin salida), planilla cerrada en solo lectura y reapertura.
-- Recibo con días, conceptos, pagos y resumen que cuadran; el menú se oculta al imprimir (clases `print`).
+- Recibo con días, conceptos, pagos y resumen que cuadran; el menú se oculta con las clases `print` (la vista de impresión real no se probó).
 - Historial de planillas y pagos en la ficha del trabajador.
 - Sin errores en la consola.
-- No se probó: las vistas de gerencia y de coordinador (no hay usuarios con esos roles en la base de desarrollo), la vista de impresión real del navegador ni el 409 `pending_balances` real.
+- No se probó: las vistas de gerencia y de coordinador (no hay usuarios con esos roles en la base de desarrollo), la vista de impresión real del navegador, el 409 `pending_balances` real ni editar y eliminar un concepto.
+
+Revisión final de la rama (sin hallazgos críticos; dos importantes, corregidos en una tanda final, commit `b55d739`, frontend 268 pruebas y backend 409):
+
+- Quitar trabajadores, agregarlos y editar asistencias no refrescaban los conceptos ni el historial del trabajador: ahora invalidan el dinero (`invalidateClosing`) y `['workers']`.
+- Un pago cuya respuesta se pierde se mostraba como "inténtalo de nuevo": ahora avisa que no se sabe si se registró y refresca las listas; además el envío del pago ignora un segundo toque mientras uno está en curso.
+- Menores corregidos en la misma tanda: "a favor de la empresa" en el pendiente negativo, el botón de pago ya no queda deshabilitado al quitar el archivo elegido, el diálogo de cierre recarga los saldos cada vez que se abre y los botones de cerrar, reabrir, imprimir y del diálogo de cierre miden 44 px.
 
 Resultado de la verificación final: `npm run lint && npm run typecheck && npm test && npm run build` desde la raíz, todo en verde: backend 409 pruebas, frontend 268, y la compilación incluye las rutas `/payrolls/[id]` y `/payrolls/[id]/receipt/[workerId]`.
 
 Pendiente (hallazgos menores de las revisiones de cada tarea, sin corregir; la revisión final de la rama decide cuáles se corrigen antes de fusionar):
 
 - Un GIF pasa o no según si su JPEG pesa menos: hay que definir una regla.
-- Si la respuesta de un pago se pierde después de guardarse, reintentar lo duplica (la API no tiene idempotencia); al reintentar se sube el archivo otra vez y el anterior queda huérfano.
-- Cancelar el selector de archivo mientras se reduce una foto deja el botón deshabilitado.
+- Al reintentar un pago se sube el archivo otra vez y el anterior queda huérfano (la API no tiene idempotencia; el aviso de respuesta perdida pide revisar la lista antes de reintentar).
 - El monto propuesto no se completa si los saldos llegan después de abrir el diálogo de pago.
-- La lista del diálogo de cierre puede tener hasta 30 s de antigüedad; un 409 `payroll_closed` o `not_closed` no recarga la planilla; "Reabrir" reaparece un instante tras reabrir.
+- Un 409 `payroll_closed` o `not_closed` no recarga la planilla; "Reabrir" reaparece un instante tras reabrir.
 - Con la ventana emergente bloqueada igual se pide la URL firmada.
 - Código repetido (`PENDING_CLASS`, `h-11`, los esqueletos de tablas) y `payments-tab.tsx` crece.
+- El enlace "← Planilla" del recibo siempre vuelve a la planilla, también si se abrió desde la ficha del trabajador.
 - Sin pruebas de componentes (decisión 12): el diálogo de pago, el de cierre y `useEvidenceViewer` solo se verificaron leyendo el código y en el navegador.
 
 ## Global Constraints
@@ -777,7 +783,7 @@ git commit -m "feat(web): add the printable receipt and the payroll and payment 
 
 - [x] **Step 1: Spec**: §10, pantallas 3, 4 y 6: quitar las notas "llegan con la fase 3" y describir lo que hay (columnas, resumen, pestañas Asistencia, Pagos y Trabajadores, cerrar y reabrir, planilla cerrada en solo lectura, recibo); dejar "exportar" como fase 4. Pantalla 5: el historial de planillas y pagos. §8: el flujo de la evidencia en tres pasos y la reducción de las fotos.
 - [x] **Step 2: Verificación en el navegador** (la hace el controlador con la sesión de Gonzalo, después de aplicar la migración `0002` y crear el bucket en el proyecto de desarrollo): a 375 px y en escritorio, la lista con sus cifras; la pestaña Pagos; agregar, editar y eliminar un concepto; registrar un pago en efectivo, uno con un método registrado y uno con una foto como evidencia; ver la evidencia; eliminar un pago; cerrar con pendientes (lista y confirmación) y ver la planilla en solo lectura; reabrir; el recibo y su vista de impresión; el historial en la ficha del trabajador; sin desborde horizontal ni errores en la consola.
-  Resultado (2026-10-02, controlador, administrador, base de desarrollo, 375 px y escritorio): se recorrieron la lista con sus cifras, la pestaña Pagos sin desborde, un concepto (Bono de S/ 20.00), un pago por Yape de S/ 30.00 con una foto PNG de 3.3 MB reducida a un JPEG de 333 KB y subida a la URL firmada, "Ver" (el aviso de ventana bloqueada y, con la ventana simulada, la imagen), un pago en efectivo y su eliminación, el cierre con un pendiente y un tramo sin salida, la planilla cerrada en solo lectura, la reapertura, el recibo (cuadra y oculta el menú al imprimir) y el historial en la ficha del trabajador; sin errores en la consola. No se probó: gerencia y coordinador (sin usuarios con esos roles), la impresión real ni el 409 `pending_balances` real. Detalle en "Estado de ejecución".
+  Resultado (2026-10-02, controlador, administrador, base de desarrollo, 375 px y escritorio): se recorrieron la lista con sus cifras, la pestaña Pagos sin desborde, un concepto (Bono de S/ 20.00), un pago por Yape de S/ 30.00 con una foto PNG de 3.3 MB reducida a un JPEG de 333 KB y subida a la URL firmada, "Ver" (el aviso de ventana bloqueada y, con la ventana simulada, la imagen), un pago en efectivo y su eliminación, el cierre con un pendiente y un tramo sin salida, la planilla cerrada en solo lectura, la reapertura, el recibo (cuadra; el menú se oculta con las clases `print`, la vista de impresión real no se probó) y el historial en la ficha del trabajador; sin errores en la consola. El pago con un método registrado también se probó: el pago por Yape usó el Yape registrado de la trabajadora. No se probó: gerencia y coordinador (sin usuarios con esos roles), la impresión real, el 409 `pending_balances` real ni editar y eliminar un concepto. Detalle en "Estado de ejecución".
 - [x] **Step 3: Este plan**: sección "Estado de ejecución" (fecha, commits, pruebas, lo que difirió, resultado del recorrido) y "Pendiente".
 - [x] **Step 4: Verificación final** — Run: `npm run lint && npm run typecheck && npm test && npm run build`. Expected: todo en verde.
 - [x] **Step 5: Commit**
