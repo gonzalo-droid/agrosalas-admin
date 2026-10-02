@@ -51,6 +51,7 @@ const payrollFilters = pageSchema.extend({
   type: z.enum(['weekly', 'monthly']).optional(),
 })
 const memberIds = z.object({ id: z.uuid(), workerId: z.uuid() })
+const closeInput = z.object({ confirmPending: z.boolean().optional() })
 
 type WorkerSource = z.infer<typeof workerSource>
 
@@ -357,6 +358,51 @@ export const payrollsRoutes = ({ db, now }: Dependencies) =>
         return c.json(result)
       },
     )
+    .post(
+      '/:id/close',
+      requireRole('admin', 'accounting'),
+      validate('param', idSchema),
+      validate('json', closeInput),
+      async (c) => {
+        const { id } = c.req.valid('param')
+        const { confirmPending } = c.req.valid('json')
+        const row = await db.transaction(async (tx) => {
+          // Not findOpenPayroll: here a payroll that is already closed has its own answer to give.
+          const [before] = await tx.select().from(payrolls).where(eq(payrolls.id, id)).for('update')
+          if (!before) throw notFound('La planilla')
+          if (before.status === 'closed') throw new ApiError(409, 'payroll_closed', 'La planilla está cerrada')
+          // The lock above makes the writes of the payroll wait, so the balances cannot change before the status does.
+          const balances = await payrollBalances(tx, id)
+          if (balances.some((balance) => balance.pendingCents !== 0) && confirmPending !== true) {
+            throw new ApiError(409, 'pending_balances', 'Hay trabajadores con saldo pendiente; confirma el cierre')
+          }
+          const [after] = await tx
+            .update(payrolls)
+            .set({ status: 'closed', closedBy: c.get('user').id, closedAt: now() })
+            .where(eq(payrolls.id, id))
+            .returning()
+          await recordAudit(tx, c.get('user').id, 'update', 'payrolls', id, before, after)
+          return after
+        })
+        return c.json(row)
+      },
+    )
+    .post('/:id/reopen', requireRole('admin'), validate('param', idSchema), async (c) => {
+      const { id } = c.req.valid('param')
+      const row = await db.transaction(async (tx) => {
+        const [before] = await tx.select().from(payrolls).where(eq(payrolls.id, id)).for('update')
+        if (!before) throw notFound('La planilla')
+        if (before.status !== 'closed') throw new ApiError(409, 'not_closed', 'La planilla no está cerrada')
+        const [after] = await tx
+          .update(payrolls)
+          .set({ status: 'open', closedBy: null, closedAt: null })
+          .where(eq(payrolls.id, id))
+          .returning()
+        await recordAudit(tx, c.get('user').id, 'update', 'payrolls', id, before, after)
+        return after
+      })
+      return c.json(row)
+    })
     .delete(
       '/:id/workers/:workerId',
       requireRole('admin', 'accounting'),
