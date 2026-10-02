@@ -10,3 +10,5 @@ export const useAreas = () => useQuery({ queryKey: ['areas'], queryFn: () => unw
 export const usePositions = () => useQuery({ queryKey: ['positions'], queryFn: () => unwrap(api.v1.positions.$get()), ...options })
 export const useShifts = () => useQuery({ queryKey: ['shifts'], queryFn: () => unwrap(api.v1.shifts.$get()), ...options })
 export const useGroups = () => useQuery({ queryKey: ['groups'], queryFn: () => unwrap(api.v1.groups.$get()), ...options })
+// Same key and same call as the settings screen, so both share one cache.
+export const useCampaigns = () => useQuery({ queryKey: ['campaigns'], queryFn: () => unwrap(api.v1.campaigns.$get()), ...options })
