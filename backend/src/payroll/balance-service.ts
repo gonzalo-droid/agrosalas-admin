@@ -17,7 +17,7 @@ export async function payrollBalances(db: Db | Tx, payrollId: string, workerIds?
       cents: sql<number>`coalesce(sum(${attendanceRecords.amountCents}), 0)::bigint`.mapWith(Number),
     })
     .from(attendanceRecords)
-    .where(eq(attendanceRecords.payrollId, payrollId))
+    .where(and(eq(attendanceRecords.payrollId, payrollId), workerIds ? inArray(attendanceRecords.workerId, workerIds) : undefined))
     .groupBy(attendanceRecords.workerId)
   const items = await db
     .select({
@@ -26,7 +26,7 @@ export async function payrollBalances(db: Db | Tx, payrollId: string, workerIds?
       cents: sql<number>`coalesce(sum(${payrollItems.amountCents}), 0)::bigint`.mapWith(Number),
     })
     .from(payrollItems)
-    .where(eq(payrollItems.payrollId, payrollId))
+    .where(and(eq(payrollItems.payrollId, payrollId), workerIds ? inArray(payrollItems.workerId, workerIds) : undefined))
     .groupBy(payrollItems.workerId, payrollItems.type)
   const paid = await db
     .select({
@@ -34,7 +34,7 @@ export async function payrollBalances(db: Db | Tx, payrollId: string, workerIds?
       cents: sql<number>`coalesce(sum(${payments.amountCents}), 0)::bigint`.mapWith(Number),
     })
     .from(payments)
-    .where(eq(payments.payrollId, payrollId))
+    .where(and(eq(payments.payrollId, payrollId), workerIds ? inArray(payments.workerId, workerIds) : undefined))
     .groupBy(payments.workerId)
   return buildBalances(
     members.map((member) => member.id),

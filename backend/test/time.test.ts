@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { limaDate, limaInstant, marksFromTimes, monthRange, notBefore } from '../src/payroll/time'
+import { addDays, limaDate, limaInstant, marksFromTimes, monthRange, notBefore } from '../src/payroll/time'
 
 describe('Lima time', () => {
   it('gives the Lima date of an instant, five hours behind UTC', () => {
@@ -62,5 +62,21 @@ describe('monthRange', () => {
     expect(monthRange('2026-02-28')).toEqual({ from: '2026-02-01', to: '2026-02-28' })
     expect(monthRange('2028-02-10')).toEqual({ from: '2028-02-01', to: '2028-02-29' })
     expect(monthRange('2026-12-31')).toEqual({ from: '2026-12-01', to: '2026-12-31' })
+  })
+})
+
+describe('addDays', () => {
+  it('moves a date forward or back by calendar days', () => {
+    expect(addDays('2026-10-05', 3)).toBe('2026-10-08')
+    expect(addDays('2026-10-05', 0)).toBe('2026-10-05')
+    expect(addDays('2026-10-05', -31)).toBe('2026-09-04')
+  })
+
+  it('crosses month and year boundaries and knows leap years', () => {
+    expect(addDays('2026-10-31', 1)).toBe('2026-11-01')
+    expect(addDays('2026-12-31', 1)).toBe('2027-01-01')
+    expect(addDays('2027-01-01', -1)).toBe('2026-12-31')
+    expect(addDays('2028-02-28', 1)).toBe('2028-02-29')
+    expect(addDays('2027-02-28', 1)).toBe('2027-03-01')
   })
 })

@@ -222,4 +222,58 @@ describe('payroll items: removing a worker', () => {
     expect((await t.request('admin', 'DELETE', `/v1/payroll-items/${item.json.id}`)).status).toBe(200)
     expect((await t.request('admin', 'DELETE', `/v1/payrolls/${payroll}/workers/${w1}`)).status).toBe(200)
   })
+
+  const HAS_RECORDS = 'El trabajador tiene conceptos o pagos en esta planilla; elimínalos primero'
+  const salaryOf = async (payroll: string) => (await itemsOf(payroll)).filter((item) => item.workerId === w2 && item.type === 'salary')
+
+  it('a worker whose only item is the automatic salary is removed together with it, and the deletion is audited', async () => {
+    const monthly = await createPayroll('Octubre sin trabajador', 'monthly', '2026-10-01', '2026-10-31', [w2])
+    const [salary] = await salaryOf(monthly)
+    expect(salary).toBeDefined()
+    const removed = await t.request('admin', 'DELETE', `/v1/payrolls/${monthly}/workers/${w2}`)
+    expect(removed.status).toBe(200)
+    expect(await salaryOf(monthly)).toHaveLength(0)
+    const rows = await auditRows('payroll_items', salary.id)
+    expect(rows.map((row) => row.action).sort()).toEqual(['create', 'delete'])
+    expect(rows.find((row) => row.action === 'delete')).toMatchObject({ userId: USERS.admin, after: null })
+    expect(rows.find((row) => row.action === 'delete')?.before).toMatchObject({ id: salary.id, type: 'salary' })
+  })
+
+  it('a worker with a bonus besides the salary cannot be removed, and the salary stays', async () => {
+    const monthly = await createPayroll('Octubre con bono', 'monthly', '2026-10-01', '2026-10-31', [w2])
+    await createItem('admin', { payrollId: monthly, workerId: w2, type: 'bonus', amountCents: 500 })
+    const blocked = await t.request('admin', 'DELETE', `/v1/payrolls/${monthly}/workers/${w2}`)
+    expect(blocked.status).toBe(409)
+    expect(blocked.json.error).toMatchObject({ code: 'has_records', message: HAS_RECORDS })
+    expect(await salaryOf(monthly)).toHaveLength(1)
+  })
+
+  it('a worker with a payment besides the salary cannot be removed, and the salary stays', async () => {
+    const monthly = await createPayroll('Octubre con pago', 'monthly', '2026-10-01', '2026-10-31', [w2])
+    const paid = await t.request('admin', 'POST', '/v1/payments', {
+      payrollId: monthly,
+      workerId: w2,
+      date: '2026-10-05',
+      amountCents: 1000,
+      method: 'cash',
+    })
+    expect(paid.status).toBe(201)
+    const blocked = await t.request('admin', 'DELETE', `/v1/payrolls/${monthly}/workers/${w2}`)
+    expect(blocked.status).toBe(409)
+    expect(blocked.json.error).toMatchObject({ code: 'has_records', message: HAS_RECORDS })
+    expect(await salaryOf(monthly)).toHaveLength(1)
+  })
+})
+
+describe('payroll items: blank notes', () => {
+  it('a blank note is stored as null on POST and on PATCH', async () => {
+    const created = await createItem('admin', { payrollId: weekly, workerId: w1, type: 'bonus', amountCents: 300, note: '   ' })
+    expect(created.status).toBe(201)
+    expect(created.json.note).toBeNull()
+    const withNote = await createItem('admin', { payrollId: weekly, workerId: w1, type: 'bonus', amountCents: 300, note: 'Puntualidad' })
+    expect(withNote.json.note).toBe('Puntualidad')
+    const patched = await t.request('admin', 'PATCH', `/v1/payroll-items/${withNote.json.id}`, { note: '' })
+    expect(patched.status).toBe(200)
+    expect(patched.json.note).toBeNull()
+  })
 })

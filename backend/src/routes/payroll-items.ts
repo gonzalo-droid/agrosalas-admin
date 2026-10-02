@@ -10,7 +10,13 @@ import { findOpenPayroll, findPayrollMember } from '../payroll/open-payroll'
 import type { AppEnv, Dependencies } from '../types'
 
 const amountCents = z.number().int().min(1).max(99_999_999)
-const note = z.string().trim().max(300).nullable()
+// A note that is blank after trimming is stored as null, like the note of a payment.
+const note = z
+  .string()
+  .trim()
+  .max(300)
+  .transform((value) => value || null)
+  .nullable()
 const itemFilters = z.object({ payrollId: z.uuid(), workerId: z.uuid().optional() })
 const itemInput = z.object({
   payrollId: z.uuid(),

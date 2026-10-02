@@ -3,7 +3,7 @@ import { userAreas } from '../src/db/schema'
 import { createTestApp, USERS } from './helpers'
 
 let t: Awaited<ReturnType<typeof createTestApp>>
-let w1: string // Quispe: attendance, a bonus, a deduction and a payment in A; a bonus in B
+let w1: string // Quispe: two days of attendance, a bonus, a deduction and two payments in A; a bonus in B
 let w2: string // Huamán: only a payment in A
 let payrollA: string
 let payrollB: string
@@ -30,14 +30,20 @@ beforeAll(async () => {
   payrollA = await createPayroll('Semana 41', '2026-10-05', '2026-10-11', [w1, w2])
   payrollB = await createPayroll('Semana 39', '2026-09-21', '2026-09-27', [w1])
 
-  // 620 minutes at 6.25 per hour: 6823 cents.
-  for (const [mark, at] of [
-    ['clockIn1', '2026-10-05T12:10:00Z'],
-    ['clockOut1', '2026-10-05T18:00:00Z'],
-    ['clockIn2', '2026-10-05T19:00:00Z'],
-    ['clockOut2', '2026-10-05T23:30:00Z'],
-  ]) {
-    await t.request('admin', 'POST', '/v1/attendance/clock', { payrollId: payrollA, workerId: w1, date: '2026-10-05', mark, at })
+  // 620 minutes at 6.25 per hour: 6823 cents a day, on Monday and on Tuesday.
+  for (const [date, marks] of [
+    ['2026-10-05', ['12:10', '18:00', '19:00', '23:30']],
+    ['2026-10-06', ['12:10', '18:00', '19:00', '23:30']],
+  ] as const) {
+    for (const [index, mark] of (['clockIn1', 'clockOut1', 'clockIn2', 'clockOut2'] as const).entries()) {
+      await t.request('admin', 'POST', '/v1/attendance/clock', {
+        payrollId: payrollA,
+        workerId: w1,
+        date,
+        mark,
+        at: `${date}T${marks[index]}:00Z`,
+      })
+    }
   }
   const item = (payrollId: string, workerId: string, type: string, amountCents: number) =>
     t.request('admin', 'POST', '/v1/payroll-items', { payrollId, workerId, type, amountCents })
@@ -47,6 +53,7 @@ beforeAll(async () => {
   const pay = (workerId: string, amountCents: number) =>
     t.request('admin', 'POST', '/v1/payments', { payrollId: payrollA, workerId, date: '2026-10-05', amountCents, method: 'cash' })
   await pay(w1, 5000)
+  await pay(w1, 1000)
   await pay(w2, 3000)
 })
 
@@ -55,23 +62,25 @@ describe('balances of a payroll', () => {
     const { status, json } = await t.request('admin', 'GET', `/v1/payrolls/${payrollA}/balances`)
     expect(status).toBe(200)
     expect(json.items.map((b: { workerId: string }) => b.workerId)).toEqual([w2, w1])
+    // w1: attendance 2 days x 6823 = 13646; total 13646 + 2000 - 1000 = 14646; paid 5000 + 1000 = 6000; pending 8646.
     expect(json.items[1]).toEqual({
       workerId: w1,
-      attendanceCents: 6823,
+      attendanceCents: 13646,
       additionsCents: 2000,
       deductionsCents: 1000,
-      totalCents: 7823,
-      paidCents: 5000,
-      pendingCents: 2823,
+      totalCents: 14646,
+      paidCents: 6000,
+      pendingCents: 8646,
     })
     expect(json.items[0].pendingCents).toBe(-3000)
+    // Totals: paid 6000 + 3000 = 9000; pending 14646 - 9000 = 5646.
     expect(json.totals).toEqual({
-      attendanceCents: 6823,
+      attendanceCents: 13646,
       additionsCents: 2000,
       deductionsCents: 1000,
-      totalCents: 7823,
-      paidCents: 8000,
-      pendingCents: -177,
+      totalCents: 14646,
+      paidCents: 9000,
+      pendingCents: 5646,
     })
   })
 
@@ -89,7 +98,7 @@ describe('payroll list totals', () => {
 
   it('adds the items, the payments and the pending amount to every row', async () => {
     const { json } = await t.request('admin', 'GET', '/v1/payrolls')
-    expect(rowOf(json, payrollA)).toMatchObject({ totalCents: 7823, paidCents: 8000, pendingCents: -177 })
+    expect(rowOf(json, payrollA)).toMatchObject({ totalCents: 14646, paidCents: 9000, pendingCents: 5646 })
     expect(rowOf(json, payrollB)).toMatchObject({ totalCents: 4000, paidCents: 0, pendingCents: 4000 })
   })
 
@@ -105,7 +114,7 @@ describe('summary', () => {
   it('adds the pending amount of the open payrolls, counts those to pay and sums the payments of the month', async () => {
     const { status, json } = await t.request('admin', 'GET', '/v1/payrolls/summary')
     expect(status).toBe(200)
-    expect(json).toEqual({ pendingCents: 3823, toPayCount: 1, paidThisMonthCents: 8000 })
+    expect(json).toEqual({ pendingCents: 9646, toPayCount: 1, paidThisMonthCents: 9000 })
   })
 
   it('follows the clock', async () => {
@@ -131,10 +140,10 @@ describe('receipt of a worker in a payroll', () => {
     expect(status).toBe(200)
     expect(json.payroll).toMatchObject({ id: payrollA, name: 'Semana 41', type: 'weekly', status: 'open' })
     expect(json.worker).toMatchObject({ id: w1, firstName: 'Rosa', lastName: 'Quispe', positionName: 'Operario' })
-    expect(json.records).toHaveLength(1)
+    expect(json.records).toHaveLength(2)
     expect(json.items).toHaveLength(2)
-    expect(json.payments).toHaveLength(1)
-    expect(json.balance).toMatchObject({ workerId: w1, pendingCents: 2823 })
+    expect(json.payments).toHaveLength(2)
+    expect(json.balance).toMatchObject({ workerId: w1, pendingCents: 8646 })
     expect(Array.isArray(json.paymentMethods)).toBe(true)
   })
 
@@ -160,9 +169,9 @@ describe('payroll history of a worker', () => {
       startDate: '2026-10-05',
       endDate: '2026-10-11',
       status: 'open',
-      totalCents: 7823,
-      paidCents: 5000,
-      pendingCents: 2823,
+      totalCents: 14646,
+      paidCents: 6000,
+      pendingCents: 8646,
     })
     expect(json.items[1]).toMatchObject({ payrollId: payrollB, totalCents: 4000, paidCents: 0, pendingCents: 4000 })
   })

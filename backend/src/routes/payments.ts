@@ -10,7 +10,7 @@ import { idSchema, validate } from '../lib/validate'
 import { isEvidencePathOf } from '../payroll/evidence'
 import { findOpenPayroll, findPayrollMember } from '../payroll/open-payroll'
 import { describeMethod, MEDIUM_OF } from '../payroll/payment-method'
-import { limaDate } from '../payroll/time'
+import { addDays, limaDate } from '../payroll/time'
 import type { AppEnv, Dependencies } from '../types'
 
 const paymentFilters = pageSchema
@@ -28,6 +28,9 @@ const paymentInput = z.object({
   evidencePath: z.string().max(200).nullable().optional(),
   note: z.string().trim().max(300).nullable().optional(),
 })
+
+// A payment can precede its payroll by a few days (an advance), but not by much: that is a typing mistake.
+const MAX_DAYS_BEFORE_PAYROLL = 31
 
 const invalid = (message: string, field: string) => new ApiError(400, 'validation', message, field)
 
@@ -57,9 +60,12 @@ export const paymentsRoutes = ({ db, now }: Dependencies) =>
       const { paymentMethodId, ...input } = c.req.valid('json')
       const userId = c.get('user').id
       const row = await db.transaction(async (tx) => {
-        await findOpenPayroll(tx, input.payrollId, 'share')
+        const payroll = await findOpenPayroll(tx, input.payrollId, 'share')
         await findPayrollMember(tx, input.payrollId, input.workerId)
         if (input.date > limaDate(now())) throw invalid('La fecha del pago no puede ser futura', 'date')
+        if (input.date < addDays(payroll.startDate, -MAX_DAYS_BEFORE_PAYROLL)) {
+          throw invalid('La fecha del pago es muy anterior a la planilla', 'date')
+        }
 
         let methodDetail = input.methodDetail || null
         if (paymentMethodId) {
@@ -76,7 +82,8 @@ export const paymentsRoutes = ({ db, now }: Dependencies) =>
 
         const evidencePath = input.evidencePath ?? null
         if (evidencePath !== null) {
-          if (!isEvidencePathOf(evidencePath, input.payrollId, input.workerId)) {
+          // z.uuid() accepts uppercase, but the folders of the bucket are lowercase.
+          if (!isEvidencePathOf(evidencePath, input.payrollId.toLowerCase(), input.workerId.toLowerCase())) {
             throw invalid('La evidencia no corresponde a este pago', 'evidencePath')
           }
           // The unique index is the last defense; this check gives the person a clear message.

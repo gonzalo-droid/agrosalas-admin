@@ -423,22 +423,26 @@ export const payrollsRoutes = ({ db, now }: Dependencies) =>
               'El trabajador tiene registros en esta planilla; elimínalos primero',
             )
           }
-          const [item] = await tx
-            .select({ id: payrollItems.id })
+          const items = await tx
+            .select()
             .from(payrollItems)
             .where(and(eq(payrollItems.payrollId, id), eq(payrollItems.workerId, workerId)))
-            .limit(1)
           const [payment] = await tx
             .select({ id: payments.id })
             .from(payments)
             .where(and(eq(payments.payrollId, id), eq(payments.workerId, workerId)))
             .limit(1)
-          if (item || payment) {
+          // The automatic salary of a monthly payroll is not a record of the person: it goes away with the worker.
+          if (payment || items.some((item) => item.type !== 'salary')) {
             throw new ApiError(
               409,
               'has_records',
               'El trabajador tiene conceptos o pagos en esta planilla; elimínalos primero',
             )
+          }
+          for (const salary of items) {
+            await tx.delete(payrollItems).where(eq(payrollItems.id, salary.id))
+            await recordAudit(tx, c.get('user').id, 'delete', 'payroll_items', salary.id, salary, null)
           }
           const removed = await tx
             .delete(payrollWorkers)

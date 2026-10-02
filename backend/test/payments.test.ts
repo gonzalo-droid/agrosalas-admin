@@ -167,6 +167,20 @@ describe('payments: create', () => {
     expect((await pay('admin', cashPayment({ date: '2026-09-30' }))).status).toBe(201)
   })
 
+  it('refuses a date more than 31 days before the start of the payroll', async () => {
+    // The payroll starts on 2026-10-05: 2026-09-04 is exactly 31 days before.
+    expect((await pay('admin', cashPayment({ date: '2026-09-04' }))).status).toBe(201)
+    for (const date of ['2026-09-03', '1900-01-01']) {
+      const r = await pay('admin', cashPayment({ date }))
+      expect(r.status).toBe(400)
+      expect(r.json.error).toMatchObject({
+        code: 'validation',
+        message: 'La fecha del pago es muy anterior a la planilla',
+        field: 'date',
+      })
+    }
+  })
+
   it('refuses an amount of 0 or with decimals, a worker outside the payroll and a missing payroll', async () => {
     for (const amountCents of [0, 50.5]) {
       const r = await pay('admin', cashPayment({ amountCents }))
@@ -202,6 +216,27 @@ describe('payments: evidence', () => {
     expect(r.json.signedUrl).toContain(r.json.path)
     expect(t.uploadUrls).toContain(r.json.path)
     evidencePath = r.json.path
+  })
+
+  it('upload-url lower-cases the ids, so a payment with the ids in lowercase accepts the path', async () => {
+    const r = await uploadUrl('admin', { payrollId: payroll.toUpperCase(), workerId: w1.toUpperCase() })
+    expect(r.status).toBe(200)
+    expect(r.json.path).toBe(r.json.path.toLowerCase())
+    expect(isEvidencePathOf(r.json.path, payroll, w1)).toBe(true)
+    const paid = await pay('admin', cashPayment({ amountCents: 1200, evidencePath: r.json.path }))
+    expect(paid.status).toBe(201)
+    expect(paid.json.evidencePath).toBe(r.json.path)
+  })
+
+  it('a payment sent with the ids in uppercase is checked against the lowercase folder', async () => {
+    const r = await uploadUrl('admin')
+    const paid = await pay('admin', cashPayment({
+      payrollId: payroll.toUpperCase(),
+      workerId: w1.toUpperCase(),
+      amountCents: 1300,
+      evidencePath: r.json.path,
+    }))
+    expect(paid.status).toBe(201)
   })
 
   it('upload-url refuses a format, a size or a worker that are not valid, and accounting is the only other role that can ask', async () => {

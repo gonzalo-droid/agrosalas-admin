@@ -38,3 +38,7 @@ export function monthRange(date: string): { from: string; to: string } {
   const prefix = date.slice(0, 8)
   return { from: `${prefix}01`, to: `${prefix}${String(last).padStart(2, '0')}` }
 }
+
+// A date ('YYYY-MM-DD') moved by whole calendar days; `days` may be negative.
+export const addDays = (date: string, days: number): string =>
+  new Date(Date.parse(`${date}T00:00:00Z`) + days * DAY_MS).toISOString().slice(0, 10)

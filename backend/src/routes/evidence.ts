@@ -25,7 +25,11 @@ const READ_URL_SECONDS = 60
 export const evidenceRoutes = ({ db, evidence }: Dependencies) =>
   new Hono<AppEnv>()
     .post('/upload-url', requireRole('admin', 'accounting'), validate('json', uploadInput), async (c) => {
-      const { payrollId, workerId, contentType } = c.req.valid('json')
+      const input = c.req.valid('json')
+      const { contentType } = input
+      // z.uuid() accepts uppercase: one spelling keeps a file under a single folder.
+      const payrollId = input.payrollId.toLowerCase()
+      const workerId = input.workerId.toLowerCase()
       await db.transaction(async (tx) => {
         await findOpenPayroll(tx, payrollId, 'share')
         await findPayrollMember(tx, payrollId, workerId)
