@@ -3,6 +3,9 @@ const soles = new Intl.NumberFormat('es-PE', { minimumFractionDigits: 2, maximum
 // 7.8125 → "S/ 7.81"; null → "–"
 export const formatSoles = (amount: number | null | undefined) => (amount == null ? '–' : `S/ ${soles.format(amount)}`)
 
+// 6823 → "S/ 68.23"; null (the coordinator never receives money) → "—"
+export const formatCents = (cents: number | null | undefined) => (cents == null ? '—' : `S/ ${soles.format(cents / 100)}`)
+
 // Suggested overtime rate: the regular one plus 25 %, with four decimals at most.
 export const suggestedOvertimeRate = (hourlyRate: number) => Math.round(hourlyRate * 1.25 * 10000) / 10000
 
@@ -21,3 +24,6 @@ export function dateRange(start: string | null | undefined, end: string | null |
   if (end) return `hasta ${formatDate(end)}`
   return ''
 }
+
+// 1 → "1 trabajador"; 3 → "3 trabajadores".
+export const plural = (count: number, one: string, many: string): string => `${count} ${count === 1 ? one : many}`

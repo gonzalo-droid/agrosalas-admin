@@ -43,6 +43,19 @@ describe('unwrap', () => {
     expect(error.message).toBe('No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.')
   })
 
+  it('turns a request that was cut by its timeout into the same network failure', async () => {
+    const error = await unwrap(Promise.reject(new DOMException('The operation timed out.', 'TimeoutError')) as never).catch((e) => e)
+    expect(error).toBeInstanceOf(ApiClientError)
+    expect(error.code).toBe('network_error')
+  })
+
+  it('turns a body that is cut while it is read into a network failure, never into an empty answer', async () => {
+    const cut = { ok: true, json: () => Promise.reject(new DOMException('The operation timed out.', 'TimeoutError')) }
+    const error = await unwrap(Promise.resolve(cut) as never).catch((e) => e)
+    expect(error).toBeInstanceOf(ApiClientError)
+    expect(error.code).toBe('network_error')
+  })
+
   it('does not disguise a missing environment variable as a connection failure', async () => {
     const missing = new ConfigError('Falta la variable de entorno NEXT_PUBLIC_API_URL')
     await expect(unwrap(Promise.reject(missing) as never)).rejects.toBe(missing)
