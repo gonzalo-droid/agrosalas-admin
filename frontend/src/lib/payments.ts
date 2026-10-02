@@ -63,3 +63,10 @@ export function paymentBody({ option, detail, note, ...rest }: PaymentInput) {
 export function invalidateMoney(queryClient: QueryClient): void {
   for (const key of ['payrolls', 'payroll-items', 'payments', 'workers']) void queryClient.invalidateQueries({ queryKey: [key] })
 }
+
+// Closing or reopening a payroll changes what can be written everywhere: besides the money, the day screens (which
+// list the payrolls that accept records) must refresh.
+export function invalidateClosing(queryClient: QueryClient): void {
+  invalidateMoney(queryClient)
+  void queryClient.invalidateQueries({ queryKey: ['attendance'] })
+}

@@ -1,5 +1,6 @@
+import type { QueryClient } from '@tanstack/react-query'
 import { describe, expect, it } from 'vitest'
-import { ITEM_TYPE_LABEL, PAYMENT_MEDIUM_LABEL, defaultPayOption, payOptions, paymentBody, signedItemCents } from './payments'
+import { ITEM_TYPE_LABEL, PAYMENT_MEDIUM_LABEL, defaultPayOption, invalidateClosing, payOptions, paymentBody, signedItemCents } from './payments'
 
 const yape = { id: 'm1', type: 'yape' as const, number: '987654321', bank: null, holderName: 'Rosa Quispe', isPrimary: false }
 const bank = { id: 'm2', type: 'bank_account' as const, number: '19412345678901', bank: 'BCP', holderName: 'Rosa Quispe', isPrimary: true }
@@ -55,5 +56,14 @@ describe('paymentBody', () => {
     const body = paymentBody({ ...base, option, detail: '', evidencePath: 'payrolls/p1/w1/f.jpg', note: ' adelanto ' })
     expect(body).toEqual({ ...base, method: 'cash', methodDetail: null, evidencePath: 'payrolls/p1/w1/f.jpg', note: 'adelanto' })
     expect('paymentMethodId' in body).toBe(false)
+  })
+})
+
+describe('invalidateClosing', () => {
+  it('refreshes the money and the day screens, whose lists change with the status of the payroll', () => {
+    const invalidated: unknown[] = []
+    const queryClient = { invalidateQueries: ({ queryKey }: { queryKey: string[] }) => invalidated.push(queryKey[0]) } as unknown as QueryClient
+    invalidateClosing(queryClient)
+    expect(invalidated.sort()).toEqual(['attendance', 'payments', 'payroll-items', 'payrolls', 'workers'])
   })
 })
