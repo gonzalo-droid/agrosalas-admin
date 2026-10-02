@@ -155,7 +155,14 @@ export function PaymentMethods({ worker, readOnly = false }: { worker: WorkerRec
           </div>
         </form>
       ) : (
-        <Button variant="outline" size="lg" className="w-full border-dashed" onClick={() => setAdding(true)}>
+        // The label is long: it must wrap on a phone. A button that cannot shrink widens the whole page and pushes
+        // the bottom menu off the screen.
+        <Button
+          variant="outline"
+          size="lg"
+          className="h-auto min-h-9 w-full shrink border-dashed py-2 whitespace-normal"
+          onClick={() => setAdding(true)}
+        >
           + Agregar método de pago (Yape, Plin o cuenta bancaria)
         </Button>
       )}
