@@ -24,17 +24,20 @@ describe('health', () => {
 })
 
 describe('migrations', () => {
-  it('create the phase 1 tables with RLS enabled', async () => {
+  it('create every table with RLS enabled', async () => {
     const result = await t.db.execute(
       sql`select tablename, rowsecurity from pg_tables where schemaname = 'public' order by tablename`,
     )
     const rows = result.rows as { tablename: string; rowsecurity: boolean }[]
     expect(rows.map((row) => row.tablename)).toEqual([
       'areas',
+      'attendance_records',
       'audit_log',
       'campaigns',
       'group_workers',
       'groups',
+      'payroll_workers',
+      'payrolls',
       'positions',
       'shifts',
       'user_areas',

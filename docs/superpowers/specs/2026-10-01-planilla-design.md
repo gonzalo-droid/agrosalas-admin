@@ -177,7 +177,7 @@ Una por trabajador y fecha (único).
 | `amount_cents` | Entero |
 | `area_id`, `employment_type` | Copia del valor del trabajador ese día |
 | `note`, `recorded_by` | |
-| `source`, `needs_review` | `source = 'excel'` para lo migrado; `needs_review` marca registros dudosos |
+| `source`, `needs_review` | `source = 'excel'` para lo migrado y `source = 'panel'` para lo registrado en el sistema; `needs_review` marca registros dudosos |
 
 ### `payroll_items`
 
@@ -198,12 +198,13 @@ Módulo puro en `backend/` (sin acceso a base de datos), con pruebas unitarias.
 1. `worked_minutes = (clock_out_1 − clock_in_1) + (clock_out_2 − clock_in_2)`. El refrigerio es el hueco entre tramos y no se paga. Con un solo tramo, solo cuenta el primero.
 2. Si una salida es menor que su ingreso, se asume que es del día siguiente (turno de noche). El registro pertenece a la fecha del primer ingreso.
 3. Jornada: 480 minutos.
-4. Horas extra sugeridas: `max(0, worked_minutes − 480)`. El encargado puede cambiar `overtime_minutes` a cualquier valor entre 0 y `worked_minutes`; `regular_minutes` es la diferencia.
+4. Horas extra sugeridas: `max(0, worked_minutes − 480)`. El encargado puede cambiar `overtime_minutes` a cualquier valor entre 0 y `worked_minutes`; un valor mayor que los minutos trabajados se rechaza (400 `validation`, campo `overtimeMinutes` de la API). Si luego las horas del registro cambian y el valor fijado ya no cabe, se descarta y vuelve la sugerencia. `regular_minutes` es la diferencia.
 5. Las tarifas de referencia se definen por cargo en Configuración (Operario S/ 6.25, Estibador S/ 10.00, Mecánico S/ 30.00 por hora, cada uno con su hora extra). Al crear un registro se copian las del cargo del trabajador; ambas son editables en cada registro, lo que cubre trabajos mejor pagados, domingos, feriados y acuerdos puntuales. Al crear un cargo, la hora extra se propone como normal × 1.25.
 6. `amount = regular_minutes × hourly_rate ÷ 60 + overtime_minutes × overtime_rate ÷ 60`, redondeado al céntimo (mitad hacia arriba). Se paga al minuto, sin redondear las horas.
 7. Cada registro guarda sus tarifas. Cambiar la tarifa de un cargo, o el cargo de un trabajador, no altera registros anteriores.
 8. Faltas, permisos y descansos médicos tienen monto 0.
 9. Personal con contrato: registra asistencia igual, pero el monto de cada día es 0. Su pago es el concepto `salary` de la planilla mensual.
+10. Cada marca cuenta desde el inicio de su minuto: los segundos no se pagan. Así, el tiempo trabajado es la diferencia de las horas HH:MM que se ven en pantalla.
 
 Ejemplo: ingreso 7:10, salida 13:00, regreso 14:00, salida 18:30. Son 350 + 270 = 620 minutos: 480 normales y 140 extra. Monto = 8 × 6.25 + (140 ÷ 60) × 7.8125 = 50.00 + 18.23 = **S/ 68.23**.
 
@@ -223,6 +224,7 @@ Reglas:
 
 - Solo se registra asistencia dentro de una planilla abierta cuyas fechas incluyan ese día, y solo a los trabajadores agregados a esa planilla. Si no hay ninguna, la pantalla de asistencia pide crearla.
 - Dos planillas pueden coincidir en fechas (por ejemplo, dos campañas la misma semana con cuadrillas distintas), pero un trabajador solo puede tener un registro de asistencia por fecha, así que no puede estar en dos planillas el mismo día.
+- Un registro nuevo de un trabajador temporal cuyo cargo no tiene tarifa por hora (no tiene cargo, o es mensual) se crea por defecto con tarifa 0 y queda marcado `needs_review`, para que contabilidad ponga la tarifa. Lo mismo ocurre al editar una falta y convertirla en día trabajado.
 - Al crear una planilla mensual se genera un concepto `salary` por cada trabajador de contrato incluido (monto editable, por ejemplo para un mes incompleto).
 - **Total por trabajador:** suma de montos de asistencia + conceptos que suman − descuentos.
 - **Pendiente:** total − pagos. Puede ser negativo (adelanto mayor al total acumulado); se muestra como saldo a favor de la empresa.
@@ -264,8 +266,8 @@ REST bajo `/v1`, con validación Zod en entrada y salida.
 | `/me` | Usuario actual, rol y áreas |
 | `/users`, `/areas`, `/shifts`, `/campaigns`, `/positions`, `/groups` | CRUD (administrador) |
 | `/workers` | Listar con filtros (`areaId`, `employmentType`, `status`, `search`), crear, ver, editar, cesar; métodos de pago en `/workers/:id/payment-methods` (agregar, editar, quitar, marcar principal) |
-| `/attendance` | Listar por fecha y área; `POST /clock` (ingreso, salida a refrigerio, regreso, salida, con hora actual o indicada); `POST /bulk` (misma marca para varios); editar registro completo; eliminar |
-| `/payrolls` | Listar (texto, rango de fechas, campaña, estado, tipo); crear; editar nombre, fechas y campaña; agregar y quitar trabajadores; detalle en grilla; cerrar; reabrir; exportar a Excel |
+| `/attendance` | Listar por fecha y área; `POST /clock` recibe `payrollId`, `workerId`, `date`, `mark` (ingreso, salida a refrigerio, regreso, salida) y `at` opcional (si falta, se usa la hora actual), y es idempotente: una marca que ya tiene hora se responde tal cual; `POST /bulk` (misma marca para varios); editar registro completo; eliminar |
+| `/payrolls` | Listar (texto, rango de fechas, campaña, estado, tipo); crear; editar nombre, fechas y campaña; agregar y quitar trabajadores; detalle en grilla; cerrar, reabrir y exportar a Excel llegan en las fases 3 y 4 |
 | `/payrolls/:id/workers/:workerId` | Detalle para el recibo |
 | `/payroll-items` | Crear, editar, eliminar |
 | `/payments` | Crear, listar, eliminar |
@@ -489,6 +491,16 @@ El valor `entity` de la auditoría es el nombre de la tabla en inglés (`workers
 | `duplicado` → `duplicate` | Ya existe un registro con ese valor (409) |
 | `usuario_auth` → `auth_provider_error` | Supabase Auth no pudo crear la cuenta (502) |
 | `interno` → `internal` | Error inesperado (500) |
+| `payroll_closed` | La planilla está cerrada y no admite escrituras (409) |
+| `not_in_payroll` | El trabajador no está en la planilla (400) |
+| `other_payroll` | El trabajador ya tiene un registro ese día en otra planilla (409) |
+| `not_worked` | Se intenta marcar una hora en un día registrado como falta o permiso (409) |
+| `out_of_order` | Se marca una hora sin haber marcado la anterior (409) |
+| `records_outside_range` | Las fechas nuevas de la planilla dejan registros de asistencia fuera (409) |
+| `has_records` | Se quita de la planilla a un trabajador que tiene registros en ella (409) |
+| `conflict` | El registro cambió o desapareció mientras se guardaba; se puede reintentar (409) |
+
+Los ocho últimos códigos nacen en inglés y no tienen equivalente en español.
 
 ### Direcciones del panel
 
