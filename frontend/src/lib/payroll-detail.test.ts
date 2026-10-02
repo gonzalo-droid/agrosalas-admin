@@ -37,13 +37,15 @@ describe('dayHeader', () => {
 })
 
 describe('isInProgress', () => {
-  it('is true for a worked record that still has a mark to go', () => {
-    expect(isInProgress(record({ clockIn2: null, clockOut2: null }))).toBe(true)
+  it('is true for a worked record with a stretch that has its start and not its end', () => {
+    expect(isInProgress(record({ clockOut2: null }))).toBe(true)
     expect(isInProgress(record({ clockIn1: '2026-10-05T12:00:00.000Z', clockOut1: null, clockIn2: null, clockOut2: null, workedMinutes: 0 }))).toBe(true)
   })
 
   it('is false for a complete day, an absence and a day without a record', () => {
     expect(isInProgress(record())).toBe(false)
+    // One closed stretch is a complete day: the second one is optional.
+    expect(isInProgress(record({ clockIn2: null, clockOut2: null }))).toBe(false)
     expect(isInProgress(record({ type: 'absence', clockIn1: null, clockOut1: null, clockIn2: null, clockOut2: null }))).toBe(false)
     expect(isInProgress(null)).toBe(false)
   })
@@ -52,7 +54,11 @@ describe('isInProgress', () => {
 describe('cellText', () => {
   it('is the grid label of the record, with a "…" after the hours of a day in progress', () => {
     expect(cellText(record())).toBe('8:00')
-    expect(cellText(record({ regularMinutes: 240, workedMinutes: 240, clockIn2: null, clockOut2: null }))).toBe('4:00…')
+    expect(cellText(record({ regularMinutes: 240, workedMinutes: 240, clockOut2: null }))).toBe('4:00…')
+  })
+
+  it('shows a day of one closed stretch as complete', () => {
+    expect(cellText(record({ regularMinutes: 300, workedMinutes: 300, clockIn2: null, clockOut2: null }))).toBe('5:00')
   })
 
   it('does not repeat the dots when there are no hours yet', () => {
@@ -75,7 +81,7 @@ describe('cellAriaLabel', () => {
   })
 
   it('says "en curso" for a day in progress and "por revisar" when it needs review', () => {
-    const open = record({ regularMinutes: 240, workedMinutes: 240, clockIn2: null, clockOut2: null, needsReview: true })
+    const open = record({ regularMinutes: 240, workedMinutes: 240, clockOut2: null, needsReview: true })
     expect(cellAriaLabel('Pérez, Ana', '2026-10-05', open)).toBe('Pérez, Ana, lun 05/10: 4:00, en curso, por revisar')
   })
 

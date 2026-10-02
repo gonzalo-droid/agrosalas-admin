@@ -29,7 +29,8 @@ type RecordDialogProps = {
   record: DayRecord | null // null = create a record for that worker and date
   canEditMoney: boolean // admin and accounting
   readOnly?: boolean // management
-  onSaved: () => void // the caller invalidates its own queries
+  // The caller refreshes its own queries. A save passes the record the API answered with; a delete passes nothing.
+  onSaved: (record?: DayRecord) => void
 }
 
 type FormError = { field?: string; message: string }
@@ -47,9 +48,9 @@ export function RecordDialog({ open, onOpenChange, payrollId, date, worker, reco
   if (open && !session) setSession({ loaded: record, form: formFromRecord(record), error: null })
   if (!open && session) setSession(null)
 
-  const finish = (message: string) => {
+  const finish = (message: string, saved?: DayRecord) => {
     toast.success(message)
-    onSaved()
+    onSaved(saved)
     onOpenChange(false)
   }
   const fail = (e: unknown) =>
@@ -60,7 +61,7 @@ export function RecordDialog({ open, onOpenChange, payrollId, date, worker, reco
       recordId
         ? unwrap(api.v1.attendance[':id'].$patch({ param: { id: recordId }, json: body }))
         : unwrap(api.v1.attendance.$post({ json: { payrollId, workerId: worker.id, date, ...body } })),
-    onSuccess: () => finish('Registro guardado'),
+    onSuccess: (saved) => finish('Registro guardado', saved),
     onError: fail,
   })
   const remove = useMutation({

@@ -1,4 +1,4 @@
-import { ATTENDANCE_TYPE_LABEL, formatHours, nextMark } from './attendance'
+import { ATTENDANCE_TYPE_LABEL, formatHours, hasOpenStretch } from './attendance'
 import { formatDate } from './format'
 import { weekdayOf } from './lima-time'
 import { cellLabel, type GridRecord, type Totals } from './payroll-grid'
@@ -15,8 +15,8 @@ export type DetailRecord = GridRecord & {
 // "2026-10-05" → "lun 05": the header of a day column.
 export const dayHeader = (date: string): string => `${weekdayOf(date)} ${date.slice(8, 10)}`
 
-// A worked day that still has a mark to go: the label of the cell shows only the stretches already closed.
-export const isInProgress = (record: DetailRecord | null): boolean => record !== null && record.type === 'worked' && nextMark(record) !== null
+// A worked day with a stretch that has started and not ended: the label of the cell shows only the closed stretches.
+export const isInProgress = (record: DetailRecord | null): boolean => hasOpenStretch(record)
 
 // What the cell shows: the grid label, with a "…" after the hours of a day in progress.
 export function cellText(record: DetailRecord | null): string {

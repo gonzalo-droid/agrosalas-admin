@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Suspense, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { DayRow, type PendingMark } from '@/components/attendance/day-row'
 import { RecordDialog } from '@/components/attendance/record-dialog'
@@ -12,7 +12,7 @@ import { ErrorWithRetry } from '@/components/error-with-retry'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { api, errorMessage, unwrap, type ResponseBody } from '@/lib/api'
-import { nextMark, type Mark } from '@/lib/attendance'
+import { applyRecords, attendanceHref, hasOpenStretch, markErrorText, type Mark } from '@/lib/attendance'
 import { useAreas } from '@/lib/catalogs'
 import { dateRange } from '@/lib/format'
 import { addDays, isRealDate, limaDate, limaTime } from '@/lib/lima-time'
@@ -23,6 +23,10 @@ type DayList = ResponseBody<typeof api.v1.attendance.$get>
 type DayItem = DayList['items'][number]
 
 const BULK_CHUNK = 200
+// A mark request is cut after this long: it ends as the same failure a dropped connection gives, and the user taps again.
+const MARK_TIMEOUT_MS = 15_000
+const markRequestOptions = () => ({ init: { signal: AbortSignal.timeout(MARK_TIMEOUT_MS) } })
+const STALE_DAY_MESSAGE = 'Ya es otro día. Revisa la fecha antes de marcar.'
 const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`
 
 // A date from the address, or null if it is not a real 'YYYY-MM-DD' (then the screen shows today).
@@ -53,8 +57,26 @@ function DailyAttendance() {
   const { data: me } = useMe()
   const { data: areas } = useAreas()
 
-  // Today in Lima, never the device's date.
-  const today = limaDate(new Date())
+  // Today in Lima, never the device's date. It lives in state because the screen can stay open past midnight: it is
+  // refreshed when the app comes back to the front and every minute, and is checked again before any mark is sent.
+  const [today, setToday] = useState(() => limaDate(new Date()))
+  useEffect(() => {
+    const refresh = () => setToday((current) => {
+      const now = limaDate(new Date())
+      return now === current ? current : now
+    })
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') refresh()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('focus', refresh)
+    const timer = window.setInterval(refresh, 60_000)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('focus', refresh)
+      window.clearInterval(timer)
+    }
+  }, [])
   const date = validDate(params.get('date')) ?? today
   const isToday = date === today
   const [areaId, setAreaId] = useState('')
@@ -72,7 +94,18 @@ function DailyAttendance() {
   })
   const payroll = payrolls.data?.items.find((p) => p.id === params.get('payrollId')) ?? payrolls.data?.items[0]
 
-  const goTo = (nextDate: string, payrollId = payroll?.id) => `/attendance?date=${nextDate}${payrollId ? `&payrollId=${payrollId}` : ''}`
+  // While the payrolls load there is no `payroll` yet: the links keep the one from the address.
+  const currentPayrollId = payroll?.id ?? params.get('payrollId') ?? undefined
+  const goTo = (nextDate: string, payrollId = currentPayrollId) => attendanceHref({ date: nextDate, today, payrollId })
+
+  // True (after refreshing `today`) when the day changed since the screen was drawn: nothing must be marked then.
+  function dayChanged(): boolean {
+    const now = limaDate(new Date())
+    if (now === today) return false
+    setToday(now)
+    toast.error(STALE_DAY_MESSAGE)
+    return true
+  }
 
   // If the day or the payroll of the screen changes, the dialog goes away with them (and does not come back on return).
   if (dialog && (dialog.date !== date || dialog.payrollId !== payroll?.id)) setDialog(null)
@@ -90,23 +123,20 @@ function DailyAttendance() {
     queryFn: () => fetchDay(payroll!.id, yesterday, areaId),
     enabled: isToday && payroll !== undefined && yesterday >= payroll.startDate,
   })
-  const openYesterday = yesterdayList.data?.items.filter((i) => i.record?.type === 'worked' && nextMark(i.record) !== null).length ?? 0
+  const openYesterday = yesterdayList.data?.items.filter((i) => hasOpenStretch(i.record)).length ?? 0
 
   const clock = useMutation({
-    mutationFn: (v: { payrollId: string; workerId: string; date: string; areaId: string; mark: Mark }) =>
-      unwrap(api.v1.attendance.clock.$post({ json: { payrollId: v.payrollId, workerId: v.workerId, date: v.date, mark: v.mark } })),
+    mutationFn: (v: { payrollId: string; workerId: string; date: string; mark: Mark }) =>
+      unwrap(api.v1.attendance.clock.$post({ json: { payrollId: v.payrollId, workerId: v.workerId, date: v.date, mark: v.mark } }, markRequestOptions())),
     // A mark must be sent at the moment of the tap or not at all: the server stamps the time of the request it
     // receives, and a retry can be delayed (e.g. while the user is in another app). So: no retries, and offline
     // ('always', not the default 'online') the request fails at once instead of waiting for the connection. The
     // user taps again; marking is idempotent, so a repeated tap is safe.
     networkMode: 'always',
     retry: false,
-    onSuccess: (record, v) =>
-      queryClient.setQueriesData<DayList>({ queryKey: dayPrefix(v.payrollId, v.date) }, (old) =>
-        old && { ...old, items: old.items.map((item) => (item.worker.id === v.workerId ? { ...item, record } : item)) },
-      ),
+    onSuccess: (record, v) => queryClient.setQueriesData<DayList>({ queryKey: dayPrefix(v.payrollId, v.date) }, (old) => old && applyRecords(old, [record])),
     onError: (e, v) => {
-      toast.error(`${errorMessage(e)} Vuelve a tocar el botón.`)
+      toast.error(markErrorText(e))
       // Load the list again: the row was out of date (e.g. someone else marked it), or the server applied the mark
       // although the answer was lost.
       void queryClient.invalidateQueries({ queryKey: dayPrefix(v.payrollId, v.date) })
@@ -116,9 +146,9 @@ function DailyAttendance() {
   })
 
   function tap(workerId: string, mark: Mark) {
-    if (!payroll) return
+    if (!payroll || dayChanged()) return
     setPending((current) => ({ ...current, [pendingKey(payroll.id, date, workerId)]: { mark, time: limaTime(new Date().toISOString()) } }))
-    clock.mutate({ payrollId: payroll.id, workerId, date, areaId, mark })
+    clock.mutate({ payrollId: payroll.id, workerId, date, mark })
   }
 
   const items = list.data?.items
@@ -129,17 +159,22 @@ function DailyAttendance() {
     // Same reason as the single mark: no waiting for the connection and no retries; the user repeats the action.
     networkMode: 'always',
     retry: false,
-    mutationFn: async (workerIds: string[]) => {
+    mutationFn: async ({ payrollId, date, workerIds }: { payrollId: string; date: string; workerIds: string[] }) => {
       let marked = 0
       const failures: string[] = []
       for (let start = 0; start < workerIds.length; start += BULK_CHUNK) {
         const chunk = workerIds.slice(start, start + BULK_CHUNK)
         try {
-          const { results } = await unwrap(api.v1.attendance.bulk.$post({ json: { payrollId: payroll!.id, date, mark: 'clockIn1', workerIds: chunk } }))
+          const { results } = await unwrap(api.v1.attendance.bulk.$post({ json: { payrollId, date, mark: 'clockIn1', workerIds: chunk } }, markRequestOptions()))
+          const records: NonNullable<DayItem['record']>[] = []
           for (const result of results) {
-            if (result.ok) marked += 1
-            else failures.push(result.message)
+            if (result.ok) {
+              marked += 1
+              records.push(result.record)
+            } else failures.push(result.message)
           }
+          // Show each chunk as soon as it answers, without waiting for the list to be loaded again.
+          queryClient.setQueriesData<DayList>({ queryKey: dayPrefix(payrollId, date) }, (old) => old && applyRecords(old, records))
         } catch (e) {
           // The request itself failed: this batch and the ones after it were not marked.
           failures.push(...workerIds.slice(start).map(() => errorMessage(e)))
@@ -152,13 +187,17 @@ function DailyAttendance() {
       if (marked > 0) toast.success(plural(marked, 'marcado', 'marcados'))
       if (failures.length > 0) toast.error(`${failures.length} no se pudieron marcar`, { description: failures[0] })
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: dayPrefix(payroll?.id, date) }),
+    // Background reconcile: the button must not wait for it.
+    onSettled: (_data, _error, v) => void queryClient.invalidateQueries({ queryKey: dayPrefix(v.payrollId, v.date) }),
   })
 
   function markEveryone() {
+    if (!payroll || dayChanged()) return
     const time = limaTime(new Date().toISOString())
     if (window.confirm(`¿Marcar el ingreso de ${plural(unmarked.length, 'trabajador', 'trabajadores')} a las ${time}?`)) {
-      bulk.mutate(unmarked.map((i) => i.worker.id))
+      // The confirmation can stay open for a while: the day is checked again before sending.
+      if (dayChanged()) return
+      bulk.mutate({ payrollId: payroll.id, date, workerIds: unmarked.map((i) => i.worker.id) })
     }
   }
 
@@ -177,6 +216,11 @@ function DailyAttendance() {
             Día siguiente
           </Link>
         </div>
+        {!isToday && (
+          <Link href={attendanceHref({ date: today, today, payrollId: currentPayrollId })} className={cn(stepClass, 'w-full')}>
+            Ir a hoy
+          </Link>
+        )}
         <Input
           aria-label="Fecha"
           type="date"
@@ -292,7 +336,11 @@ function DailyAttendance() {
           record={dialog.item.record}
           canEditMoney={canEditMoney}
           readOnly={readOnly}
-          onSaved={() => void queryClient.invalidateQueries({ queryKey: dayPrefix(dialog.payrollId, dialog.date) })}
+          onSaved={(saved) => {
+            // The answer is the saved record: show it now and reconcile in the background.
+            if (saved) queryClient.setQueriesData<DayList>({ queryKey: dayPrefix(dialog.payrollId, dialog.date) }, (old) => old && applyRecords(old, [saved]))
+            void queryClient.invalidateQueries({ queryKey: dayPrefix(dialog.payrollId, dialog.date) })
+          }}
         />
       )}
     </div>

@@ -52,9 +52,16 @@ export async function unwrap<R extends JsonResponse>(promise: Promise<R>): Promi
     // fetch rejects (with the browser's own English message) when there is no connection to the API.
     throw new ApiClientError(NO_CONNECTION_ERROR)
   }
-  const body = await response.json().catch(() => null)
+  let body: unknown = null
+  try {
+    body = await response.json()
+  } catch (e) {
+    // The body can be cut after the headers arrive (a request with a timeout, a dropped connection): for a successful
+    // response that is a network failure, not an empty answer. A body that is not JSON stays `null`.
+    if (response.ok && !(e instanceof SyntaxError)) throw new ApiClientError(NO_CONNECTION_ERROR)
+  }
   if (!response.ok) throw new ApiClientError(apiError(body))
-  return body
+  return body as Exclude<BodyOf<R>, ErrorBody>
 }
 
 // The URL is checked on each call (not on import), so the build and the tests work without it.
