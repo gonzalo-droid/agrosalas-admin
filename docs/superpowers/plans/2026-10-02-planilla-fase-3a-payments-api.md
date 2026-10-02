@@ -106,7 +106,7 @@ Pendiente de la API (hallazgos menores de las revisiones de cada tarea, sin corr
 - El recibo hace varias lecturas fuera de una transacción.
 - Dos altas de sueldo simultáneas: la que pierde recibe el `duplicate` genérico, sin `field`.
 - Pruebas por reforzar: restricciones de asistencia sin una fila aceptada de control; "repetir no crea otro sueldo" no ejerce el conflicto; los casos de planilla cerrada no comprueban que nada cambió; el orden de bloqueos no se puede probar con PGlite (una sola conexión).
-- Antes de aplicar la migración `0002` a una base con datos, comprobar que no haya registros de asistencia de trabajadores que no estén en su planilla: `select count(*) from attendance_records a left join payroll_workers pw using (payroll_id, worker_id) where pw.worker_id is null` debe dar 0.
+- Antes de aplicar la migración `0002` a una base con datos, comprobar que esta consulta dé cuatro ceros (cualquier otro valor hace fallar la migración entera, que se revierte pero bloquea las siguientes): `select (select count(*) from attendance_records a left join payroll_workers pw using (payroll_id, worker_id) where pw.worker_id is null) as orphan_records, (select count(*) from attendance_records where worked_minutes < 0 or regular_minutes < 0 or overtime_minutes < 0) as negative_minutes, (select count(*) from attendance_records where hourly_rate < 0 or overtime_rate < 0 or amount_cents < 0) as negative_money, (select count(*) from payrolls where end_date < start_date) as payrolls_bad_dates`. En la base de desarrollo dio cuatro ceros el 2026-10-02.
 
 ## Global Constraints
 
