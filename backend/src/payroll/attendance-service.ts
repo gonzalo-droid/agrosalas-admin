@@ -136,19 +136,19 @@ async function markExisting(
   if (existing[mark]) return { record: existing, created: false }
 
   const position = MARKS.indexOf(mark)
-  const previous = position === 0 ? null : (existing[MARKS[position - 1]] ?? null)
-  if (position > 0 && !previous) throw new ApiError(409, 'out_of_order', 'Falta la marca anterior')
-
   if (position === 0) {
     if (limaDate(at) !== existing.date) {
       throw new ApiError(400, 'validation', 'La hora de ingreso no corresponde a ese día', 'at')
     }
   } else {
-    if (at.getTime() < previous!.getTime()) {
+    const previous = existing[MARKS[position - 1]]
+    if (!previous) throw new ApiError(409, 'out_of_order', 'Falta la marca anterior')
+    if (at.getTime() < previous.getTime()) {
       throw new ApiError(400, 'validation', 'La hora no puede ser anterior a la marca previa', 'at')
     }
-    // The first clock-in is there: a later mark cannot exist without it.
-    if (at.getTime() - existing.clockIn1!.getTime() > DAY_MS) {
+    // Marks have no gaps, so a mark that is set after the first one implies the first is set.
+    const first = existing.clockIn1 ?? previous
+    if (at.getTime() - first.getTime() > DAY_MS) {
       throw new ApiError(400, 'validation', 'La hora está a más de un día del ingreso', 'at')
     }
   }
