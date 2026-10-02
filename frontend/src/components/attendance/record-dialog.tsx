@@ -4,6 +4,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Field, controlClass } from '@/components/field'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -72,9 +73,11 @@ export function RecordDialog({ open, onOpenChange, payrollId, date, worker, reco
   const { loaded, form, error } = session ?? { loaded: record, form: formFromRecord(record), error: null }
   const edit = (patch: Partial<RecordForm>) => setSession((s) => s && { ...s, form: { ...s.form, ...patch } })
   const worked = form.type === 'worked'
+  // Management sees the money too, read-only; the coordinator never receives it. Only admin and accounting edit it.
+  const showMoney = canEditMoney || readOnly
 
   // An error of a field that is on the screen goes under it; any other goes in an alert.
-  const shown = new Set<string>(['type', 'note', ...(worked ? [...MARKS, 'overtimeMinutes'] : []), ...(canEditMoney ? ['hourlyRate', 'overtimeRate', 'needsReview'] : [])])
+  const shown = new Set<string>(['type', 'note', ...(worked ? [...MARKS, 'overtimeMinutes'] : []), ...(showMoney ? ['hourlyRate', 'overtimeRate'] : []), ...(canEditMoney ? ['needsReview'] : [])])
   const errorOf = (field: string) => (error?.field === field ? error.message : undefined)
   const alertMessage = error && !(error.field && shown.has(error.field)) ? error.message : null
 
@@ -188,7 +191,7 @@ export function RecordDialog({ open, onOpenChange, payrollId, date, worker, reco
               <dd className="text-right tabular-nums">{formatMinutes(loaded.regularMinutes)}</dd>
               <dt className="text-muted-foreground">Extra</dt>
               <dd className="text-right tabular-nums">{formatMinutes(loaded.overtimeMinutes)}</dd>
-              {canEditMoney && (
+              {showMoney && (
                 <>
                   <dt className="text-muted-foreground">Monto</dt>
                   <dd className="text-right font-medium tabular-nums">{formatCents(loaded.amountCents)}</dd>
@@ -198,20 +201,20 @@ export function RecordDialog({ open, onOpenChange, payrollId, date, worker, reco
             </dl>
           )}
 
-          {canEditMoney && (
+          {showMoney && (
             <>
               <div className="grid grid-cols-2 gap-3">
-                <Field id="record-hourly-rate" label="Tarifa por hora (S/)" error={errorOf('hourlyRate')} help={loaded ? undefined : 'Vacío: se toma del cargo.'} className="min-w-0">
+                <Field id="record-hourly-rate" label="Tarifa por hora (S/)" error={errorOf('hourlyRate')} help={loaded ? undefined : 'Vacío: se toma del cargo, si es por hora.'} className="min-w-0">
                   <Input
                     id="record-hourly-rate"
                     type="number"
                     inputMode="decimal"
                     min={0}
                     max={99999}
-                    step={0.0001}
+                    step="any"
                     className="h-11"
                     value={form.hourlyRate}
-                    readOnly={readOnly}
+                    readOnly={readOnly || !canEditMoney}
                     onChange={(e) => edit({ hourlyRate: e.target.value })}
                   />
                 </Field>
@@ -222,31 +225,35 @@ export function RecordDialog({ open, onOpenChange, payrollId, date, worker, reco
                     inputMode="decimal"
                     min={0}
                     max={99999}
-                    step={0.0001}
+                    step="any"
                     className="h-11"
                     value={form.overtimeRate}
-                    readOnly={readOnly}
+                    readOnly={readOnly || !canEditMoney}
                     onChange={(e) => edit({ overtimeRate: e.target.value })}
                   />
                 </Field>
               </div>
-              <div className="space-y-1">
-                <label className="flex min-h-11 items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    className="size-5"
-                    checked={form.needsReview}
-                    disabled={readOnly}
-                    onChange={(e) => edit({ needsReview: e.target.checked })}
-                  />
-                  Por revisar
-                </label>
-                {errorOf('needsReview') && (
-                  <p role="alert" className="text-xs text-destructive">
-                    {errorOf('needsReview')}
-                  </p>
-                )}
-              </div>
+              {canEditMoney ? (
+                <div className="space-y-1">
+                  <label className="flex min-h-11 items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      className="size-5"
+                      checked={form.needsReview}
+                      disabled={readOnly}
+                      onChange={(e) => edit({ needsReview: e.target.checked })}
+                    />
+                    Por revisar
+                  </label>
+                  {errorOf('needsReview') && (
+                    <p role="alert" className="text-xs text-destructive">
+                      {errorOf('needsReview')}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                loaded?.needsReview && <Badge variant="destructive">Por revisar</Badge>
+              )}
             </>
           )}
 

@@ -61,7 +61,13 @@ export function DayRow({ worker, record, date, pending, canMark, readOnly, onMar
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         {canMark && !readOnly && next !== null && (
-          <Button size="lg" className="h-11 w-full sm:w-auto" disabled={pending !== undefined} onClick={() => onMark(next)}>
+          <Button
+            size="lg"
+            className="h-11 w-full sm:w-auto"
+            aria-label={`${MARK_ACTION[next]} de ${name}`}
+            disabled={pending !== undefined}
+            onClick={() => onMark(next)}
+          >
             {MARK_ACTION[next]}
           </Button>
         )}
