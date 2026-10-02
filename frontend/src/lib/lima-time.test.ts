@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addDays, datesBetween, dayOffset, isoWeek, limaDate, limaTime, monthOf, weekOf, weekdayOf } from './lima-time'
+import { addDays, datesBetween, dayOffset, isoWeek, isRealDate, limaDate, limaTime, monthOf, weekOf, weekdayOf } from './lima-time'
 
 describe('Lima time', () => {
   it('gives the Lima date of an instant, five hours behind UTC', () => {
@@ -56,5 +56,28 @@ describe('Lima time', () => {
     expect(isoWeek('2026-10-05')).toBe(41)
     expect(isoWeek('2026-01-01')).toBe(1)
     expect(isoWeek('2027-01-01')).toBe(53)
+  })
+})
+
+describe('isRealDate', () => {
+  it('accepts a real date, a leap day included', () => {
+    expect(isRealDate('2026-10-05')).toBe(true)
+    expect(isRealDate('2028-02-29')).toBe(true)
+  })
+
+  it('rejects a text that is not shaped like YYYY-MM-DD', () => {
+    expect(isRealDate('')).toBe(false)
+    expect(isRealDate('2026-1-5')).toBe(false)
+    expect(isRealDate('05/10/2026')).toBe(false)
+    expect(isRealDate('2026-10-05T00:00')).toBe(false)
+  })
+
+  it('rejects dates that do not exist, so no helper is ever called with them', () => {
+    expect(isRealDate('2026-13-01')).toBe(false)
+    expect(isRealDate('2026-00-10')).toBe(false)
+    expect(isRealDate('2026-10-00')).toBe(false)
+    expect(isRealDate('2026-02-30')).toBe(false)
+    expect(isRealDate('2027-02-29')).toBe(false)
+    expect(isRealDate('2026-04-31')).toBe(false)
   })
 })

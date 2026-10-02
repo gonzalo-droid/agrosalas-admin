@@ -11,6 +11,14 @@ export const limaDate = (instant: Date): string => inLima(instant).slice(0, 10)
 // 'HH:MM' in Lima of a mark as the API sends it (an ISO instant); '' when there is no mark.
 export const limaTime = (iso: string | null | undefined): string => (iso ? inLima(new Date(iso)).slice(11, 16) : '')
 
+// True only for a real calendar date written 'YYYY-MM-DD'. Checked before any helper below is called with text from the
+// outside (e.g. the address): month 13 or day 00 make Date.parse return NaN, and 2026-02-30 would roll over to March.
+export function isRealDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const time = Date.parse(`${value}T00:00:00Z`)
+  return !Number.isNaN(time) && new Date(time).toISOString().slice(0, 10) === value
+}
+
 export const addDays = (date: string, days: number): string => new Date(utcMidnight(date) + days * DAY_MS).toISOString().slice(0, 10)
 
 // How many days after the record date a mark falls: 0 the same day, 1 the next one (night shift).

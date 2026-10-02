@@ -15,7 +15,7 @@ import { ApiClientError, api, errorMessage, unwrap, type ResponseBody } from '@/
 import { nextMark, type Mark } from '@/lib/attendance'
 import { useAreas } from '@/lib/catalogs'
 import { dateRange } from '@/lib/format'
-import { addDays, limaDate, limaTime } from '@/lib/lima-time'
+import { addDays, isRealDate, limaDate, limaTime } from '@/lib/lima-time'
 import { useMe } from '@/lib/me'
 import { cn } from '@/lib/utils'
 
@@ -25,13 +25,17 @@ type DayItem = DayList['items'][number]
 const BULK_CHUNK = 200
 const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`
 
-// A date from the address, or null if it is not a real 'YYYY-MM-DD'.
-const validDate = (value: string | null): string | null => (value && /^\d{4}-\d{2}-\d{2}$/.test(value) && addDays(value, 0) === value ? value : null)
+// A date from the address, or null if it is not a real 'YYYY-MM-DD' (then the screen shows today).
+const validDate = (value: string | null): string | null => (value !== null && isRealDate(value) ? value : null)
 
 const fetchDay = (payrollId: string, date: string, areaId: string) =>
   unwrap(api.v1.attendance.$get({ query: { payrollId, date, ...(areaId ? { areaId } : {}) } }))
 
 const dayKey = (payrollId: string | undefined, date: string, areaId: string) => ['attendance', payrollId, date, areaId]
+// Every cached list of that payroll and day, whatever the area filter was: they all hold the same records.
+const dayPrefix = (payrollId: string | undefined, date: string) => ['attendance', payrollId, date]
+// A mark in flight belongs to a payroll, a day and a worker: on another day the same worker is not pending.
+const pendingKey = (payrollId: string | undefined, date: string, workerId: string) => `${payrollId}|${date}|${workerId}`
 
 // useSearchParams needs a Suspense boundary above it: without one, the build of the page fails.
 export default function AttendancePage() {
@@ -55,7 +59,8 @@ function DailyAttendance() {
   const isToday = date === today
   const [areaId, setAreaId] = useState('')
   const [pending, setPending] = useState<Record<string, PendingMark>>({})
-  const [dialog, setDialog] = useState<{ open: boolean; item: DayItem } | null>(null)
+  // The dialog keeps the payroll and the date it was opened on: the address can change under it (browser Back).
+  const [dialog, setDialog] = useState<{ open: boolean; item: DayItem; payrollId: string; date: string } | null>(null)
 
   const readOnly = me?.role === 'management'
   const canEditMoney = me?.role === 'admin' || me?.role === 'accounting'
@@ -68,6 +73,9 @@ function DailyAttendance() {
   const payroll = payrolls.data?.items.find((p) => p.id === params.get('payrollId')) ?? payrolls.data?.items[0]
 
   const goTo = (nextDate: string, payrollId = payroll?.id) => `/attendance?date=${nextDate}${payrollId ? `&payrollId=${payrollId}` : ''}`
+
+  // If the day or the payroll of the screen changes, the dialog goes away with them (and does not come back on return).
+  if (dialog && (dialog.date !== date || dialog.payrollId !== payroll?.id)) setDialog(null)
 
   const list = useQuery({
     queryKey: dayKey(payroll?.id, date, areaId),
@@ -88,33 +96,39 @@ function DailyAttendance() {
     mutationFn: (v: { payrollId: string; workerId: string; date: string; areaId: string; mark: Mark }) =>
       unwrap(api.v1.attendance.clock.$post({ json: { payrollId: v.payrollId, workerId: v.workerId, date: v.date, mark: v.mark } })),
     // Marking is idempotent, so a lost connection is retried; any other answer is final.
+    // Offline, the default ('online') would pause the request and send it when the connection returns, and the server
+    // would stamp the time of that moment. With 'always' it fails at once as network_error, goes through the retries
+    // and ends in the error message with the row back as it was.
+    networkMode: 'always',
     retry: (failures, error) => error instanceof ApiClientError && error.code === 'network_error' && failures < 3,
     onSuccess: (record, v) =>
-      queryClient.setQueryData<DayList>(dayKey(v.payrollId, v.date, v.areaId), (old) =>
+      queryClient.setQueriesData<DayList>({ queryKey: dayPrefix(v.payrollId, v.date) }, (old) =>
         old && { ...old, items: old.items.map((item) => (item.worker.id === v.workerId ? { ...item, record } : item)) },
       ),
     onError: (e, v) => {
       toast.error(errorMessage(e))
       // The row on screen was out of date (e.g. someone else marked it): load it again.
       if (!(e instanceof ApiClientError) || e.code !== 'network_error') {
-        void queryClient.invalidateQueries({ queryKey: dayKey(v.payrollId, v.date, v.areaId) })
+        void queryClient.invalidateQueries({ queryKey: dayPrefix(v.payrollId, v.date) })
       }
     },
     onSettled: (_data, _error, v) =>
-      setPending((current) => Object.fromEntries(Object.entries(current).filter(([workerId]) => workerId !== v.workerId))),
+      setPending((current) => Object.fromEntries(Object.entries(current).filter(([key]) => key !== pendingKey(v.payrollId, v.date, v.workerId)))),
   })
 
   function tap(workerId: string, mark: Mark) {
     if (!payroll) return
-    setPending((current) => ({ ...current, [workerId]: { mark, time: limaTime(new Date().toISOString()) } }))
+    setPending((current) => ({ ...current, [pendingKey(payroll.id, date, workerId)]: { mark, time: limaTime(new Date().toISOString()) } }))
     clock.mutate({ payrollId: payroll.id, workerId, date, areaId, mark })
   }
 
   const items = list.data?.items
   // Only the workers listed with no record, and that are not being marked right now.
-  const unmarked = items?.filter((i) => i.record === null && !pending[i.worker.id]) ?? []
+  const unmarked = items?.filter((i) => i.record === null && !pending[pendingKey(payroll?.id, date, i.worker.id)]) ?? []
 
   const bulk = useMutation({
+    // Same reason as the single mark: offline it must fail, not wait and mark with the time of the reconnection.
+    networkMode: 'always',
     mutationFn: async (workerIds: string[]) => {
       let marked = 0
       const failures: string[] = []
@@ -138,7 +152,7 @@ function DailyAttendance() {
       if (marked > 0) toast.success(plural(marked, 'marcado', 'marcados'))
       if (failures.length > 0) toast.error(`${failures.length} no se pudieron marcar`, { description: failures[0] })
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: dayKey(payroll?.id, date, areaId) }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: dayPrefix(payroll?.id, date) }),
   })
 
   function markEveryone() {
@@ -256,11 +270,11 @@ function DailyAttendance() {
                   worker={item.worker}
                   record={item.record}
                   date={date}
-                  pending={pending[item.worker.id]}
+                  pending={pending[pendingKey(payroll.id, date, item.worker.id)]}
                   canMark={isToday}
                   readOnly={readOnly}
                   onMark={(mark) => tap(item.worker.id, mark)}
-                  onOpen={() => setDialog({ open: true, item })}
+                  onOpen={() => setDialog({ open: true, item, payrollId: payroll.id, date })}
                 />
               ))}
             </ul>
@@ -268,17 +282,17 @@ function DailyAttendance() {
         </>
       )}
 
-      {payroll && dialog && (
+      {dialog && (
         <RecordDialog
           open={dialog.open}
           onOpenChange={(open) => setDialog((d) => d && { ...d, open })}
-          payrollId={payroll.id}
-          date={date}
+          payrollId={dialog.payrollId}
+          date={dialog.date}
           worker={dialog.item.worker}
           record={dialog.item.record}
           canEditMoney={canEditMoney}
           readOnly={readOnly}
-          onSaved={() => void queryClient.invalidateQueries({ queryKey: ['attendance'] })}
+          onSaved={() => void queryClient.invalidateQueries({ queryKey: dayPrefix(dialog.payrollId, dialog.date) })}
         />
       )}
     </div>
