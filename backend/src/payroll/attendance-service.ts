@@ -1,11 +1,11 @@
 import { and, eq } from 'drizzle-orm'
-import { attendanceRecords, payrollWorkers, positions } from '../db/schema'
+import { attendanceRecords, positions } from '../db/schema'
 import { recordAudit } from '../lib/audit'
 import { ApiError, notFound } from '../lib/errors'
 import { findWorker } from '../routes/workers'
 import type { SessionUser, Tx } from '../types'
 import { computeRecord, workedMinutes, type Marks } from './calc'
-import { findOpenPayroll } from './open-payroll'
+import { findOpenPayroll, findPayrollMember } from './open-payroll'
 import { limaDate, limaInstant, notBefore } from './time'
 
 type MoneyKey = 'hourlyRate' | 'overtimeRate' | 'amountCents'
@@ -63,15 +63,11 @@ async function ratesOf(tx: Tx, worker: Worker): Promise<{ hourlyRate: number; ov
 }
 
 // The worker is in the payroll and in the scope of the user. Shared by the clock marks and the full records.
-async function findPayrollMember(tx: Tx, user: SessionUser, payrollId: string, workerId: string, date: string) {
-  const payroll = await findOpenPayroll(tx, payrollId)
+async function findRecordContext(tx: Tx, user: SessionUser, payrollId: string, workerId: string, date: string) {
+  const payroll = await findOpenPayroll(tx, payrollId, 'share')
   if (date < payroll.startDate || date > payroll.endDate) throw dateOutsidePayroll()
   const worker = await findWorker(tx, user, workerId)
-  const [member] = await tx
-    .select({ workerId: payrollWorkers.workerId })
-    .from(payrollWorkers)
-    .where(and(eq(payrollWorkers.payrollId, payrollId), eq(payrollWorkers.workerId, workerId)))
-  if (!member) throw new ApiError(400, 'not_in_payroll', 'El trabajador no está en esta planilla')
+  await findPayrollMember(tx, payrollId, workerId)
   return worker
 }
 
@@ -87,7 +83,7 @@ export async function applyClock(
 ): Promise<{ record: AttendanceRecord; created: boolean }> {
   const { payrollId, workerId, date, mark } = input
   const at = startOfMinute(input.at)
-  const worker = await findPayrollMember(tx, user, payrollId, workerId, date)
+  const worker = await findRecordContext(tx, user, payrollId, workerId, date)
 
   const position = MARKS.indexOf(mark)
   const [existing] = await lockRecord(tx, workerId, date)
@@ -234,7 +230,7 @@ async function loadEditable(tx: Tx, user: SessionUser, id: string): Promise<Atte
     if (error instanceof ApiError && error.status === 404) throw notFound('El registro')
     throw error
   }
-  await findOpenPayroll(tx, record.payrollId)
+  await findOpenPayroll(tx, record.payrollId, 'share')
   return record
 }
 
@@ -353,7 +349,7 @@ export async function saveFullRecord(
   }
 
   const { payrollId, workerId, date } = input
-  const worker = await findPayrollMember(tx, user, payrollId, workerId, date)
+  const worker = await findRecordContext(tx, user, payrollId, workerId, date)
   // Only one record per worker and day, in any payroll.
   const clash = (found: AttendanceRecord) =>
     found.payrollId !== payrollId

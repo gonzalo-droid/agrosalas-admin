@@ -3,7 +3,7 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import { requireRole } from '../auth/middleware'
 import {
-  attendanceRecords, campaigns, groups, groupWorkers, payrolls, payrollWorkers, workers,
+  attendanceRecords, campaigns, groups, groupWorkers, payrollItems, payrolls, payrollWorkers, payments, workers,
 } from '../db/schema'
 import { recordAudit } from '../lib/audit'
 import { ApiError, notFound } from '../lib/errors'
@@ -11,6 +11,7 @@ import { offsetOf, pageSchema, paginated } from '../lib/pagination'
 import { idSchema, validate, withAtLeastOneField } from '../lib/validate'
 import { redactMoney } from '../payroll/attendance-service'
 import { findOpenPayroll } from '../payroll/open-payroll'
+import { createSalaryItems } from '../payroll/salary-items'
 import type { AppEnv, Db, Dependencies, Tx } from '../types'
 import { workerScope } from './workers'
 
@@ -147,6 +148,7 @@ export const payrollsRoutes = ({ db }: Dependencies) =>
           .returning()
         const workerIds = source ? await resolveWorkerIds(tx, source) : []
         await addWorkers(tx, created.id, workerIds)
+        await createSalaryItems(tx, c.get('user').id, created, workerIds)
         await recordAudit(tx, c.get('user').id, 'create', 'payrolls', created.id, null, created)
         return { ...created, workerCount: await countWorkers(tx, created.id) }
       })
@@ -204,7 +206,7 @@ export const payrollsRoutes = ({ db }: Dependencies) =>
         const { id } = c.req.valid('param')
         const changes = c.req.valid('json')
         const row = await db.transaction(async (tx) => {
-          const before = await findOpenPayroll(tx, id)
+          const before = await findOpenPayroll(tx, id, 'update')
           // When only one of the dates is sent, it is compared with the stored one.
           const startDate = changes.startDate ?? before.startDate
           const endDate = changes.endDate ?? before.endDate
@@ -244,9 +246,10 @@ export const payrollsRoutes = ({ db }: Dependencies) =>
         const { id } = c.req.valid('param')
         const source = c.req.valid('json')
         const result = await db.transaction(async (tx) => {
-          await findOpenPayroll(tx, id)
+          const payroll = await findOpenPayroll(tx, id, 'update')
           const workerIds = await resolveWorkerIds(tx, source)
           const added = await addWorkers(tx, id, workerIds)
+          await createSalaryItems(tx, c.get('user').id, payroll, added)
           if (added.length > 0) await recordAudit(tx, c.get('user').id, 'update', 'payrolls', id, null, { added })
           return { added: added.length, workerCount: await countWorkers(tx, id) }
         })
@@ -260,7 +263,7 @@ export const payrollsRoutes = ({ db }: Dependencies) =>
       async (c) => {
         const { id, workerId } = c.req.valid('param')
         await db.transaction(async (tx) => {
-          await findOpenPayroll(tx, id)
+          await findOpenPayroll(tx, id, 'update')
           const [record] = await tx
             .select({ id: attendanceRecords.id })
             .from(attendanceRecords)
@@ -271,6 +274,23 @@ export const payrollsRoutes = ({ db }: Dependencies) =>
               409,
               'has_records',
               'El trabajador tiene registros en esta planilla; elimínalos primero',
+            )
+          }
+          const [item] = await tx
+            .select({ id: payrollItems.id })
+            .from(payrollItems)
+            .where(and(eq(payrollItems.payrollId, id), eq(payrollItems.workerId, workerId)))
+            .limit(1)
+          const [payment] = await tx
+            .select({ id: payments.id })
+            .from(payments)
+            .where(and(eq(payments.payrollId, id), eq(payments.workerId, workerId)))
+            .limit(1)
+          if (item || payment) {
+            throw new ApiError(
+              409,
+              'has_records',
+              'El trabajador tiene conceptos o pagos en esta planilla; elimínalos primero',
             )
           }
           const removed = await tx
