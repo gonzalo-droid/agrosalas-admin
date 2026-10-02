@@ -11,7 +11,7 @@ import { controlClass } from '@/components/field'
 import { ErrorWithRetry } from '@/components/error-with-retry'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ApiClientError, api, errorMessage, unwrap, type ResponseBody } from '@/lib/api'
+import { api, errorMessage, unwrap, type ResponseBody } from '@/lib/api'
 import { nextMark, type Mark } from '@/lib/attendance'
 import { useAreas } from '@/lib/catalogs'
 import { dateRange } from '@/lib/format'
@@ -95,22 +95,21 @@ function DailyAttendance() {
   const clock = useMutation({
     mutationFn: (v: { payrollId: string; workerId: string; date: string; areaId: string; mark: Mark }) =>
       unwrap(api.v1.attendance.clock.$post({ json: { payrollId: v.payrollId, workerId: v.workerId, date: v.date, mark: v.mark } })),
-    // Marking is idempotent, so a lost connection is retried; any other answer is final.
-    // Offline, the default ('online') would pause the request and send it when the connection returns, and the server
-    // would stamp the time of that moment. With 'always' it fails at once as network_error, goes through the retries
-    // and ends in the error message with the row back as it was.
+    // A mark must be sent at the moment of the tap or not at all: the server stamps the time of the request it
+    // receives, and a retry can be delayed (e.g. while the user is in another app). So: no retries, and offline
+    // ('always', not the default 'online') the request fails at once instead of waiting for the connection. The
+    // user taps again; marking is idempotent, so a repeated tap is safe.
     networkMode: 'always',
-    retry: (failures, error) => error instanceof ApiClientError && error.code === 'network_error' && failures < 3,
+    retry: false,
     onSuccess: (record, v) =>
       queryClient.setQueriesData<DayList>({ queryKey: dayPrefix(v.payrollId, v.date) }, (old) =>
         old && { ...old, items: old.items.map((item) => (item.worker.id === v.workerId ? { ...item, record } : item)) },
       ),
     onError: (e, v) => {
-      toast.error(errorMessage(e))
-      // The row on screen was out of date (e.g. someone else marked it): load it again.
-      if (!(e instanceof ApiClientError) || e.code !== 'network_error') {
-        void queryClient.invalidateQueries({ queryKey: dayPrefix(v.payrollId, v.date) })
-      }
+      toast.error(`${errorMessage(e)} Vuelve a tocar el botón.`)
+      // Load the list again: the row was out of date (e.g. someone else marked it), or the server applied the mark
+      // although the answer was lost.
+      void queryClient.invalidateQueries({ queryKey: dayPrefix(v.payrollId, v.date) })
     },
     onSettled: (_data, _error, v) =>
       setPending((current) => Object.fromEntries(Object.entries(current).filter(([key]) => key !== pendingKey(v.payrollId, v.date, v.workerId)))),
@@ -127,8 +126,9 @@ function DailyAttendance() {
   const unmarked = items?.filter((i) => i.record === null && !pending[pendingKey(payroll?.id, date, i.worker.id)]) ?? []
 
   const bulk = useMutation({
-    // Same reason as the single mark: offline it must fail, not wait and mark with the time of the reconnection.
+    // Same reason as the single mark: no waiting for the connection and no retries; the user repeats the action.
     networkMode: 'always',
+    retry: false,
     mutationFn: async (workerIds: string[]) => {
       let marked = 0
       const failures: string[] = []
