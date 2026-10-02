@@ -7,6 +7,7 @@ import {
   dayHeader,
   daysRecordedByWorker,
   isInProgress,
+  hasMinutes,
   isRangeTruncated,
   payrollChanges,
   tabFromParam,
@@ -110,6 +111,17 @@ describe('totalsText', () => {
 
   it('shows a dash when nothing was worked', () => {
     expect(totalsText({ regularMinutes: 0, overtimeMinutes: 0, amountCents: 0 })).toBe('–')
+  })
+})
+
+describe('hasMinutes', () => {
+  it('is true when the day has regular or overtime minutes, even if its amount is zero (contract staff)', () => {
+    expect(hasMinutes({ regularMinutes: 480, overtimeMinutes: 0, amountCents: 0 })).toBe(true)
+    expect(hasMinutes({ regularMinutes: 0, overtimeMinutes: 30, amountCents: 0 })).toBe(true)
+  })
+
+  it('is false when nothing was worked', () => {
+    expect(hasMinutes({ regularMinutes: 0, overtimeMinutes: 0, amountCents: 0 })).toBe(false)
   })
 })
 

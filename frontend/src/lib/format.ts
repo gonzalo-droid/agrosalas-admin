@@ -24,3 +24,6 @@ export function dateRange(start: string | null | undefined, end: string | null |
   if (end) return `hasta ${formatDate(end)}`
   return ''
 }
+
+// 1 → "1 trabajador"; 3 → "3 trabajadores".
+export const plural = (count: number, one: string, many: string): string => `${count} ${count === 1 ? one : many}`

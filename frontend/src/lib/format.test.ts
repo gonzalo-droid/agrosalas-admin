@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDate, formatSoles, suggestedOvertimeRate, dateRange, formatCents } from './format'
+import { formatDate, formatSoles, suggestedOvertimeRate, dateRange, formatCents, plural } from './format'
 
 describe('formatSoles', () => {
   it('shows two decimals and a dash when there is no amount', () => {
@@ -49,5 +49,13 @@ describe('formatCents', () => {
   it('shows a dash when there is no amount', () => {
     expect(formatCents(null)).toBe('—')
     expect(formatCents(undefined)).toBe('—')
+  })
+})
+
+describe('plural', () => {
+  it('writes the count with the singular only for one', () => {
+    expect(plural(1, 'trabajador', 'trabajadores')).toBe('1 trabajador')
+    expect(plural(0, 'trabajador', 'trabajadores')).toBe('0 trabajadores')
+    expect(plural(12, 'trabajador', 'trabajadores')).toBe('12 trabajadores')
   })
 })

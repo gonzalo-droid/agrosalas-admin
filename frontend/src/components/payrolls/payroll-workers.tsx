@@ -11,12 +11,10 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { api, errorMessage, unwrap, type ResponseBody } from '@/lib/api'
 import { useGroups } from '@/lib/catalogs'
-import { dateRange } from '@/lib/format'
+import { dateRange, plural } from '@/lib/format'
 import { addedMessage, daysRecordedByWorker } from '@/lib/payroll-detail'
 
 type Payroll = ResponseBody<(typeof api.v1.payrolls)[':id']['$get']>
-
-const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`
 
 // The workers of the payroll, with the days recorded of each one. Admin and accounting can add and remove.
 export function PayrollWorkers({ payroll, canEdit }: { payroll: Payroll; canEdit: boolean }) {
@@ -25,8 +23,12 @@ export function PayrollWorkers({ payroll, canEdit }: { payroll: Payroll; canEdit
   const [removeError, setRemoveError] = useState<string | null>(null)
   const days = useMemo(() => daysRecordedByWorker(payroll.records), [payroll.records])
 
-  // ['payrolls'] is also the prefix of this detail (['payrolls', id]) and of the list, whose totals change.
-  const refresh = () => void queryClient.invalidateQueries({ queryKey: ['payrolls'] })
+  // ['payrolls'] is also the prefix of this detail (['payrolls', id]) and of the list, whose totals change; the day
+  // screens (['attendance']) list who is in the payroll.
+  const refresh = () => {
+    void queryClient.invalidateQueries({ queryKey: ['payrolls'] })
+    void queryClient.invalidateQueries({ queryKey: ['attendance'] })
+  }
 
   const remove = useMutation({
     mutationFn: (workerId: string) => unwrap(api.v1.payrolls[':id'].workers[':workerId'].$delete({ param: { id: payroll.id, workerId } })),

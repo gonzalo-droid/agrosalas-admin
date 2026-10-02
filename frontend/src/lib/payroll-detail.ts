@@ -43,9 +43,12 @@ export function cellTone(record: DetailRecord | null): CellTone {
   return record.type === 'absence' ? 'absence' : 'other'
 }
 
+// A total with worked time. Its amount can still be 0 (contract staff are not paid by the day).
+export const hasMinutes = (totals: Totals): boolean => totals.regularMinutes > 0 || totals.overtimeMinutes > 0
+
 // "32:00 +2:20", or a dash when nothing was worked.
 export function totalsText(totals: Totals): string {
-  if (totals.regularMinutes === 0 && totals.overtimeMinutes === 0) return '–'
+  if (!hasMinutes(totals)) return '–'
   const regular = formatHours(totals.regularMinutes)
   return totals.overtimeMinutes > 0 ? `${regular} +${formatHours(totals.overtimeMinutes)}` : regular
 }

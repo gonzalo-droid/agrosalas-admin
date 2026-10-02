@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildRecordBody, formFromRecord, type LoadedRecord, type RecordForm } from './record-changes'
+import { buildRecordBody, formFromRecord, validateRecordForm, willDiscardMarks, type LoadedRecord, type RecordForm } from './record-changes'
 
 // A worked day of 2026-10-05: 07:10 – 13:00 · 14:00 – 18:30 in Lima (UTC-5).
 const record: LoadedRecord = {
@@ -250,5 +250,41 @@ describe('buildRecordBody when creating', () => {
   it('leaves the rates to the server when none was typed, and never sends them without money rights', () => {
     expect(buildRecordBody(null, edit(null, { clockIn1: '07:00' }), money)).toEqual({ type: 'worked', clockIn1: '07:00' })
     expect(buildRecordBody(null, edit(null, { hourlyRate: '7', needsReview: true }), noMoney)).toEqual({ type: 'worked' })
+  })
+})
+
+describe('validateRecordForm', () => {
+  it('asks for the rate when the field of a stored rate was emptied', () => {
+    expect(validateRecordForm(record, edit(record, { hourlyRate: '' }), money)).toEqual({ field: 'hourlyRate', message: 'Escribe la tarifa.' })
+    expect(validateRecordForm(record, edit(record, { overtimeRate: '' }), money)).toEqual({ field: 'overtimeRate', message: 'Escribe la tarifa.' })
+  })
+
+  it('accepts a rate that was changed, and a record that was not touched', () => {
+    expect(validateRecordForm(record, edit(record, { hourlyRate: '8' }), money)).toBeNull()
+    expect(validateRecordForm(record, formFromRecord(record), money)).toBeNull()
+  })
+
+  it('lets a new record leave the rates empty: they are taken from the position', () => {
+    expect(validateRecordForm(null, formFromRecord(null), money)).toBeNull()
+  })
+
+  it('does not look at rates the role cannot edit', () => {
+    expect(validateRecordForm(record, edit(record, { hourlyRate: '' }), noMoney)).toBeNull()
+  })
+})
+
+describe('willDiscardMarks', () => {
+  it('is true when a worked day with marks is saved as an absence', () => {
+    expect(willDiscardMarks(record, edit(record, { type: 'absence' }))).toBe(true)
+  })
+
+  it('is false for a worked day without marks, a new record and a day that stays worked', () => {
+    expect(willDiscardMarks({ ...record, clockIn1: null, clockOut1: null, clockIn2: null, clockOut2: null }, edit(record, { type: 'absence' }))).toBe(false)
+    expect(willDiscardMarks(null, edit(null, { type: 'absence' }))).toBe(false)
+    expect(willDiscardMarks(record, formFromRecord(record))).toBe(false)
+  })
+
+  it('is false when the stored record was not worked', () => {
+    expect(willDiscardMarks({ ...record, type: 'absence' }, edit(record, { type: 'absence' }))).toBe(false)
   })
 })

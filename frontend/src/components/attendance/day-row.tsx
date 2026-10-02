@@ -28,6 +28,9 @@ export function DayRow({ worker, record, date, pending, canMark, readOnly, onMar
   const nextDay = record !== null && MARKS.some((mark) => record[mark] && dayOffset(date, record[mark]) > 0)
   const name = workerName(worker)
   const complete = record?.type === 'worked' && next === null
+  const showMark = canMark && !readOnly && next !== null
+  // Management cannot create a record: for a worker with none there is nothing to open.
+  const showOpen = !(readOnly && record === null)
 
   return (
     <li className="space-y-2 rounded-xl border bg-background p-3">
@@ -59,23 +62,27 @@ export function DayRow({ worker, record, date, pending, canMark, readOnly, onMar
         )}
       </div>
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        {canMark && !readOnly && next !== null && (
-          <Button
-            size="lg"
-            className="h-11 w-full sm:w-auto"
-            aria-label={`${MARK_ACTION[next]} de ${name}`}
-            disabled={pending !== undefined}
-            onClick={() => onMark(next)}
-          >
-            {MARK_ACTION[next]}
-          </Button>
-        )}
-        {complete && <p className="text-sm font-medium text-muted-foreground">Completo</p>}
-        <Button variant="outline" size="lg" className="h-11 w-full sm:w-auto" aria-label={`${readOnly ? 'Ver' : record ? 'Editar' : 'Registrar'} ${name}`} onClick={onOpen}>
-          {readOnly ? 'Ver' : record ? 'Editar' : 'Registrar'}
-        </Button>
-      </div>
+      {(showMark || complete || showOpen) && (
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          {showMark && (
+            <Button
+              size="lg"
+              className="h-11 w-full sm:w-auto"
+              aria-label={`${MARK_ACTION[next]} de ${name}`}
+              disabled={pending !== undefined}
+              onClick={() => onMark(next)}
+            >
+              {MARK_ACTION[next]}
+            </Button>
+          )}
+          {complete && <p className="text-sm font-medium text-muted-foreground">Completo</p>}
+          {showOpen && (
+            <Button variant="outline" size="lg" className="h-11 w-full sm:w-auto" aria-label={`${readOnly ? 'Ver' : record ? 'Editar' : 'Registrar'} ${name}`} onClick={onOpen}>
+              {readOnly ? 'Ver' : record ? 'Editar' : 'Registrar'}
+            </Button>
+          )}
+        </div>
+      )}
     </li>
   )
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Field, controlClass } from '@/components/field'
@@ -12,7 +12,7 @@ import { ApiClientError, api, errorMessage, unwrap, type ResponseBody } from '@/
 import { ATTENDANCE_TYPE_LABEL, formatMinutes, MARK_LABEL, MARKS, type AttendanceType } from '@/lib/attendance'
 import { formatCents, formatDate } from '@/lib/format'
 import { dayOffset } from '@/lib/lima-time'
-import { buildRecordBody, formFromRecord, type RecordBody, type RecordForm } from '@/lib/record-changes'
+import { buildRecordBody, formFromRecord, validateRecordForm, willDiscardMarks, type RecordBody, type RecordForm } from '@/lib/record-changes'
 
 // The record of a worker on a day, as the list of the day returns it (money is null for the coordinator).
 export type DayRecord = NonNullable<ResponseBody<typeof api.v1.attendance.$get>['items'][number]['record']>
@@ -27,7 +27,8 @@ type RecordDialogProps = {
   date: string // 'YYYY-MM-DD'
   worker: { id: string; firstName: string; lastName: string }
   record: DayRecord | null // null = create a record for that worker and date
-  canEditMoney: boolean // admin and accounting
+  canEditMoney: boolean // admin and accounting: the rates can be edited
+  showMoney: boolean // admin, accounting and management; the coordinator never receives money
   readOnly?: boolean // management
   // The caller refreshes its own queries. A save passes the record the API answered with; a delete passes nothing.
   onSaved: (record?: DayRecord) => void
@@ -41,7 +42,8 @@ type Session = { loaded: DayRecord | null; form: RecordForm; error: FormError | 
 const TYPES = Object.keys(ATTENDANCE_TYPE_LABEL) as AttendanceType[]
 const TIME_HELP = 'Si una hora es menor que la anterior, se toma como del día siguiente.'
 
-export function RecordDialog({ open, onOpenChange, payrollId, date, worker, record, canEditMoney, readOnly = false, onSaved }: RecordDialogProps) {
+export function RecordDialog({ open, onOpenChange, payrollId, date, worker, record, canEditMoney, showMoney, readOnly = false, onSaved }: RecordDialogProps) {
+  const queryClient = useQueryClient()
   const [session, setSession] = useState<Session | null>(null)
   // Opening takes a fresh copy of the record; closing drops it. (Setting state while rendering is React's way of
   // resetting state when a prop changes.)
@@ -50,6 +52,8 @@ export function RecordDialog({ open, onOpenChange, payrollId, date, worker, reco
 
   const finish = (message: string, saved?: DayRecord) => {
     toast.success(message)
+    // The list of payrolls shows totals and the grid shows the records: one reconcile per action, in the background.
+    void queryClient.invalidateQueries({ queryKey: ['payrolls'] })
     onSaved(saved)
     onOpenChange(false)
   }
@@ -74,8 +78,6 @@ export function RecordDialog({ open, onOpenChange, payrollId, date, worker, reco
   const { loaded, form, error } = session ?? { loaded: record, form: formFromRecord(record), error: null }
   const edit = (patch: Partial<RecordForm>) => setSession((s) => s && { ...s, form: { ...s.form, ...patch } })
   const worked = form.type === 'worked'
-  // Management sees the money too, read-only; the coordinator never receives it. Only admin and accounting edit it.
-  const showMoney = canEditMoney || readOnly
 
   // An error of a field that is on the screen goes under it; any other goes in an alert.
   const shown = new Set<string>(['type', 'note', ...(worked ? [...MARKS, 'overtimeMinutes'] : []), ...(showMoney ? ['hourlyRate', 'overtimeRate'] : []), ...(canEditMoney ? ['needsReview'] : [])])
@@ -85,6 +87,12 @@ export function RecordDialog({ open, onOpenChange, payrollId, date, worker, reco
   function submit(e: React.FormEvent) {
     e.preventDefault()
     if (readOnly || !session) return
+    const problem = validateRecordForm(loaded, form, { canEditMoney })
+    if (problem) {
+      setSession({ ...session, error: problem })
+      return
+    }
+    if (willDiscardMarks(loaded, form) && !window.confirm('Se borrarán las horas marcadas de este día. ¿Guardar como falta?')) return
     setSession({ ...session, error: null })
     const body = buildRecordBody(loaded, form, { canEditMoney })
     // Nothing changed: there is nothing to send.
@@ -205,7 +213,7 @@ export function RecordDialog({ open, onOpenChange, payrollId, date, worker, reco
           {showMoney && (
             <>
               <div className="grid grid-cols-2 gap-3">
-                <Field id="record-hourly-rate" label="Tarifa por hora (S/)" error={errorOf('hourlyRate')} help={loaded ? undefined : 'Vacío: se toma del cargo, si es por hora.'} className="min-w-0">
+                <Field id="record-hourly-rate" label="Tarifa por hora (S/)" error={errorOf('hourlyRate')} help={loaded || readOnly ? undefined : 'Vacío: se toma del cargo, si es por hora.'} className="min-w-0">
                   <Input
                     id="record-hourly-rate"
                     type="number"

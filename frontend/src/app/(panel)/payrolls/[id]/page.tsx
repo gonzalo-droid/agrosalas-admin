@@ -19,7 +19,7 @@ import { dateRange } from '@/lib/format'
 import { limaDate } from '@/lib/lima-time'
 import { useMe } from '@/lib/me'
 import { payrollChanges, tabFromParam, type PayrollTab } from '@/lib/payroll-detail'
-import { PAYROLL_STATUS_LABEL, PAYROLL_TYPE_LABEL, payrollDisplayStatus } from '@/lib/payroll-view'
+import { PAYROLL_STATUS_LABEL, PAYROLL_TYPE_LABEL, payrollDisplayStatus, seesMoney } from '@/lib/payroll-view'
 import { cn } from '@/lib/utils'
 
 type Payroll = ResponseBody<(typeof api.v1.payrolls)[':id']['$get']>
@@ -74,7 +74,7 @@ function PayrollDetail() {
   // Hiding by role is a convenience: the API enforces the permissions. Money is hidden by role, never by looking for null.
   const canEdit = me.role === 'admin' || me.role === 'accounting'
   const canRegister = canEdit || me.role === 'coordinator'
-  const showMoney = me.role !== 'coordinator'
+  const showMoney = seesMoney(me.role)
   const status = payrollDisplayStatus(payroll, limaDate(new Date()))
   const tab = tabFromParam(params.get('tab'))
 

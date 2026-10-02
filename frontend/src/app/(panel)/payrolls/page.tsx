@@ -17,7 +17,7 @@ import { dateRange, formatCents } from '@/lib/format'
 import { limaDate } from '@/lib/lima-time'
 import { useMe } from '@/lib/me'
 import { correctedPage } from '@/lib/pagination'
-import { PAYROLL_STATUS_LABEL, PAYROLL_TYPE_LABEL, payrollDisplayStatus } from '@/lib/payroll-view'
+import { PAYROLL_STATUS_LABEL, PAYROLL_TYPE_LABEL, payrollDisplayStatus, seesMoney } from '@/lib/payroll-view'
 import { cn } from '@/lib/utils'
 
 const INITIAL_FILTERS = { search: '', from: '', to: '', campaignId: '', status: '', type: '' }
@@ -61,7 +61,7 @@ export default function PayrollsPage() {
 
   const canCreate = me?.role === 'admin' || me?.role === 'accounting'
   // The coordinator never receives amounts: the column is hidden by role, not by looking at the value.
-  const showTotal = me != null && me.role !== 'coordinator'
+  const showTotal = seesMoney(me?.role)
   const columns = showTotal ? 6 : 5
 
   return (

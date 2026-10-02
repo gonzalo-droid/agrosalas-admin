@@ -14,9 +14,10 @@ import { Input } from '@/components/ui/input'
 import { api, errorMessage, unwrap, type ResponseBody } from '@/lib/api'
 import { applyRecords, attendanceHref, hasOpenStretch, markErrorText, type Mark } from '@/lib/attendance'
 import { useAreas } from '@/lib/catalogs'
-import { dateRange } from '@/lib/format'
+import { dateRange, plural } from '@/lib/format'
 import { addDays, isRealDate, limaDate, limaTime } from '@/lib/lima-time'
 import { useMe } from '@/lib/me'
+import { seesMoney } from '@/lib/payroll-view'
 import { cn } from '@/lib/utils'
 
 type DayList = ResponseBody<typeof api.v1.attendance.$get>
@@ -27,7 +28,6 @@ const BULK_CHUNK = 200
 const MARK_TIMEOUT_MS = 15_000
 const markRequestOptions = () => ({ init: { signal: AbortSignal.timeout(MARK_TIMEOUT_MS) } })
 const STALE_DAY_MESSAGE = 'Ya es otro día. Revisa la fecha antes de marcar.'
-const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`
 
 // A date from the address, or null if it is not a real 'YYYY-MM-DD' (then the screen shows today).
 const validDate = (value: string | null): string | null => (value !== null && isRealDate(value) ? value : null)
@@ -86,6 +86,7 @@ function DailyAttendance() {
 
   const readOnly = me?.role === 'management'
   const canEditMoney = me?.role === 'admin' || me?.role === 'accounting'
+  const showMoney = seesMoney(me?.role)
 
   // Open payrolls that include the day.
   const payrolls = useQuery({
@@ -141,8 +142,11 @@ function DailyAttendance() {
       // although the answer was lost.
       void queryClient.invalidateQueries({ queryKey: dayPrefix(v.payrollId, v.date) })
     },
-    onSettled: (_data, _error, v) =>
-      setPending((current) => Object.fromEntries(Object.entries(current).filter(([key]) => key !== pendingKey(v.payrollId, v.date, v.workerId)))),
+    onSettled: (_data, _error, v) => {
+      // The list of payrolls shows totals and the grid shows the records.
+      void queryClient.invalidateQueries({ queryKey: ['payrolls'] })
+      setPending((current) => Object.fromEntries(Object.entries(current).filter(([key]) => key !== pendingKey(v.payrollId, v.date, v.workerId))))
+    },
   })
 
   function tap(workerId: string, mark: Mark) {
@@ -188,7 +192,10 @@ function DailyAttendance() {
       if (failures.length > 0) toast.error(`${failures.length} no se pudieron marcar`, { description: failures[0] })
     },
     // Background reconcile: the button must not wait for it.
-    onSettled: (_data, _error, v) => void queryClient.invalidateQueries({ queryKey: dayPrefix(v.payrollId, v.date) }),
+    onSettled: (_data, _error, v) => {
+      void queryClient.invalidateQueries({ queryKey: dayPrefix(v.payrollId, v.date) })
+      void queryClient.invalidateQueries({ queryKey: ['payrolls'] })
+    },
   })
 
   function markEveryone() {
@@ -335,6 +342,7 @@ function DailyAttendance() {
           worker={dialog.item.worker}
           record={dialog.item.record}
           canEditMoney={canEditMoney}
+          showMoney={showMoney}
           readOnly={readOnly}
           onSaved={(saved) => {
             // The answer is the saved record: show it now and reconcile in the background.

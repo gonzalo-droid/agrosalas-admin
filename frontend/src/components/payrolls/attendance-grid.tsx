@@ -1,14 +1,14 @@
 'use client'
 
 import { useQueryClient } from '@tanstack/react-query'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { RecordDialog, workerName, type DayRecord } from '@/components/attendance/record-dialog'
 import { Button } from '@/components/ui/button'
 import type { api, ResponseBody } from '@/lib/api'
 import { formatCents } from '@/lib/format'
 import { datesBetween, limaDate } from '@/lib/lima-time'
 import { buildGrid } from '@/lib/payroll-grid'
-import { cellAriaLabel, cellText, cellTone, dayHeader, isRangeTruncated, totalsText, type CellTone } from '@/lib/payroll-detail'
+import { cellAriaLabel, cellText, cellTone, dayHeader, hasMinutes, isRangeTruncated, totalsText, type CellTone } from '@/lib/payroll-detail'
 import { cn } from '@/lib/utils'
 
 type Payroll = ResponseBody<(typeof api.v1.payrolls)[':id']['$get']>
@@ -50,6 +50,16 @@ export function AttendanceGrid({
   const dates = useMemo(() => datesBetween(payroll.startDate, payroll.endDate), [payroll.startDate, payroll.endDate])
   const grid = useMemo(() => buildGrid(payroll.workers, dates, payroll.records), [payroll.workers, dates, payroll.records])
 
+  // On a phone the grid opens on the first days of the payroll: bring today's column into view, inside the grid's own
+  // scroll container. 'nearest' on the block axis leaves the page where it is; the scroll margin keeps the column from
+  // hiding under the sticky name column (w-36, or w-48 from the sm breakpoint).
+  const todayColumn = useRef<HTMLTableCellElement>(null)
+  const hasWorkers = payroll.workers.length > 0
+  const todayInRange = dates.includes(today)
+  useEffect(() => {
+    if (hasWorkers && todayInRange) todayColumn.current?.scrollIntoView({ inline: 'start', block: 'nearest' })
+  }, [payroll.id, hasWorkers, todayInRange])
+
   if (payroll.workers.length === 0) {
     return (
       <div className="space-y-3 rounded-xl border bg-background p-4">
@@ -79,9 +89,10 @@ export function AttendanceGrid({
               {dates.map((date) => (
                 <th
                   key={date}
+                  ref={date === today ? todayColumn : undefined}
                   scope="col"
                   aria-current={date === today ? 'date' : undefined}
-                  className={cn('h-10 min-w-[4.75rem] border-b px-1 text-center font-medium whitespace-nowrap', date === today && 'bg-primary/10 text-primary')}
+                  className={cn('h-10 min-w-[4.75rem] scroll-ml-36 border-b px-1 text-center font-medium whitespace-nowrap sm:scroll-ml-48', date === today && 'bg-primary/10 text-primary')}
                 >
                   {dayHeader(date)}
                 </th>
@@ -139,7 +150,7 @@ export function AttendanceGrid({
               {grid.dayTotals.map((totals, column) => (
                 <td key={dates[column]} className={cn('px-1 py-1 text-center tabular-nums', dates[column] === today && 'bg-primary/5')}>
                   <span className="block font-medium">{totalsText(totals)}</span>
-                  {showMoney && totals.amountCents !== 0 && <span className="block text-muted-foreground">{formatCents(totals.amountCents)}</span>}
+                  {showMoney && hasMinutes(totals) && <span className="block text-muted-foreground">{formatCents(totals.amountCents)}</span>}
                 </td>
               ))}
               <td className="border-l px-2 py-1 text-right tabular-nums">
@@ -160,10 +171,10 @@ export function AttendanceGrid({
           worker={dialog.worker}
           record={dialog.record}
           canEditMoney={canEditMoney}
+          showMoney={showMoney}
           readOnly={readOnly}
           onSaved={() => {
-            // The detail and the list (its total), and the day screen, which would show the old record.
-            void queryClient.invalidateQueries({ queryKey: ['payrolls'] })
+            // The dialog refreshes the payrolls (this detail and the list); the day screen would show the old record.
             void queryClient.invalidateQueries({ queryKey: ['attendance'] })
           }}
         />

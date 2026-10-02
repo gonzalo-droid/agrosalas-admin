@@ -65,6 +65,25 @@ const parsed = (text: string): number | null => {
   return Number.isFinite(value) ? value : null
 }
 
+// A problem of the form that stops the save, with the field it belongs to. Today only: a stored rate cannot be emptied
+// (it would be ignored without a word). A new record may leave the rates empty: they are taken from the position.
+export function validateRecordForm(
+  record: LoadedRecord | null,
+  form: RecordForm,
+  options: { canEditMoney: boolean },
+): { field: 'hourlyRate' | 'overtimeRate'; message: string } | null {
+  if (!record || !options.canEditMoney) return null
+  const initial = formFromRecord(record)
+  for (const field of ['hourlyRate', 'overtimeRate'] as const) {
+    if (parsed(form[field]) === null && initial[field] !== '') return { field, message: 'Escribe la tarifa.' }
+  }
+  return null
+}
+
+// Saving a worked day that has marks as an absence throws the marks away: the user is asked first.
+export const willDiscardMarks = (record: LoadedRecord | null, form: RecordForm): boolean =>
+  record?.type === 'worked' && form.type === 'absence' && MARK_KEYS.some((key) => record[key] !== null)
+
 // Compares the form with what was loaded and builds the body with what has to be sent.
 // With a record the body can be empty (nothing changed); without one it always carries the type.
 export function buildRecordBody(record: LoadedRecord | null, form: RecordForm, options: { canEditMoney: boolean }): RecordBody {

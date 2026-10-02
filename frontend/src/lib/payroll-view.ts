@@ -30,3 +30,8 @@ export function suggestedPayroll(type: PayrollType, today: string, campaignName?
   const period = type === 'weekly' ? `Semana ${isoWeek(today)}` : `${MONTHS[Number(today.slice(5, 7)) - 1]} ${today.slice(0, 4)}`
   return { name: campaignName ? `${period} · ${campaignName}` : period, startDate: range.start, endDate: range.end }
 }
+
+// Admin, accounting and management see the money; the coordinator never does (the API sends null). Hiding by role is a
+// convenience, and a role that is not known yet sees nothing.
+export const seesMoney = (role: 'admin' | 'management' | 'accounting' | 'coordinator' | undefined): boolean =>
+  role === 'admin' || role === 'accounting' || role === 'management'

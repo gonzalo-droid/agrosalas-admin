@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { payrollDisplayStatus, suggestedPayroll } from './payroll-view'
+import { payrollDisplayStatus, seesMoney, suggestedPayroll } from './payroll-view'
 
 const week = { status: 'open' as const, startDate: '2026-10-05', endDate: '2026-10-11' }
 
@@ -41,5 +41,18 @@ describe('suggestedPayroll', () => {
       startDate: '2026-10-01',
       endDate: '2026-10-31',
     })
+  })
+})
+
+describe('seesMoney', () => {
+  it('is true for admin, accounting and management', () => {
+    expect(seesMoney('admin')).toBe(true)
+    expect(seesMoney('accounting')).toBe(true)
+    expect(seesMoney('management')).toBe(true)
+  })
+
+  it('is false for the coordinator and while the role is not known yet', () => {
+    expect(seesMoney('coordinator')).toBe(false)
+    expect(seesMoney(undefined)).toBe(false)
   })
 })
