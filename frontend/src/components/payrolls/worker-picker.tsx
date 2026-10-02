@@ -6,10 +6,11 @@ import { ErrorWithRetry } from '@/components/error-with-retry'
 import { Input } from '@/components/ui/input'
 import { api, unwrap, type ResponseBody } from '@/lib/api'
 import { useDebouncedValue } from '@/lib/debounced-value'
+import { hasMoreResults, MIN_LETTERS, MORE_RESULTS_TEXT, SEARCH_STATUS_TEXT, searchStatus } from '@/lib/worker-search'
 
 export type Worker = Pick<ResponseBody<typeof api.v1.workers.$get>['items'][number], 'id' | 'firstName' | 'lastName' | 'dni'>
 
-const MIN_LETTERS = 2
+const PAGE_SIZE = 8
 const nameOf = (w: Worker) => `${w.lastName}, ${w.firstName}`
 
 // Searches active workers by name or DNI and keeps the list of the chosen ones.
@@ -29,9 +30,10 @@ export function WorkerPicker({
   const enabled = debounced.length >= MIN_LETTERS
 
   const { data, isFetching, error, refetch } = useQuery({
-    queryKey: ['workers', 'search', debounced],
+    // The page size is part of the key: the group screen searches the same text with another size.
+    queryKey: ['workers', 'search', debounced, PAGE_SIZE],
     enabled,
-    queryFn: () => unwrap(api.v1.workers.$get({ query: { search: debounced, status: 'active', pageSize: '8' } })),
+    queryFn: () => unwrap(api.v1.workers.$get({ query: { search: debounced, status: 'active', pageSize: String(PAGE_SIZE) } })),
   })
 
   const taken = new Set([...value.map((w) => w.id), ...excludeIds])
@@ -39,11 +41,11 @@ export function WorkerPicker({
   // The text typed is ahead of the text searched: what is shown belongs to an older search.
   const searching = text !== debounced || isFetching
 
+  const kind = searchStatus({ textLength: text.length, searching, failed: error !== null, found: data?.items.length ?? 0, offered: results.length })
   let status: React.ReactNode = null
-  if (text.length < MIN_LETTERS) status = <p className="text-sm text-muted-foreground">Escribe al menos 2 letras</p>
-  else if (searching) status = <p className="text-sm text-muted-foreground">Buscando…</p>
-  else if (error) status = <ErrorWithRetry error={error} onRetry={refetch} />
-  else if (results.length === 0) status = <p className="text-sm text-muted-foreground">Sin resultados</p>
+  if (kind === 'failed') status = error && <ErrorWithRetry error={error} onRetry={refetch} />
+  else if (kind) status = <p className="text-sm text-muted-foreground">{SEARCH_STATUS_TEXT[kind]}</p>
+  const more = data !== undefined && kind !== 'short' && kind !== 'searching' && kind !== 'failed' && hasMoreResults(data.total, data.items.length)
 
   return (
     <div className="space-y-3">
@@ -53,6 +55,11 @@ export function WorkerPicker({
         className="h-10"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
+        // The picker lives inside a form: Enter (or "Ir" on a phone keyboard) would submit it, creating an empty payroll
+        // or adding and closing the dialog. Choosing a worker is done with its button.
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.preventDefault()
+        }}
       />
 
       {status}
@@ -75,6 +82,7 @@ export function WorkerPicker({
           ))}
         </ul>
       )}
+      {more && <p className="text-xs text-muted-foreground">{MORE_RESULTS_TEXT}</p>}
 
       {value.length > 0 && (
         <ul className="flex flex-wrap gap-2" aria-label="Trabajadores elegidos">
@@ -84,7 +92,7 @@ export function WorkerPicker({
               <button
                 type="button"
                 aria-label={`Quitar a ${nameOf(w)}`}
-                className="flex size-7 items-center justify-center rounded-full hover:bg-background focus-visible:outline-2 focus-visible:outline-ring"
+                className="flex size-7 items-center justify-center rounded-full hover:bg-background focus-visible:outline-2 focus-visible:outline-ring max-sm:size-11"
                 onClick={() => onChange(value.filter((x) => x.id !== w.id))}
               >
                 <span aria-hidden>×</span>

@@ -11,6 +11,9 @@ import { Input } from '@/components/ui/input'
 import { api, errorMessage, unwrap } from '@/lib/api'
 import { useDebouncedValue } from '@/lib/debounced-value'
 
+// Part of the query key: the worker picker of the payroll forms searches the same text with another page size.
+const SEARCH_PAGE_SIZE = 10
+
 export default function GroupMembersPage() {
   const { id } = useParams<{ id: string }>()
   const queryClient = useQueryClient()
@@ -23,8 +26,8 @@ export default function GroupMembersPage() {
 
   const group = useQuery({ queryKey: ['groups', id], queryFn: () => unwrap(api.v1.groups[':id'].$get({ param: { id } })) })
   const search = useQuery({
-    queryKey: ['workers', 'search', debouncedText],
-    queryFn: () => unwrap(api.v1.workers.$get({ query: { search: debouncedText, status: 'active', pageSize: '10' } })),
+    queryKey: ['workers', 'search', debouncedText, SEARCH_PAGE_SIZE],
+    queryFn: () => unwrap(api.v1.workers.$get({ query: { search: debouncedText, status: 'active', pageSize: String(SEARCH_PAGE_SIZE) } })),
     enabled: canSearchDebounced,
     placeholderData: keepPreviousData,
   })
