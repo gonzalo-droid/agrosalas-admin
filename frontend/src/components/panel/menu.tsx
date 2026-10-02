@@ -69,10 +69,14 @@ export function Menu() {
 
   // The side menu is open only for the page it was opened on, so any navigation closes it without an effect.
   const [openedOn, setOpenedOn] = useState<string | null>(null)
+  // Derived during render (React's "storing information from previous renders"): a path that no longer matches
+  // (back button, in-page link) is dropped at once, so coming back to that path never reopens the menu by itself.
+  if (openedOn !== null && openedOn !== pathname) setOpenedOn(null)
   const open = openedOn === pathname
   const close = () => setOpenedOn(null)
 
-  // Growing the window to desktop width hides the phone menu: close it so it does not keep the page scroll locked.
+  // Stays even though the panel has md:hidden: the dialog's scroll lock follows `open`, so a panel hidden by CSS
+  // would keep the page from scrolling. Growing the window to desktop width closes it.
   useEffect(() => {
     const query = window.matchMedia(DESKTOP_QUERY)
     const onChange = (event: MediaQueryListEvent) => {
