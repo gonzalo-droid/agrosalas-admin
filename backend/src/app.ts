@@ -9,6 +9,7 @@ import { positionsRoutes } from './routes/positions'
 import { workersRoutes } from './routes/workers'
 import { paymentMethodsRoutes } from './routes/payment-methods'
 import { groupsRoutes } from './routes/groups'
+import { payrollsRoutes } from './routes/payrolls'
 import { usersRoutes } from './routes/users'
 import type { AppEnv, Dependencies } from './types'
 
@@ -25,6 +26,7 @@ export function createApp(deps: Dependencies) {
     .route('/workers', paymentMethodsRoutes(deps))
     .route('/groups', groupsRoutes(deps))
     .route('/users', usersRoutes(deps))
+    .route('/payrolls', payrollsRoutes(deps))
 
   return new Hono()
     .use(
