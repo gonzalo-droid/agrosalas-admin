@@ -1,12 +1,12 @@
 import { and, eq } from 'drizzle-orm'
 import { attendanceRecords, payrollWorkers, positions } from '../db/schema'
 import { recordAudit } from '../lib/audit'
-import { ApiError } from '../lib/errors'
+import { ApiError, notFound } from '../lib/errors'
 import { findWorker } from '../routes/workers'
 import type { SessionUser, Tx } from '../types'
 import { computeRecord, type Marks } from './calc'
 import { findOpenPayroll } from './open-payroll'
-import { limaDate } from './time'
+import { limaDate, limaTime, marksFromTimes } from './time'
 
 type MoneyKey = 'hourlyRate' | 'overtimeRate' | 'amountCents'
 type Redacted<T> = Omit<T, MoneyKey> & Record<MoneyKey, number | null>
@@ -35,14 +35,19 @@ const marksOf = (record: Marks): Marks => ({
   clockOut2: record.clockOut2,
 })
 
-// Puts one clock mark on the record of a worker and a date, creating the record on the first clock-in.
-// Marking is idempotent: a mark that already has a time is answered as it is, without writing.
-export async function applyClock(
-  tx: Tx,
-  user: SessionUser,
-  input: { payrollId: string; workerId: string; date: string; mark: Mark; at: Date },
-): Promise<{ record: AttendanceRecord; created: boolean }> {
-  const { payrollId, workerId, date, mark, at } = input
+type Worker = Awaited<ReturnType<typeof findWorker>>
+
+// The rates come from the position only when it is paid by the hour; anything else starts at zero.
+async function ratesOf(tx: Tx, worker: Worker): Promise<{ hourlyRate: number; overtimeRate: number }> {
+  const [position] = worker.positionId
+    ? await tx.select().from(positions).where(eq(positions.id, worker.positionId))
+    : []
+  if (position?.payType !== 'hourly') return { hourlyRate: 0, overtimeRate: 0 }
+  return { hourlyRate: position.hourlyRate ?? 0, overtimeRate: position.overtimeRate ?? 0 }
+}
+
+// The worker is in the payroll and in the scope of the user. Shared by the clock marks and the full records.
+async function findPayrollMember(tx: Tx, user: SessionUser, payrollId: string, workerId: string, date: string) {
   const payroll = await findOpenPayroll(tx, payrollId)
   if (date < payroll.startDate || date > payroll.endDate) throw dateOutsidePayroll()
   const worker = await findWorker(tx, user, workerId)
@@ -51,6 +56,21 @@ export async function applyClock(
     .from(payrollWorkers)
     .where(and(eq(payrollWorkers.payrollId, payrollId), eq(payrollWorkers.workerId, workerId)))
   if (!member) throw new ApiError(400, 'not_in_payroll', 'El trabajador no está en esta planilla')
+  return worker
+}
+
+const changedMeanwhile = () =>
+  new ApiError(409, 'conflict', 'El registro cambió mientras se guardaba; inténtalo de nuevo')
+
+// Puts one clock mark on the record of a worker and a date, creating the record on the first clock-in.
+// Marking is idempotent: a mark that already has a time is answered as it is, without writing.
+export async function applyClock(
+  tx: Tx,
+  user: SessionUser,
+  input: { payrollId: string; workerId: string; date: string; mark: Mark; at: Date },
+): Promise<{ record: AttendanceRecord; created: boolean }> {
+  const { payrollId, workerId, date, mark, at } = input
+  const worker = await findPayrollMember(tx, user, payrollId, workerId, date)
 
   const position = MARKS.indexOf(mark)
   const [existing] = await lockRecord(tx, workerId, date)
@@ -62,13 +82,7 @@ export async function applyClock(
     throw new ApiError(400, 'validation', 'La hora de ingreso no corresponde a ese día', 'at')
   }
 
-  // The rates come from the position only when it is paid by the hour; anything else starts at zero.
-  const [workerPosition] = worker.positionId
-    ? await tx.select().from(positions).where(eq(positions.id, worker.positionId))
-    : []
-  const hourly = workerPosition?.payType === 'hourly'
-  const hourlyRate = hourly ? (workerPosition.hourlyRate ?? 0) : 0
-  const overtimeRate = hourly ? (workerPosition.overtimeRate ?? 0) : 0
+  const { hourlyRate, overtimeRate } = await ratesOf(tx, worker)
   const marks: Marks = { clockIn1: at, clockOut1: null, clockIn2: null, clockOut2: null }
   const totals = computeRecord({
     type: 'worked',
@@ -105,7 +119,7 @@ export async function applyClock(
   }
   const [raced] = await lockRecord(tx, workerId, date)
   // The winner was deleted in the meantime: the caller can simply try again.
-  if (!raced) throw new ApiError(409, 'conflict', 'El registro cambió mientras se guardaba; inténtalo de nuevo')
+  if (!raced) throw changedMeanwhile()
   return markExisting(tx, user, raced, { payrollId, mark, at })
 }
 
@@ -169,4 +183,186 @@ async function markExisting(
     .returning()
   await recordAudit(tx, user.id, 'update', 'attendance_records', record.id, existing, record)
   return { record, created: false }
+}
+
+export type RecordFields = Partial<{
+  type: 'worked' | 'absence' | 'leave' | 'medical_leave'
+  clockIn1: string | null
+  clockOut1: string | null
+  clockIn2: string | null
+  clockOut2: string | null
+  // null = back to the suggested overtime; a number = set by hand.
+  overtimeMinutes: number | null
+  hourlyRate: number
+  overtimeRate: number
+  note: string | null
+  needsReview: boolean
+}>
+
+type SaveInput = { fields: RecordFields } & (
+  | { recordId: string }
+  | { recordId?: undefined; payrollId: string; workerId: string; date: string }
+)
+
+// The record to edit or delete: its payroll must be open and its worker in the scope of the user.
+// Whatever the user cannot reach answers as if the record did not exist.
+async function loadEditable(tx: Tx, user: SessionUser, id: string): Promise<AttendanceRecord> {
+  const [record] = await tx.select().from(attendanceRecords).where(eq(attendanceRecords.id, id)).for('update')
+  if (!record) throw notFound('El registro')
+  await findOpenPayroll(tx, record.payrollId)
+  try {
+    await findWorker(tx, user, record.workerId)
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) throw notFound('El registro')
+    throw error
+  }
+  return record
+}
+
+// The marks that the hours of the body (or the stored ones) give, validated.
+function resolveMarks(
+  date: string,
+  type: NonNullable<RecordFields['type']>,
+  fields: RecordFields,
+  existing: AttendanceRecord | undefined,
+): Marks {
+  const none: Marks = { clockIn1: null, clockOut1: null, clockIn2: null, clockOut2: null }
+  if (type !== 'worked') {
+    const sent = MARKS.find((mark) => fields[mark] != null)
+    if (sent) throw new ApiError(400, 'validation', 'Una falta o un permiso no lleva horas', sent)
+    return none
+  }
+  // Without hours in the body the stored marks stay exactly as they are (seconds included).
+  if (!MARKS.some((mark) => fields[mark] !== undefined)) return existing ? marksOf(existing) : none
+
+  // The hours that did not arrive are the stored ones, as 'HH:MM' of Lima, so that editing one does not move the rest.
+  const times = MARKS.map((mark) => {
+    if (fields[mark] !== undefined) return fields[mark]
+    const stored = existing?.[mark]
+    return stored ? limaTime(stored) : null
+  })
+  const missing = times.findIndex((time, i) => time === null && times.slice(i + 1).some((later) => later !== null))
+  if (missing !== -1) throw new ApiError(400, 'validation', 'Completa las marcas en orden', MARKS[missing])
+
+  const instants = marksFromTimes(date, times)
+  const set = instants.flatMap((instant, i) => (instant ? [{ instant, mark: MARKS[i] }] : []))
+  const first = set[0]
+  const last = set[set.length - 1]
+  if (first && last.instant.getTime() - first.instant.getTime() > DAY_MS) {
+    throw new ApiError(400, 'validation', 'El registro no puede durar más de un día', last.mark)
+  }
+  const [clockIn1, clockOut1, clockIn2, clockOut2] = instants
+  return { clockIn1, clockOut1, clockIn2, clockOut2 }
+}
+
+// Creates a record with all its fields, or edits one, and recalculates it. It is what the panel uses to correct
+// a day, as opposed to applyClock, which adds one mark at a time.
+export async function saveFullRecord(
+  tx: Tx,
+  user: SessionUser,
+  input: SaveInput,
+): Promise<{ record: AttendanceRecord; created: boolean }> {
+  const { fields } = input
+  if (user.role === 'coordinator' && (fields.hourlyRate !== undefined || fields.overtimeRate !== undefined || fields.needsReview !== undefined)) {
+    throw new ApiError(403, 'forbidden', 'Tu rol no permite cambiar tarifas')
+  }
+
+  if (input.recordId !== undefined) {
+    const existing = await loadEditable(tx, user, input.recordId)
+    const type = fields.type ?? existing.type
+    const marks = resolveMarks(existing.date, type, fields, existing)
+    const hourlyRate = fields.hourlyRate ?? existing.hourlyRate
+    const overtimeRate = fields.overtimeRate ?? existing.overtimeRate
+    // undefined keeps what is stored; a number is set by hand; null goes back to the suggested one.
+    const handSet =
+      type !== 'worked'
+        ? null
+        : fields.overtimeMinutes !== undefined
+          ? fields.overtimeMinutes
+          : existing.overtimeEdited
+            ? existing.overtimeMinutes
+            : null
+    const totals = computeRecord({
+      type,
+      marks,
+      employmentType: existing.employmentType,
+      hourlyRate,
+      overtimeRate,
+      overtimeMinutes: handSet,
+    })
+    const [record] = await tx
+      .update(attendanceRecords)
+      .set({
+        type,
+        ...marks,
+        ...totals,
+        overtimeEdited: handSet !== null,
+        hourlyRate,
+        overtimeRate,
+        ...(fields.note !== undefined ? { note: fields.note } : {}),
+        ...(fields.needsReview !== undefined ? { needsReview: fields.needsReview } : {}),
+      })
+      .where(eq(attendanceRecords.id, existing.id))
+      .returning()
+    await recordAudit(tx, user.id, 'update', 'attendance_records', record.id, existing, record)
+    return { record, created: false }
+  }
+
+  const { payrollId, workerId, date } = input
+  const worker = await findPayrollMember(tx, user, payrollId, workerId, date)
+  // Only one record per worker and day, in any payroll.
+  const clash = (found: AttendanceRecord) =>
+    found.payrollId !== payrollId
+      ? new ApiError(409, 'other_payroll', 'El trabajador ya tiene un registro ese día en otra planilla')
+      : new ApiError(409, 'duplicate', 'Ya existe un registro de ese trabajador ese día')
+  const [found] = await lockRecord(tx, workerId, date)
+  if (found) throw clash(found)
+
+  const type = fields.type ?? 'worked'
+  const marks = resolveMarks(date, type, fields, undefined)
+  const copied = await ratesOf(tx, worker)
+  const hourlyRate = fields.hourlyRate ?? copied.hourlyRate
+  const overtimeRate = fields.overtimeRate ?? copied.overtimeRate
+  const handSet = type === 'worked' ? (fields.overtimeMinutes ?? null) : null
+  const totals = computeRecord({
+    type,
+    marks,
+    employmentType: worker.employmentType,
+    hourlyRate,
+    overtimeRate,
+    overtimeMinutes: handSet,
+  })
+  // A double submit: the unique index lets one insert win and the other one answers as a duplicate.
+  const [record] = await tx
+    .insert(attendanceRecords)
+    .values({
+      workerId,
+      date,
+      payrollId,
+      type,
+      ...marks,
+      ...totals,
+      overtimeEdited: handSet !== null,
+      hourlyRate,
+      overtimeRate,
+      note: fields.note ?? null,
+      areaId: worker.areaId,
+      employmentType: worker.employmentType,
+      recordedBy: user.id,
+      needsReview: fields.needsReview ?? (worker.employmentType === 'temporary' && hourlyRate === 0),
+    })
+    .onConflictDoNothing()
+    .returning()
+  if (!record) {
+    const [raced] = await lockRecord(tx, workerId, date)
+    throw raced ? clash(raced) : changedMeanwhile()
+  }
+  await recordAudit(tx, user.id, 'create', 'attendance_records', record.id, null, record)
+  return { record, created: true }
+}
+
+export async function deleteRecord(tx: Tx, user: SessionUser, id: string): Promise<void> {
+  const record = await loadEditable(tx, user, id)
+  await tx.delete(attendanceRecords).where(eq(attendanceRecords.id, record.id))
+  await recordAudit(tx, user.id, 'delete', 'attendance_records', record.id, record, null)
 }
