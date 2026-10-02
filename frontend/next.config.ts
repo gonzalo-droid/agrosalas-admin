@@ -16,10 +16,10 @@ const nextConfig: NextConfig = {
     ];
   },
   // Server-side redirects: no "Cargando…" is shown for a page that only redirects.
-  // Until Payrolls exists (phase 2), the entry point of the panel is Workers.
+  // The entry point of the panel is Attendance, the screen used most.
   async redirects() {
     return [
-      { source: "/", destination: "/workers", permanent: false },
+      { source: "/", destination: "/attendance", permanent: false },
       { source: "/settings", destination: "/settings/positions", permanent: false },
     ];
   },
