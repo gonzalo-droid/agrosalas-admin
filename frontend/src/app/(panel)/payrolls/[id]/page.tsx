@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { ErrorWithRetry } from '@/components/error-with-retry'
 import { Field, controlClass } from '@/components/field'
 import { AttendanceGrid } from '@/components/payrolls/attendance-grid'
+import { PaymentDialog } from '@/components/payrolls/payment-dialog'
 import { PaymentsTab } from '@/components/payrolls/payments-tab'
 import { PayrollWorkers } from '@/components/payrolls/payroll-workers'
 import { Badge } from '@/components/ui/badge'
@@ -50,6 +51,8 @@ function PayrollDetail() {
   const params = useSearchParams()
   const { data: me } = useMe()
   const [editing, setEditing] = useState(false)
+  // The worker being paid; kept after closing so the dialog can fade out.
+  const [paying, setPaying] = useState<{ workerId: string; open: boolean } | null>(null)
 
   const { data: payroll, error, refetch } = useQuery({
     queryKey: ['payrolls', id],
@@ -152,14 +155,16 @@ function PayrollDetail() {
             onGoToWorkers={() => goTo('workers')}
           />
         ) : tab === 'payments' ? (
-          // Paying is built in a later task: until then the button does nothing.
-          <PaymentsTab payroll={payroll} canPay={canEdit} onPay={() => {}} />
+          <PaymentsTab payroll={payroll} canPay={canEdit} onPay={(workerId) => setPaying({ workerId, open: true })} />
         ) : (
           <PayrollWorkers payroll={payroll} canEdit={canEdit} />
         )}
       </div>
 
       {canEdit && <EditPayrollDialog payroll={payroll} open={editing} onOpenChange={setEditing} />}
+      {canEdit && paying && (
+        <PaymentDialog payroll={payroll} workerId={paying.workerId} open={paying.open} onOpenChange={(open) => setPaying((p) => p && { ...p, open })} />
+      )}
     </div>
   )
 }

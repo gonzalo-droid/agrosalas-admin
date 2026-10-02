@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { EVIDENCE_ACCEPT, EVIDENCE_MAX_BYTES, evidenceProblem, isImage, scaledSize } from './evidence'
+import { EVIDENCE_ACCEPT, EVIDENCE_MAX_BYTES, evidenceProblem, isEvidenceType, isImage, scaledSize } from './evidence'
 
 describe('evidenceProblem', () => {
   it('accepts JPG, PNG, WebP and PDF up to 5 MB', () => {
@@ -31,5 +31,14 @@ describe('scaledSize', () => {
 
   it('never enlarges an image', () => {
     expect(scaledSize(800, 600)).toEqual({ width: 800, height: 600 })
+  })
+})
+
+describe('isEvidenceType', () => {
+  it('tells the types the API takes from any other', () => {
+    expect(isEvidenceType('application/pdf')).toBe(true)
+    expect(isEvidenceType('image/webp')).toBe(true)
+    expect(isEvidenceType('image/gif')).toBe(false)
+    expect(isEvidenceType('')).toBe(false)
   })
 })
