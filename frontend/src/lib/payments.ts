@@ -1,3 +1,5 @@
+import type { QueryClient } from '@tanstack/react-query'
+
 export const ITEM_TYPE_LABEL = { salary: 'Sueldo', bonus: 'Bono', piecework: 'Destajo', deduction: 'Descuento' } as const
 export type ItemType = keyof typeof ITEM_TYPE_LABEL
 
@@ -54,4 +56,10 @@ export function paymentBody({ option, detail, note, ...rest }: PaymentInput) {
     methodDetail: option.needsDetail ? detail.trim() || null : null,
     note: note.trim() || null,
   }
+}
+
+// Every write of money refreshes what depends on it: the payrolls (list, detail, balances, summary and receipt share
+// that prefix), the items, the payments and the workers (their history).
+export function invalidateMoney(queryClient: QueryClient): void {
+  for (const key of ['payrolls', 'payroll-items', 'payments', 'workers']) void queryClient.invalidateQueries({ queryKey: [key] })
 }

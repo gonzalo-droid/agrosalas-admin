@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { centsToInput, parseSolesToCents, pendingText, proposedPaymentCents } from './money'
+import { centsToInput, parseSolesToCents, pendingText, proposedPaymentCents, signedCentsText } from './money'
 
 describe('parseSolesToCents', () => {
   it('reads soles with a point or a comma and up to two decimals', () => {
@@ -39,5 +39,16 @@ describe('pendingText', () => {
     expect(pendingText(2823)).toBe('S/ 28.23')
     expect(pendingText(0)).toBe('S/ 0.00')
     expect(pendingText(-1000)).toBe('S/ 10.00 a favor')
+  })
+})
+
+describe('signedCentsText', () => {
+  it('writes the sign of an amount, with a real minus', () => {
+    expect(signedCentsText(2000)).toBe('+S/ 20.00')
+    expect(signedCentsText(-1000)).toBe('−S/ 10.00')
+  })
+
+  it('writes a dash when there is nothing', () => {
+    expect(signedCentsText(0)).toBe('–')
   })
 })

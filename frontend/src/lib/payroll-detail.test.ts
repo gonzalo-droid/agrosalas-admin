@@ -9,6 +9,8 @@ import {
   isInProgress,
   hasMinutes,
   isRangeTruncated,
+  itemAmountCents,
+  itemChanges,
   payrollChanges,
   tabFromParam,
   totalsText,
@@ -182,10 +184,53 @@ describe('addedMessage', () => {
 })
 
 describe('tabFromParam', () => {
-  it('opens the workers tab only when the address asks for it', () => {
-    expect(tabFromParam('workers')).toBe('workers')
-    expect(tabFromParam('attendance')).toBe('attendance')
-    expect(tabFromParam(null)).toBe('attendance')
-    expect(tabFromParam('payments')).toBe('attendance')
+  it('opens the payments tab only when the address asks for it and the role sees money', () => {
+    expect(tabFromParam('payments', true)).toBe('payments')
+    expect(tabFromParam('payments', false)).toBe('attendance')
+  })
+
+  it('opens the workers tab when the address asks for it, with or without payments', () => {
+    expect(tabFromParam('workers', true)).toBe('workers')
+    expect(tabFromParam('workers', false)).toBe('workers')
+  })
+
+  it('falls back to attendance for no value, attendance itself and an unknown value', () => {
+    expect(tabFromParam(null, true)).toBe('attendance')
+    expect(tabFromParam('attendance', true)).toBe('attendance')
+    expect(tabFromParam('other', true)).toBe('attendance')
+    expect(tabFromParam('', false)).toBe('attendance')
+  })
+})
+
+describe('itemAmountCents', () => {
+  it('reads a positive amount', () => {
+    expect(itemAmountCents('68.23')).toBe(6823)
+    expect(itemAmountCents(' 20 ')).toBe(2000)
+  })
+
+  it('rejects what cannot be read and zero, which the API refuses', () => {
+    expect(itemAmountCents('')).toBeNull()
+    expect(itemAmountCents('abc')).toBeNull()
+    expect(itemAmountCents('0')).toBeNull()
+    expect(itemAmountCents('0.00')).toBeNull()
+  })
+})
+
+describe('itemChanges', () => {
+  const item = { amountCents: 2000, note: 'Bono de campaña' as string | null }
+
+  it('is empty when nothing changed, so nothing is sent', () => {
+    expect(itemChanges(item, { amountCents: 2000, note: 'Bono de campaña' })).toEqual({})
+    expect(itemChanges(item, { amountCents: 2000, note: '  Bono de campaña  ' })).toEqual({})
+    expect(itemChanges({ amountCents: 2000, note: null }, { amountCents: 2000, note: '   ' })).toEqual({})
+  })
+
+  it('carries only what changed', () => {
+    expect(itemChanges(item, { amountCents: 2500, note: 'Bono de campaña' })).toEqual({ amountCents: 2500 })
+    expect(itemChanges(item, { amountCents: 2000, note: 'Otro' })).toEqual({ note: 'Otro' })
+  })
+
+  it('sends null for an emptied note', () => {
+    expect(itemChanges(item, { amountCents: 2000, note: '' })).toEqual({ note: null })
   })
 })

@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { ErrorWithRetry } from '@/components/error-with-retry'
 import { Field, controlClass } from '@/components/field'
 import { AttendanceGrid } from '@/components/payrolls/attendance-grid'
+import { PaymentsTab } from '@/components/payrolls/payments-tab'
 import { PayrollWorkers } from '@/components/payrolls/payroll-workers'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -27,6 +28,7 @@ type Payroll = ResponseBody<(typeof api.v1.payrolls)[':id']['$get']>
 const NAME_MAX = 80
 const TABS: { key: PayrollTab; label: string }[] = [
   { key: 'attendance', label: 'Asistencia' },
+  { key: 'payments', label: 'Pagos' },
   { key: 'workers', label: 'Trabajadores' },
 ]
 // The fields of the edit dialog that have a place under them for the API's error.
@@ -76,14 +78,16 @@ function PayrollDetail() {
   const canRegister = canEdit || me.role === 'coordinator'
   const showMoney = seesMoney(me.role)
   const status = payrollDisplayStatus(payroll, limaDate(new Date()))
-  const tab = tabFromParam(params.get('tab'))
+  const tab = tabFromParam(params.get('tab'), showMoney)
+  // The payments tab exists only for the roles that see money; the arrow keys walk the tabs that are shown.
+  const tabs = TABS.filter((t) => t.key !== 'payments' || showMoney)
 
   const goTo = (next: PayrollTab) => router.replace(next === 'attendance' ? pathname : `${pathname}?tab=${next}`, { scroll: false })
 
   function onTabKeyDown(e: React.KeyboardEvent) {
     if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
     e.preventDefault()
-    const next = TABS[(TABS.findIndex((t) => t.key === tab) + (e.key === 'ArrowRight' ? 1 : TABS.length - 1)) % TABS.length].key
+    const next = tabs[(tabs.findIndex((t) => t.key === tab) + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length].key
     goTo(next)
     document.getElementById(`payroll-tab-${next}`)?.focus()
   }
@@ -116,7 +120,7 @@ function PayrollDetail() {
       </div>
 
       <div role="tablist" aria-label="Secciones de la planilla" className="flex gap-1 border-b">
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <button
             key={t.key}
             type="button"
@@ -147,6 +151,9 @@ function PayrollDetail() {
             showMoney={showMoney}
             onGoToWorkers={() => goTo('workers')}
           />
+        ) : tab === 'payments' ? (
+          // Paying is built in a later task: until then the button does nothing.
+          <PaymentsTab payroll={payroll} canPay={canEdit} onPay={() => {}} />
         ) : (
           <PayrollWorkers payroll={payroll} canEdit={canEdit} />
         )}

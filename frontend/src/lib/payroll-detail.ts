@@ -1,6 +1,7 @@
 import { ATTENDANCE_TYPE_LABEL, formatHours, hasOpenStretch } from './attendance'
 import { formatDate } from './format'
 import { weekdayOf } from './lima-time'
+import { parseSolesToCents } from './money'
 import { cellLabel, type GridRecord, type Totals } from './payroll-grid'
 
 // What a grid cell needs from a record: the amounts of the grid plus the marks and the review flag.
@@ -81,5 +82,27 @@ export function payrollChanges(
 
 export const addedMessage = (added: number): string => (added === 0 ? 'Ya estaban todos' : `${added} ${added === 1 ? 'agregado' : 'agregados'}`)
 
-export type PayrollTab = 'attendance' | 'workers'
-export const tabFromParam = (param: string | null): PayrollTab => (param === 'workers' ? 'workers' : 'attendance')
+export type PayrollTab = 'attendance' | 'payments' | 'workers'
+
+// The payments tab exists only for the roles that see money: for the others, its address opens attendance.
+export function tabFromParam(param: string | null, withPayments: boolean): PayrollTab {
+  if (param === 'payments' && withPayments) return 'payments'
+  return param === 'workers' ? 'workers' : 'attendance'
+}
+
+// The amount of an item: it must be readable and above zero (the API refuses 0, and parseSolesToCents reads it).
+export function itemAmountCents(text: string): number | null {
+  const cents = parseSolesToCents(text)
+  return cents === null || cents === 0 ? null : cents
+}
+
+export type ItemChanges = { amountCents?: number; note?: string | null }
+
+// Only what differs from the stored item; an emptied note is sent as null. Nothing changed = nothing to send.
+export function itemChanges(item: { amountCents: number; note: string | null }, form: { amountCents: number; note: string }): ItemChanges {
+  const changes: ItemChanges = {}
+  if (form.amountCents !== item.amountCents) changes.amountCents = form.amountCents
+  const note = form.note.trim() || null
+  if (note !== item.note) changes.note = note
+  return changes
+}
