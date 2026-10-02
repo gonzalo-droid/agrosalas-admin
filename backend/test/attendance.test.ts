@@ -539,10 +539,17 @@ describe('attendance: full records, edits, deletion and bulk marks', () => {
       expect(suggested.json).toMatchObject({ overtimeEdited: false, regularMinutes: 480, overtimeMinutes: 140, amountCents: 6823 })
     })
 
-    it('overtime above the worked minutes is cut to them', async () => {
+    it('overtime above the worked minutes is rejected and nothing is saved', async () => {
       const created = await post('admin', { workerId: other, date: '2026-11-02', clockIn1: '07:00', clockOut1: '12:00' })
       const r = await patch('admin', created.json.id, { overtimeMinutes: 1000 })
-      expect(r.json).toMatchObject({ workedMinutes: 300, overtimeMinutes: 300, regularMinutes: 0, overtimeEdited: true })
+      expect(r.status).toBe(400)
+      expect(r.json.error).toMatchObject({
+        code: 'validation',
+        message: 'Las horas extra no pueden superar las horas trabajadas',
+        field: 'overtimeMinutes',
+      })
+      const detail = await t.request('admin', 'GET', `/v1/payrolls/${full}`)
+      expect(detail.json.records.find((x: { id: string }) => x.id === created.json.id)).toEqual(created.json)
     })
 
     it('editing one hour keeps the others, and the new rates recalculate the amount and are audited', async () => {
@@ -874,6 +881,143 @@ describe('attendance: full records, edits, deletion and bulk marks', () => {
       expect((await bulk('admin', { date: '2026-11-05', mark: 'clockIn1', workerIds: Array(301).fill(temp) })).status).toBe(400)
       expect((await bulk('admin', { date: '2026-11-05', mark: 'lunch', workerIds: [temp] })).status).toBe(400)
       expect((await bulk('admin', { date: '2026-11-05', mark: 'clockIn1', workerIds: ['x'] })).status).toBe(400)
+    })
+  })
+})
+
+const SPEC_DAY_FIXES = { clockIn1: '07:10', clockOut1: '13:00', clockIn2: '14:00', clockOut2: '18:30' }
+
+describe('attendance: edit path fixes of the final review', () => {
+  type Role = 'admin' | 'accounting' | 'management' | 'coordinator'
+  let fixes: string
+  let paid: string
+  let unpaid: string
+  let paidSecond: string
+
+  const post = (role: Role, body: Record<string, unknown>) =>
+    t.request(role, 'POST', '/v1/attendance', { payrollId: fixes, ...body })
+  const patch = (role: Role, id: string, body: Record<string, unknown>) =>
+    t.request(role, 'PATCH', `/v1/attendance/${id}`, body)
+  const at = (role: Role, workerId: string, date: string, mark: string, instant?: string) =>
+    clock(role, workerId, date, mark, instant, fixes)
+  const detail = async (id: string) =>
+    (await t.request('admin', 'GET', `/v1/payrolls/${fixes}`)).json.records.find((r: { id: string }) => r.id === id)
+
+  beforeAll(async () => {
+    const position = (
+      await t.request('admin', 'POST', '/v1/positions', {
+        name: 'Operario revisión final',
+        payType: 'hourly',
+        hourlyRate: 6.25,
+        overtimeRate: 7.8125,
+      })
+    ).json.id
+    paid = await createWorker('Hugo', 'Ibarra', '70000011', 'temporary', areaProduction, position)
+    paidSecond = await createWorker('Irma', 'Jara', '70000012', 'temporary', areaProduction, position)
+    unpaid = await createWorker('Julio', 'Kuno', '70000013', 'temporary', areaProduction)
+    fixes = (
+      await t.request('admin', 'POST', '/v1/payrolls', {
+        name: 'Revisión final',
+        type: 'weekly',
+        startDate: '2026-12-07',
+        endDate: '2026-12-13',
+        workers: { workerIds: [paid, paidSecond, unpaid] },
+      })
+    ).json.id
+  })
+
+  describe('clock marks are stored by the minute', () => {
+    it('a mark with seconds is stored at the start of its minute, whatever its source', async () => {
+      const first = await at('admin', paid, '2026-12-07', 'clockIn1', '2026-12-07T12:10:45Z')
+      expect(first.json.clockIn1).toBe('2026-12-07T12:10:00.000Z')
+      const second = await at('admin', paid, '2026-12-07', 'clockOut1', '2026-12-07T18:00:59.999Z')
+      expect(second.json.clockOut1).toBe('2026-12-07T18:00:00.000Z')
+      const bulk = await t.request('admin', 'POST', '/v1/attendance/bulk', {
+        payrollId: fixes,
+        date: '2026-12-07',
+        mark: 'clockIn1',
+        at: '2026-12-07T12:20:30Z',
+        workerIds: [paidSecond],
+      })
+      expect(bulk.json.results[0].record.clockIn1).toBe('2026-12-07T12:20:00.000Z')
+      t.setNow(new Date('2026-12-08T12:05:40Z'))
+      try {
+        const injected = await at('admin', paid, '2026-12-08', 'clockIn1')
+        expect(injected.json.clockIn1).toBe('2026-12-08T12:05:00.000Z')
+      } finally {
+        t.setNow(DEFAULT_NOW)
+      }
+    })
+
+    it('editing the exit to the same minute as the stored clock-in gives zero minutes, not a whole day', async () => {
+      const first = await at('admin', paid, '2026-12-09', 'clockIn1', '2026-12-09T12:10:45Z')
+      const r = await patch('admin', first.json.id, { clockOut1: '07:10' })
+      expect(r.status).toBe(200)
+      expect(r.json).toMatchObject({ workedMinutes: 0, amountCents: 0 })
+      expect(first.json.clockIn1).toBe('2026-12-09T12:10:00.000Z')
+      expect(r.json.clockOut1).toBe('2026-12-09T12:10:00.000Z')
+    })
+
+    it('an entry edited to the minute of the stored exit is accepted', async () => {
+      await at('admin', paid, '2026-12-10', 'clockIn1', '2026-12-10T12:00:00Z')
+      const out = await at('admin', paid, '2026-12-10', 'clockOut1', '2026-12-10T18:00:20Z')
+      const r = await patch('admin', out.json.id, { clockIn2: '13:00' })
+      expect(r.status).toBe(200)
+      expect(r.json).toMatchObject({ clockIn2: '2026-12-10T18:00:00.000Z', workedMinutes: 360 })
+      expect(out.json.clockOut1).toBe('2026-12-10T18:00:00.000Z')
+    })
+  })
+
+  describe('needsReview on edit', () => {
+    it('an absence turned into a worked day of a temporary worker without a rate is flagged; an explicit value wins', async () => {
+      const created = await post('admin', { workerId: unpaid, date: '2026-12-07', type: 'absence' })
+      expect(created.json.needsReview).toBe(false)
+      const r = await patch('coordinator', created.json.id, { type: 'worked', clockIn1: '07:00', clockOut1: '15:00' })
+      expect(r.status).toBe(200)
+      expect(r.json).toMatchObject({ workedMinutes: 480, needsReview: true })
+      expect(await detail(created.json.id)).toMatchObject({ amountCents: 0, needsReview: true })
+      // The flag is never cleared by itself, and an explicit value from accounting wins over the rule.
+      expect((await patch('coordinator', created.json.id, { note: 'x' })).json.needsReview).toBe(true)
+      const cleared = await patch('accounting', created.json.id, { needsReview: false })
+      expect(cleared.json.needsReview).toBe(false)
+    })
+  })
+
+  describe('overtime above the hours worked', () => {
+    it('a POST that sends overtime above the worked minutes answers 400 and saves nothing', async () => {
+      const r = await post('admin', { workerId: paid, date: '2026-12-11', clockIn1: '07:00', overtimeMinutes: 120 })
+      expect(r.status).toBe(400)
+      expect(r.json.error).toMatchObject({
+        code: 'validation',
+        message: 'Las horas extra no pueden superar las horas trabajadas',
+        field: 'overtimeMinutes',
+      })
+      const day = await t.request('admin', 'GET', `/v1/attendance?payrollId=${fixes}&date=2026-12-11`)
+      expect(day.json.items.find((i: { worker: { id: string } }) => i.worker.id === paid).record).toBeNull()
+    })
+
+    it('overtime equal to the worked minutes is accepted', async () => {
+      const r = await post('admin', { workerId: paid, date: '2026-12-11', clockIn1: '07:00', clockOut1: '09:00', overtimeMinutes: 120 })
+      expect(r.status).toBe(201)
+      expect(r.json).toMatchObject({ workedMinutes: 120, overtimeMinutes: 120, overtimeEdited: true })
+    })
+
+    it('a hand-set overtime that no longer fits the hours is dropped when the day is edited', async () => {
+      const created = await post('admin', { workerId: paidSecond, date: '2026-12-09', ...SPEC_DAY_FIXES })
+      const fixed = await patch('admin', created.json.id, { overtimeMinutes: 100 })
+      expect(fixed.json).toMatchObject({ workedMinutes: 620, overtimeMinutes: 100, overtimeEdited: true })
+      const r = await patch('admin', created.json.id, { clockOut1: '08:10', clockIn2: null, clockOut2: null })
+      expect(r.status).toBe(200)
+      expect(r.json).toMatchObject({ workedMinutes: 60, overtimeMinutes: 0, regularMinutes: 60, overtimeEdited: false })
+    })
+
+    it('a hand-set overtime of zero is kept by a later clock mark', async () => {
+      const created = await post('admin', { workerId: paidSecond, date: '2026-12-10', clockIn1: '07:00', clockOut1: '12:00' })
+      const fixed = await patch('admin', created.json.id, { overtimeMinutes: 0 })
+      expect(fixed.json).toMatchObject({ overtimeEdited: true, overtimeMinutes: 0 })
+      await at('admin', paidSecond, '2026-12-10', 'clockIn2', '2026-12-10T18:00:00Z')
+      const last = await at('admin', paidSecond, '2026-12-10', 'clockOut2', '2026-12-11T01:00:00Z')
+      expect(last.json).toMatchObject({ workedMinutes: 720, overtimeEdited: true, overtimeMinutes: 0, regularMinutes: 720 })
     })
   })
 })

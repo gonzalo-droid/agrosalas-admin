@@ -4,7 +4,7 @@ import { recordAudit } from '../lib/audit'
 import { ApiError, notFound } from '../lib/errors'
 import { findWorker } from '../routes/workers'
 import type { SessionUser, Tx } from '../types'
-import { computeRecord, type Marks } from './calc'
+import { computeRecord, workedMinutes, type Marks } from './calc'
 import { findOpenPayroll } from './open-payroll'
 import { limaDate, limaInstant } from './time'
 
@@ -27,6 +27,19 @@ const DAY_MS = 24 * 60 * 60 * 1000
 
 export const dateOutsidePayroll = () =>
   new ApiError(400, 'validation', 'La fecha no está dentro de la planilla', 'date')
+
+const MINUTE_MS = 60 * 1000
+
+// Every stored mark starts at the beginning of its minute: the seconds are not paid (spec rule 10), and an hour that is
+// edited later as 'HH:MM' must compare equal to the mark that was stored.
+const startOfMinute = (instant: Date) => new Date(Math.floor(instant.getTime() / MINUTE_MS) * MINUTE_MS)
+
+const overtimeAboveWorked = () =>
+  new ApiError(400, 'validation', 'Las horas extra no pueden superar las horas trabajadas', 'overtimeMinutes')
+
+// The hand-set overtime that still fits the worked minutes; a stale one is dropped (null = the suggested overtime).
+const handSetThatFits = (handSet: number | null, worked: number): number | null =>
+  handSet !== null && handSet > worked ? null : handSet
 
 const marksOf = (record: Marks): Marks => ({
   clockIn1: record.clockIn1,
@@ -69,7 +82,8 @@ export async function applyClock(
   user: SessionUser,
   input: { payrollId: string; workerId: string; date: string; mark: Mark; at: Date },
 ): Promise<{ record: AttendanceRecord; created: boolean }> {
-  const { payrollId, workerId, date, mark, at } = input
+  const { payrollId, workerId, date, mark } = input
+  const at = startOfMinute(input.at)
   const worker = await findPayrollMember(tx, user, payrollId, workerId, date)
 
   const position = MARKS.indexOf(mark)
@@ -168,17 +182,18 @@ async function markExisting(
   }
 
   const marks: Marks = { ...marksOf(existing), [mark]: at }
+  const handSet = handSetThatFits(existing.overtimeEdited ? existing.overtimeMinutes : null, workedMinutes(marks))
   const totals = computeRecord({
     type: 'worked',
     marks,
     employmentType: existing.employmentType,
     hourlyRate: existing.hourlyRate,
     overtimeRate: existing.overtimeRate,
-    overtimeMinutes: existing.overtimeEdited ? existing.overtimeMinutes : null,
+    overtimeMinutes: handSet,
   })
   const [record] = await tx
     .update(attendanceRecords)
-    .set({ [mark]: at, ...totals })
+    .set({ [mark]: at, ...totals, overtimeEdited: handSet !== null })
     .where(eq(attendanceRecords.id, existing.id))
     .returning()
   await recordAudit(tx, user.id, 'update', 'attendance_records', record.id, existing, record)
@@ -291,14 +306,23 @@ export async function saveFullRecord(
     const hourlyRate = fields.hourlyRate ?? existing.hourlyRate
     const overtimeRate = fields.overtimeRate ?? existing.overtimeRate
     // undefined keeps what is stored; a number is set by hand; null goes back to the suggested one.
+    const worked = type === 'worked' ? workedMinutes(marks) : 0
+    if (fields.overtimeMinutes != null && fields.overtimeMinutes > worked) throw overtimeAboveWorked()
     const handSet =
       type !== 'worked'
         ? null
-        : fields.overtimeMinutes !== undefined
-          ? fields.overtimeMinutes
-          : existing.overtimeEdited
-            ? existing.overtimeMinutes
-            : null
+        : handSetThatFits(
+            fields.overtimeMinutes !== undefined
+              ? fields.overtimeMinutes
+              : existing.overtimeEdited
+                ? existing.overtimeMinutes
+                : null,
+            worked,
+          )
+    // A worked day of a temporary worker without a rate pays nothing: it is flagged unless the body says otherwise.
+    // The flag is never cleared here.
+    const flagged =
+      fields.needsReview ?? (type === 'worked' && existing.employmentType === 'temporary' && hourlyRate === 0 ? true : undefined)
     const totals = computeRecord({
       type,
       marks,
@@ -317,7 +341,7 @@ export async function saveFullRecord(
         hourlyRate,
         overtimeRate,
         ...(fields.note !== undefined ? { note: fields.note } : {}),
-        ...(fields.needsReview !== undefined ? { needsReview: fields.needsReview } : {}),
+        ...(flagged !== undefined ? { needsReview: flagged } : {}),
       })
       .where(eq(attendanceRecords.id, existing.id))
       .returning()
@@ -340,6 +364,9 @@ export async function saveFullRecord(
   const copied = await ratesOf(tx, worker)
   const hourlyRate = fields.hourlyRate ?? copied.hourlyRate
   const overtimeRate = fields.overtimeRate ?? copied.overtimeRate
+  if (fields.overtimeMinutes != null && fields.overtimeMinutes > (type === 'worked' ? workedMinutes(marks) : 0)) {
+    throw overtimeAboveWorked()
+  }
   const handSet = type === 'worked' ? (fields.overtimeMinutes ?? null) : null
   const totals = computeRecord({
     type,
