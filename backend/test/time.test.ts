@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { limaDate, limaInstant, marksFromTimes, notBefore } from '../src/payroll/time'
+import { limaDate, limaInstant, marksFromTimes, monthRange, notBefore } from '../src/payroll/time'
 
 describe('Lima time', () => {
   it('gives the Lima date of an instant, five hours behind UTC', () => {
@@ -53,5 +53,14 @@ describe('notBefore', () => {
   it('moves an earlier instant forward a day at a time until it is not earlier', () => {
     expect(notBefore(at('2026-10-05T09:00:00Z'), at('2026-10-05T12:00:00Z')).toISOString()).toBe('2026-10-06T09:00:00.000Z')
     expect(notBefore(at('2026-10-05T09:00:00Z'), at('2026-10-07T12:00:00Z')).toISOString()).toBe('2026-10-08T09:00:00.000Z')
+  })
+})
+
+describe('monthRange', () => {
+  it('gives the first and the last day of the month of a date', () => {
+    expect(monthRange('2026-10-05')).toEqual({ from: '2026-10-01', to: '2026-10-31' })
+    expect(monthRange('2026-02-28')).toEqual({ from: '2026-02-01', to: '2026-02-28' })
+    expect(monthRange('2028-02-10')).toEqual({ from: '2028-02-01', to: '2028-02-29' })
+    expect(monthRange('2026-12-31')).toEqual({ from: '2026-12-01', to: '2026-12-31' })
   })
 })
