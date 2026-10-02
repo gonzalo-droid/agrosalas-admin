@@ -278,6 +278,11 @@ describe('willDiscardMarks', () => {
     expect(willDiscardMarks(record, edit(record, { type: 'absence' }))).toBe(true)
   })
 
+  it('is true for a leave and a medical leave too: the server keeps hours only for a worked day', () => {
+    expect(willDiscardMarks(record, edit(record, { type: 'leave' }))).toBe(true)
+    expect(willDiscardMarks(record, edit(record, { type: 'medical_leave' }))).toBe(true)
+  })
+
   it('is false for a worked day without marks, a new record and a day that stays worked', () => {
     expect(willDiscardMarks({ ...record, clockIn1: null, clockOut1: null, clockIn2: null, clockOut2: null }, edit(record, { type: 'absence' }))).toBe(false)
     expect(willDiscardMarks(null, edit(null, { type: 'absence' }))).toBe(false)

@@ -30,9 +30,9 @@ export function cellAriaLabel(workerName: string, date: string, record: DetailRe
   if (!record) return `${workerName}, ${day}: sin registro`
   const label = record.type === 'worked' ? cellLabel(record) : ATTENDANCE_TYPE_LABEL[record.type]
   const notes = [isInProgress(record) ? 'en curso' : null, record.needsReview ? 'por revisar' : null].filter(Boolean)
-  // A day with no closed stretch has "…" as its label: "en curso" says it better.
-  const text = label === '…' ? notes.join(', ') : [label, ...notes].join(', ')
-  return `${workerName}, ${day}: ${text}`
+  // A day with no closed stretch has "…" as its label: "en curso" says it better, or "sin horas" when nothing is open.
+  const said = label === '…' ? (isInProgress(record) ? null : 'sin horas') : label
+  return `${workerName}, ${day}: ${[said, ...notes].filter(Boolean).join(', ')}`
 }
 
 export type CellTone = 'empty' | 'worked' | 'overtime' | 'absence' | 'other'

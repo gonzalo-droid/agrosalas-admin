@@ -86,6 +86,13 @@ describe('cellAriaLabel', () => {
     expect(cellAriaLabel('Pérez, Ana', '2026-10-05', open)).toBe('Pérez, Ana, lun 05/10: 4:00, en curso, por revisar')
   })
 
+  it('says "sin horas" for a worked day with no marks, and "en curso" alone for one that has only started', () => {
+    const noMarks = record({ workedMinutes: 0, regularMinutes: 0, clockIn1: null, clockOut1: null, clockIn2: null, clockOut2: null })
+    expect(cellAriaLabel('Pérez, Ana', '2026-10-05', noMarks)).toBe('Pérez, Ana, lun 05/10: sin horas')
+    const started = record({ workedMinutes: 0, regularMinutes: 0, clockOut1: null, clockIn2: null, clockOut2: null })
+    expect(cellAriaLabel('Pérez, Ana', '2026-10-05', started)).toBe('Pérez, Ana, lun 05/10: en curso')
+  })
+
   it('spells out an absence instead of its letter', () => {
     const absence = record({ type: 'absence', workedMinutes: 0, regularMinutes: 0, clockIn1: null, clockOut1: null, clockIn2: null, clockOut2: null })
     expect(cellAriaLabel('Pérez, Ana', '2026-10-05', absence)).toBe('Pérez, Ana, lun 05/10: Falta')

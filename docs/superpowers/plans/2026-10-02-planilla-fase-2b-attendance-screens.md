@@ -87,9 +87,20 @@ Commits de la tanda (después de `d21937d`):
 - `dfbc677` fix(web): keep the attendance screen on the right day and show bulk marks at once
 - `54ef278` fix(web): stop Enter in the worker search from submitting the form
 - `eb6001e` fix(web): refresh related lists after saving and polish attendance details
-- este commit: docs(planilla): record the final review of plan 2B
+- `5765f22` docs(planilla): record the final review of plan 2B
+- `629ba4b` fix(web): open the payroll grid on today's column without hiding it under the names
+- el commit siguiente: fix(web): ask before any change that discards the marks of a day
 
-Pruebas del frontend: 193 antes de la tanda; 211 tras el primer commit, 220 tras el segundo y 232 tras el tercero. Las del backend siguen en 285.
+La segunda revisión, limitada a la tanda, dio las tres correcciones por buenas y la rama por lista para fusionar. De ella y de la comprobación en el navegador salieron los dos últimos commits:
+
+- En el celular la columna de hoy de la grilla quedaba en parte bajo la columna de nombres: esa columna es fija y crece con el nombre más largo, así que ahora se mide en vez de suponer su ancho.
+- Pasar un día trabajado con marcas a "Permiso" o "Descanso médico" también borra las horas: la confirmación cubre cualquier tipo que no sea "Trabajado" y pregunta "¿Guardar de todos modos?".
+- Una marca ya no vuelve a pedir la lista de planillas de la pantalla de asistencia: solo la da por vencida, y se recarga al entrar a Planillas.
+- La celda de un día trabajado sin ninguna marca se lee "sin horas" en un lector de pantalla.
+
+Comprobado en el navegador a 375 px tras la tanda: la dirección sin fecha para hoy, "Ir a hoy", Enter en el buscador, "Ya están elegidos", el botón de quitar de 44 px, "Marcar ingreso a todos" con las filas al día junto con el aviso, y la columna de hoy pegada a la de nombres sin mover la página.
+
+Pruebas del frontend: 193 antes de la tanda; 211 tras el primer commit, 220 tras el segundo, 232 tras el tercero y 234 al final. Las del backend siguen en 285.
 
 ### Pendiente
 
@@ -105,6 +116,9 @@ Lo que queda abierto después de esta tanda:
 - Pruebas de componentes con DOM (decisión 9).
 - Raya larga y raya corta entre `formatCents` y `formatSoles` para "sin monto".
 - Las vistas de coordinador y de gerencia, el uso sin conexión y la planilla mensual se comprobaron solo por lectura, no en un navegador.
+- Una recarga de la lista del día que ya estaba en camino puede llegar después de una marca y devolver esa fila a su estado anterior por un momento; tocar de nuevo no duplica nada. Se cierra cancelando esa recarga antes de escribir en la caché.
+- `AbortSignal.timeout` no tiene alternativa para navegadores anteriores a Safari 16 o Chrome 103.
+- Los botones "Cancelar" y "Agregar" de los diálogos miden 36 px de alto en el celular.
 
 ## Global Constraints
 

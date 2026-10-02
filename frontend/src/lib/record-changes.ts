@@ -80,9 +80,10 @@ export function validateRecordForm(
   return null
 }
 
-// Saving a worked day that has marks as an absence throws the marks away: the user is asked first.
+// Saving a worked day that has marks as anything else (absence, leave, medical leave) throws the marks away: the
+// server keeps hours only for a worked day. The user is asked first.
 export const willDiscardMarks = (record: LoadedRecord | null, form: RecordForm): boolean =>
-  record?.type === 'worked' && form.type === 'absence' && MARK_KEYS.some((key) => record[key] !== null)
+  record?.type === 'worked' && form.type !== 'worked' && MARK_KEYS.some((key) => record[key] !== null)
 
 // Compares the form with what was loaded and builds the body with what has to be sent.
 // With a record the body can be empty (nothing changed); without one it always carries the type.

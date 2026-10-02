@@ -92,7 +92,7 @@ export function RecordDialog({ open, onOpenChange, payrollId, date, worker, reco
       setSession({ ...session, error: problem })
       return
     }
-    if (willDiscardMarks(loaded, form) && !window.confirm('Se borrarán las horas marcadas de este día. ¿Guardar como falta?')) return
+    if (willDiscardMarks(loaded, form) && !window.confirm('Se borrarán las horas marcadas de este día. ¿Guardar de todos modos?')) return
     setSession({ ...session, error: null })
     const body = buildRecordBody(loaded, form, { canEditMoney })
     // Nothing changed: there is nothing to send.
