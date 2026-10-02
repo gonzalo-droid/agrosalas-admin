@@ -426,7 +426,10 @@ describe('attendance: full records, edits, deletion and bulk marks', () => {
     })
 
     it('a second record of the same worker and day answers 409 duplicate; one from another payroll answers other_payroll', async () => {
-      expect((await post('admin', { workerId: noRate, date: '2026-11-04', type: 'absence' })).status).toBe(201)
+      const absence = await post('admin', { workerId: noRate, date: '2026-11-04', type: 'absence' })
+      expect(absence.status).toBe(201)
+      // Only a worked day of a temporary worker without a rate is flagged by itself.
+      expect(absence.json.needsReview).toBe(false)
       const again = await post('admin', { workerId: noRate, date: '2026-11-04', clockIn1: '07:00' })
       expect(again.status).toBe(409)
       expect(again.json.error).toMatchObject({
@@ -504,6 +507,12 @@ describe('attendance: full records, edits, deletion and bulk marks', () => {
       expect(r.json).toMatchObject({ hourlyRate: 10, overtimeRate: 12.5, needsReview: true, amountCents: 0, workedMinutes: 620 })
       const noRateRecord = await post('admin', { workerId: noRate, date: '2026-11-05', clockIn1: '07:00' })
       expect(noRateRecord.json).toMatchObject({ hourlyRate: 0, needsReview: true })
+      // An explicit value wins over the automatic rule, in both directions.
+      const unflagged = await post('accounting', { workerId: spare, date: '2026-11-08', clockIn1: '07:00', needsReview: false })
+      expect(unflagged.json).toMatchObject({ hourlyRate: 0, needsReview: false })
+      const flaggedAbsence = await post('admin', { workerId: spare, date: '2026-11-07', type: 'absence', needsReview: true })
+      expect(flaggedAbsence.json.needsReview).toBe(true)
+      expect((await remove('admin', flaggedAbsence.json.id)).status).toBe(200)
     })
   })
 
@@ -566,6 +575,60 @@ describe('attendance: full records, edits, deletion and bulk marks', () => {
       const created = await post('admin', { workerId: staff, date: '2026-11-04', clockIn1: '19:00' })
       const r = await patch('admin', created.json.id, { clockOut1: '04:00' })
       expect(r.json).toMatchObject({ clockOut1: '2026-11-05T09:00:00.000Z', workedMinutes: 540 })
+    })
+
+    it('editing one hour keeps the stored instant of the others: a 24-hour stretch is not collapsed', async () => {
+      // Exactly 24 hours between the entry and the exit: both have the same wall-clock time in Lima.
+      const created = await clock('admin', other, '2026-11-03', 'clockIn1', '2026-11-03T12:00:00Z', full)
+      expect(created.status).toBe(201)
+      const out = await clock('admin', other, '2026-11-03', 'clockOut1', '2026-11-04T12:00:00Z', full)
+      expect(out.json).toMatchObject({ workedMinutes: 1440, amountCents: 17500 })
+      const id = created.json.id
+
+      for (const body of [{ note: 'x', clockIn1: '07:00' }, { clockOut2: null }]) {
+        const r = await patch('admin', id, body)
+        expect(r.status).toBe(200)
+        expect(r.json).toMatchObject({
+          clockIn1: '2026-11-03T12:00:00.000Z',
+          clockOut1: '2026-11-04T12:00:00.000Z',
+          workedMinutes: 1440,
+          amountCents: 17500,
+        })
+      }
+    })
+
+    it('on a night shift, editing only the exit keeps the entry and editing only the entry keeps the exit', async () => {
+      const created = await post('admin', { workerId: spare, date: '2026-11-03', clockIn1: '19:00', clockOut1: '04:00' })
+      expect(created.json).toMatchObject({ clockOut1: '2026-11-04T09:00:00.000Z', workedMinutes: 540 })
+      const id = created.json.id
+
+      const exit = await patch('admin', id, { clockOut1: '05:00' })
+      expect(exit.json).toMatchObject({
+        clockIn1: '2026-11-04T00:00:00.000Z',
+        clockOut1: '2026-11-04T10:00:00.000Z',
+        workedMinutes: 600,
+      })
+      // The stored exit (05:00 of the next day) is not moved when only the entry changes.
+      const entry = await patch('admin', id, { clockIn1: '20:00' })
+      expect(entry.json).toMatchObject({
+        clockIn1: '2026-11-04T01:00:00.000Z',
+        clockOut1: '2026-11-04T10:00:00.000Z',
+        workedMinutes: 540,
+      })
+    })
+
+    it('an entry edited to a time after the stored exit of the same day answers 400 on the exit and saves nothing', async () => {
+      const created = await post('admin', { workerId: spare, date: '2026-11-07', clockIn1: '08:00', clockOut1: '12:00' })
+      const id = created.json.id
+      const r = await patch('admin', id, { clockIn1: '13:00' })
+      expect(r.status).toBe(400)
+      expect(r.json.error).toMatchObject({
+        code: 'validation',
+        message: 'La hora no puede ser anterior a la marca previa',
+        field: 'clockOut1',
+      })
+      const detail = await t.request('admin', 'GET', `/v1/payrolls/${full}`)
+      expect(detail.json.records.find((x: { id: string }) => x.id === id)).toEqual(created.json)
     })
 
     it('a worked day turned into an absence loses its hours and its amount', async () => {
@@ -740,10 +803,14 @@ describe('attendance: full records, edits, deletion and bulk marks', () => {
         message: 'El trabajador no existe',
       })
       const day = await t.request('admin', 'GET', `/v1/attendance?payrollId=${full}&date=2026-11-08`)
-      expect(day.json.items.filter((i: { record: unknown }) => i.record !== null)).toHaveLength(3)
+      const marked = day.json.items.filter((i: { record: unknown }) => i.record !== null).map((i: { worker: { id: string } }) => i.worker.id)
+      // The unknown id left nothing behind; noRate was not asked for.
+      expect(marked).toContain(temp)
+      expect(marked).toContain(other)
+      expect(marked).not.toContain(noRate)
     })
 
-    it('a worker that fails does not stop the others: an absence, a repeated mark and a worker outside the payroll', async () => {
+    it('a worker that fails does not stop the others: a repeated mark and a worker outside the payroll', async () => {
       const outsider = await createWorker('Eva', 'Quispe', '70000009', 'temporary', areaProduction)
       const r = await bulk('accounting', { date: '2026-11-03', ...CLOCK_IN, at: '2026-11-03T12:00:00Z', workerIds: [temp, outsider, noRate, staff] })
       expect(r.status).toBe(200)
@@ -754,6 +821,23 @@ describe('attendance: full records, edits, deletion and bulk marks', () => {
       // noRate was edited into a full day on the 3rd as well.
       expect(byWorker[noRate].ok).toBe(true)
       expect(r.json.results.map((x: { workerId: string }) => x.workerId)).toEqual([temp, outsider, noRate, staff])
+    })
+
+    it('a worker with an absence that day answers not_worked and the others are marked', async () => {
+      // temp has an absence on 2026-11-02; noRate has no record that day.
+      const r = await bulk('admin', { date: '2026-11-02', mark: 'clockIn1', at: '2026-11-02T12:00:00Z', workerIds: [temp, noRate] })
+      expect(r.status).toBe(200)
+      expect(r.json.results[0]).toMatchObject({ workerId: temp, ok: false, code: 'not_worked' })
+      expect(r.json.results[1]).toMatchObject({ workerId: noRate, ok: true, record: { clockIn1: '2026-11-02T12:00:00.000Z' } })
+    })
+
+    it('the same worker twice gets two results, both ok, with one record and one mark', async () => {
+      const r = await bulk('admin', { date: '2026-11-06', mark: 'clockIn1', at: '2026-11-06T12:00:00Z', workerIds: [spare, spare] })
+      expect(r.status).toBe(200)
+      expect(r.json.results).toHaveLength(2)
+      expect(r.json.results.every((x: { workerId: string; ok: boolean }) => x.workerId === spare && x.ok)).toBe(true)
+      expect(r.json.results[1].record).toEqual(r.json.results[0].record)
+      expect(await auditRows(r.json.results[0].record.id)).toHaveLength(1)
     })
 
     it('for the coordinator it leaves out the workers of other areas and sends no money', async () => {

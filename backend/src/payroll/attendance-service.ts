@@ -6,7 +6,7 @@ import { findWorker } from '../routes/workers'
 import type { SessionUser, Tx } from '../types'
 import { computeRecord, type Marks } from './calc'
 import { findOpenPayroll } from './open-payroll'
-import { limaDate, limaTime, marksFromTimes } from './time'
+import { limaDate, limaInstant } from './time'
 
 type MoneyKey = 'hourlyRate' | 'overtimeRate' | 'amountCents'
 type Redacted<T> = Omit<T, MoneyKey> & Record<MoneyKey, number | null>
@@ -209,13 +209,14 @@ type SaveInput = { fields: RecordFields } & (
 async function loadEditable(tx: Tx, user: SessionUser, id: string): Promise<AttendanceRecord> {
   const [record] = await tx.select().from(attendanceRecords).where(eq(attendanceRecords.id, id)).for('update')
   if (!record) throw notFound('El registro')
-  await findOpenPayroll(tx, record.payrollId)
+  // The scope comes first, so that a record out of reach answers the same whether its payroll is open or closed.
   try {
     await findWorker(tx, user, record.workerId)
   } catch (error) {
     if (error instanceof ApiError && error.status === 404) throw notFound('El registro')
     throw error
   }
+  await findOpenPayroll(tx, record.payrollId)
   return record
 }
 
@@ -235,16 +236,32 @@ function resolveMarks(
   // Without hours in the body the stored marks stay exactly as they are (seconds included).
   if (!MARKS.some((mark) => fields[mark] !== undefined)) return existing ? marksOf(existing) : none
 
-  // The hours that did not arrive are the stored ones, as 'HH:MM' of Lima, so that editing one does not move the rest.
-  const times = MARKS.map((mark) => {
-    if (fields[mark] !== undefined) return fields[mark]
-    const stored = existing?.[mark]
-    return stored ? limaTime(stored) : null
-  })
-  const missing = times.findIndex((time, i) => time === null && times.slice(i + 1).some((later) => later !== null))
+  // A mark the body does not send keeps its stored instant. Only the ones it sends are read as 'HH:MM' of Lima on
+  // the date of the record, and moved forward a day at a time while they fall before the mark that precedes them
+  // (night shift).
+  const wanted = MARKS.map((mark) => ({ mark, sent: fields[mark], stored: existing?.[mark] ?? null }))
+  const isSet = wanted.map(({ sent, stored }) => (sent === undefined ? stored !== null : sent !== null))
+  const missing = isSet.findIndex((set, i) => !set && isSet.slice(i + 1).some(Boolean))
   if (missing !== -1) throw new ApiError(400, 'validation', 'Completa las marcas en orden', MARKS[missing])
 
-  const instants = marksFromTimes(date, times)
+  let previous: Date | null = null
+  const instants = wanted.map(({ mark, sent, stored }) => {
+    let instant: Date | null
+    if (sent === undefined) {
+      instant = stored
+      // A stored mark is never moved: if an edit leaves it before the one that precedes it, the edit is wrong.
+      if (instant && previous && instant.getTime() < previous.getTime()) {
+        throw new ApiError(400, 'validation', 'La hora no puede ser anterior a la marca previa', mark)
+      }
+    } else if (sent === null) {
+      instant = null
+    } else {
+      instant = limaInstant(date, sent)
+      while (previous && instant.getTime() < previous.getTime()) instant = new Date(instant.getTime() + DAY_MS)
+    }
+    if (instant) previous = instant
+    return instant
+  })
   const set = instants.flatMap((instant, i) => (instant ? [{ instant, mark: MARKS[i] }] : []))
   const first = set[0]
   const last = set[set.length - 1]
@@ -349,7 +366,8 @@ export async function saveFullRecord(
       areaId: worker.areaId,
       employmentType: worker.employmentType,
       recordedBy: user.id,
-      needsReview: fields.needsReview ?? (worker.employmentType === 'temporary' && hourlyRate === 0),
+      // An absence does not need a rate: only a worked day of a temporary worker without one is flagged by itself.
+      needsReview: fields.needsReview ?? (type === 'worked' && worker.employmentType === 'temporary' && hourlyRate === 0),
     })
     .onConflictDoNothing()
     .returning()
