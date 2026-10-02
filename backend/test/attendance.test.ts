@@ -310,10 +310,10 @@ describe('attendance: rules of payrolls that need records', () => {
     const admin = await t.request('admin', 'GET', '/v1/payrolls?search=Semana asistencia')
     expect(admin.status).toBe(200)
     const row = admin.json.items.find((p: { id: string }) => p.id === week)
-    expect(row.totalCents).toBeGreaterThan(0)
-    expect(typeof row.totalCents).toBe('number')
-    // It adds up at least the 6823 cents of the spec example.
-    expect(row.totalCents).toBeGreaterThanOrEqual(6823)
+    // Only two records of this payroll have an amount at this point: the spec example of the 6th (6823 cents) and
+    // the 24-hour stretch of the 10th (480 min × 6.25 + 960 min × 7.8125 per hour = 17500 cents). The describes
+    // that create more records come after this one, so the sum is fixed.
+    expect(row.totalCents).toBe(6823 + 17500)
 
     const coordinator = await t.request('coordinator', 'GET', '/v1/payrolls?search=Semana asistencia')
     expect(coordinator.json.items.find((p: { id: string }) => p.id === week).totalCents).toBeNull()
