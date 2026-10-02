@@ -27,7 +27,7 @@
 
 ## Estado de ejecución
 
-Ejecutado el 2026-10-02 en la rama `feat/phase-2b-attendance-screens`. Las siete tareas están hechas y sus pasos marcados, salvo el Step 4 de la Tarea 7 (verificación en el navegador), que hace el controlador con la sesión de Gonzalo y que sigue pendiente.
+Ejecutado el 2026-10-02 en la rama `feat/phase-2b-attendance-screens`. Las siete tareas están hechas y sus pasos marcados. El Step 4 de la Tarea 7 (verificación en el navegador) lo hizo el controlador con la sesión de Gonzalo; su resultado está en esa tarea.
 
 Commits (`git log --oneline --reverse --no-merges 149df56..HEAD`; el último es este commit, que registra esta sección):
 
@@ -70,19 +70,41 @@ Lo que difirió del texto del plan:
 - **Tareas 1 y 2** se ejecutaron en un solo envío.
 - **Verificación.** Los implementadores no pudieron verificar nada en un navegador (no tenían sesión). Todo lo visual y de interacción (menú, anchos a 375 px, diálogos, flujos de marcar, grilla, roles) está comprobado solo por lectura, lint, tipos, pruebas de módulos puros y build. La verificación en el navegador es el Step 4 de la Tarea 7, a cargo del controlador.
 - **Textos que el plan no daba y los implementadores escribieron.** "Elige un grupo." y "Elige la planilla de la que copiar." en el formulario de alta (en vez de enviar un cuerpo inválido); "Es el resumen de lo guardado; se actualiza al guardar.", "Vacío: se calculan las sugeridas." y "Vacío: se toma del cargo, si es por hora." en el diálogo; "Ver ayer"; "Agregar trabajadores a la planilla" (enlace a la planilla, solo para administración y contabilidad con "Todas las áreas"); "Marcando…" y "Guardando…".
-- **Otros ajustes menores.** "Marcar ingreso a todos" se oculta cuando no hay a quién marcar y excluye a quien ya tiene una marca en vuelo. Los nombres se muestran como "Apellido, Nombre", igual que en la lista de trabajadores. En la fila, "+1 día" va una vez tras el resumen si alguna marca guardada cae al día siguiente. El botón principal de la fila lleva `aria-label` "<acción> de <Apellido, Nombre>". En la grilla, el aviso "Se muestran los primeros 62 días de la planilla." aparece si el periodo es más largo; las celdas vacías no tienen botón para gerencia; los totales por día ocultan el monto cuando es 0; el diálogo de edición de la planilla vive en `payrolls/[id]/page.tsx` y no en un cuarto archivo. El filtro de área de la asistencia es estado local (no va en la URL).
+- **Otros ajustes menores.** "Marcar ingreso a todos" se oculta cuando no hay a quién marcar y excluye a quien ya tiene una marca en vuelo. Los nombres se muestran como "Apellido, Nombre", igual que en la lista de trabajadores. En la fila, "+1 día" va una vez tras el resumen si alguna marca guardada cae al día siguiente. El botón principal de la fila lleva `aria-label` "<acción> de <Apellido, Nombre>". En la grilla, el aviso "Se muestran los primeros 62 días de la planilla." aparece si el periodo es más largo; las celdas vacías no tienen botón para gerencia; el diálogo de edición de la planilla vive en `payrolls/[id]/page.tsx` y no en un cuarto archivo. El filtro de área de la asistencia es estado local (no va en la URL).
+
+### Revisión final y tanda de correcciones
+
+La revisión de toda la rama no encontró nada Crítico. Encontró tres Importantes, corregidos en esta tanda:
+
+- La pantalla de asistencia podía quedarse en el día de ayer si se dejaba abierta pasada la medianoche, y marcar entonces ponía la hora de hoy en el registro de ayer. Ahora `hoy` se refresca al volver a la pantalla y cada minuto, la dirección no lleva la fecha cuando es hoy, hay un enlace "Ir a hoy" y no se envía ninguna marca si el día cambió.
+- "Marcar ingreso a todos" no mostraba las marcas hasta que terminaba de recargarse la lista, y el botón seguía en "Marcando…" durante esa recarga. Ahora cada tanda se escribe en la caché al responder y la recarga corre en segundo plano.
+- Enter (o "Ir" del teclado del celular) en el buscador de trabajadores enviaba el formulario: creaba una planilla vacía o agregaba y cerraba el diálogo. Ahora Enter no envía.
+
+Además: una petición de marca se corta a los 15 segundos y termina como un fallo de conexión (`lib/api.ts` también trata un cuerpo cortado como fallo de conexión); el aviso de error añade "Vuelve a tocar el botón." solo si volver a tocar puede servir (`network_error` y `conflict`); un día con un solo tramo cerrado está completo (`hasOpenStretch`); la búsqueda de trabajadores distingue "Sin resultados", "Ya están elegidos" y "Hay más resultados: escribe más letras."; agregar o quitar trabajadores y guardar o marcar refrescan también `['attendance']` y `['payrolls']`; la tarifa vaciada es un error de campo ("Escribe la tarifa."); pasar un día con marcas a falta pide confirmación; la grilla se desplaza al día de hoy y muestra el monto de un día con horas aunque sea 0.
+
+Commits de la tanda (después de `d21937d`):
+
+- `dfbc677` fix(web): keep the attendance screen on the right day and show bulk marks at once
+- `54ef278` fix(web): stop Enter in the worker search from submitting the form
+- `eb6001e` fix(web): refresh related lists after saving and polish attendance details
+- este commit: docs(planilla): record the final review of plan 2B
+
+Pruebas del frontend: 193 antes de la tanda; 211 tras el primer commit, 220 tras el segundo y 232 tras el tercero. Las del backend siguen en 285.
 
 ### Pendiente
 
-Detalles menores que valen la pena conservar para una próxima vuelta:
+Lo que queda abierto después de esta tanda:
 
-- La clave de caché de la búsqueda de trabajadores (`['workers', 'search', texto]`) la comparte el selector de la planilla (8 por página) con la pantalla de miembros de un grupo, que pide otro tamaño de página: pueden pisarse los resultados.
-- "Elige un grupo." aparece en el aviso general del formulario de alta y no junto al selector de grupo.
-- Los selectores del formulario de alta (campañas, grupos, planillas recientes) no muestran ningún texto de carga mientras llegan.
-- Una planilla cerrada todavía muestra sus controles de edición ("Editar", "Quitar", "Agregar trabajadores"); la API responde `payroll_closed` y el mensaje se ve, pero conviene ocultarlos cuando llegue el cierre en la fase 3.
-- Los totales por día de la grilla ocultan un monto en 0 aunque haya horas (una jornada con tarifa 0 se ve sin monto).
-- Agregar o quitar trabajadores en la planilla no refresca de inmediato la lista de asistencia del día si ya estaba cargada.
-- Las pruebas de componentes con DOM siguen sin existir (decisión 9).
+- Una planilla cerrada todavía muestra sus controles de edición ("Editar", "Quitar", "Agregar trabajadores", el diálogo del registro); la API responde `payroll_closed` y el mensaje se ve, pero conviene ocultarlos cuando llegue el cierre en la fase 3.
+- Mensajes por campo y textos de carga en los selectores del formulario de alta (campañas, grupos, planillas recientes); "Elige un grupo." aparece en el aviso general y no junto al selector.
+- Detalles de ARIA de las pestañas de la planilla y de la tabla de la grilla.
+- El tope de 62 días de la grilla (hoy solo se avisa).
+- Pruebas de borde: año ISO, medianoche de Lima y mezcla de null y número en `buildGrid`.
+- Ctrl+clic y el botón Atrás de Android en el menú del celular.
+- El aviso de "registros de ayer sin salida" no mira antes del primer día de la planilla: un turno de noche abierto un domingo no se avisa el lunes si la planilla empieza el lunes.
+- Pruebas de componentes con DOM (decisión 9).
+- Raya larga y raya corta entre `formatCents` y `formatSoles` para "sin monto".
+- Las vistas de coordinador y de gerencia, el uso sin conexión y la planilla mensual se comprobaron solo por lectura, no en un navegador.
 
 ## Global Constraints
 
@@ -966,9 +988,11 @@ git add README.md docs
 git commit -m "docs(planilla): record the execution of plan 2B"
 ```
 
-- [ ] **Step 4: Verificación en el navegador** (la hace el controlador, con la sesión de Gonzalo y los datos de prueba de la base de desarrollo; no un subagente)
+- [x] **Step 4: Verificación en el navegador** (la hace el controlador, con la sesión de Gonzalo y los datos de prueba de la base de desarrollo; no un subagente)
 
 A 375 px y a 1280 px: el menú desplegable abre, navega y cierra; crear una planilla semanal con el grupo "Cuadrilla contenedor Chile"; marcar ingreso, refrigerio, regreso y salida de un trabajador y ver que los minutos y el monto coinciden con la API; "Marcar ingreso a todos"; registrar una falta; corregir una hora y fijar horas extra desde el diálogo; ver la grilla con sus totales; agregar y quitar un trabajador; ninguna pantalla ensancha la página en celular.
+
+Resultado: verificado por el controlador el 2026-10-02 a 375 px y en escritorio, con una sesión de administrador contra la base de desarrollo: menú, redirección de `/`, creación de una planilla desde un grupo, marca de un toque, registro completo (620, 480 y 140 min = S/ 68.23), horas extra fijadas en 0 (S/ 64.58), "Marcar ingreso a todos", falta desde una celda de la grilla, agregar y quitar trabajadores, ninguna página más ancha que el celular y ningún error en la consola. No se verificó en un navegador: las vistas de coordinador y de gerencia, el uso sin conexión ni una planilla mensual.
 
 ---
 
