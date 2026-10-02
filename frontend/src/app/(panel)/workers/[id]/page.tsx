@@ -5,7 +5,10 @@ import { useParams } from 'next/navigation'
 import { WorkerForm } from '@/components/workers/worker-form'
 import { WorkerGroups } from '@/components/workers/worker-groups'
 import { PaymentMethods } from '@/components/workers/payment-methods'
+import { WorkerPayments } from '@/components/workers/worker-payments'
+import { WorkerPayrolls } from '@/components/workers/worker-payrolls'
 import { api, errorMessage, unwrap } from '@/lib/api'
+import { seesMoney } from '@/lib/payroll-view'
 import { workerView } from '@/lib/worker-view'
 import { useMe } from '@/lib/me'
 
@@ -33,6 +36,13 @@ export default function WorkerPage() {
         {view.paymentMethods !== 'hidden' && <PaymentMethods worker={worker} readOnly={view.paymentMethods === 'view'} />}
         <WorkerGroups worker={worker} readOnly={view.groups === 'view'} />
       </div>
+      {/* The history carries amounts: only the roles that see money get it. */}
+      {seesMoney(me.role) && (
+        <>
+          <WorkerPayrolls workerId={worker.id} />
+          <WorkerPayments workerId={worker.id} />
+        </>
+      )}
     </div>
   )
 }

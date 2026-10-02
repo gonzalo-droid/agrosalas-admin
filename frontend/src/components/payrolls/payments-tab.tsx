@@ -11,6 +11,7 @@ import { ItemDialog, type PayrollItem } from '@/components/payrolls/item-dialog'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { api, errorMessage, unwrap, type ResponseBody } from '@/lib/api'
+import { useEvidenceViewer } from '@/lib/evidence-viewer'
 import { formatCents, formatDate } from '@/lib/format'
 import { pendingText, signedCentsText } from '@/lib/money'
 import { correctedPage } from '@/lib/pagination'
@@ -235,7 +236,7 @@ function Payments({ payroll, canPay }: { payroll: Payroll; canPay: boolean }) {
   const queryClient = useQueryClient()
   const [paging, setPaging] = useState({ page: 1, pageSize: 25 })
   const [removeError, setRemoveError] = useState<string | null>(null)
-  const [opening, setOpening] = useState<string | null>(null)
+  const evidence = useEvidenceViewer()
 
   const { data, isPending, error, refetch, isPlaceholderData } = useQuery({
     queryKey: ['payments', { payrollId: payroll.id }, paging],
@@ -261,26 +262,6 @@ function Payments({ payroll, canPay }: { payroll: Payroll; canPay: boolean }) {
 
   function confirmRemove(payment: Payment) {
     if (window.confirm(`¿Eliminar el pago de ${formatCents(payment.amountCents)} a ${nameOfPayment(payment)}? La evidencia se conserva.`)) remove.mutate(payment.id)
-  }
-
-  // The tab is opened inside the click, before the request: a window opened after waiting is taken for a pop-up and blocked.
-  async function openEvidence(paymentId: string) {
-    const tab = window.open('', '_blank')
-    setOpening(paymentId)
-    try {
-      const { url } = await unwrap(api.v1.evidence['read-url'].$get({ query: { paymentId } }))
-      if (tab) {
-        tab.opener = null
-        tab.location.href = url
-      } else {
-        toast.error('El navegador bloqueó la ventana. Permite las ventanas emergentes para ver la evidencia.')
-      }
-    } catch (e) {
-      tab?.close()
-      toast.error(errorMessage(e))
-    } finally {
-      setOpening(null)
-    }
   }
 
   return (
@@ -340,8 +321,8 @@ function Payments({ payroll, canPay }: { payroll: Payroll; canPay: boolean }) {
                             size="lg"
                             className={ROW_BUTTON}
                             aria-label={`Ver la evidencia del ${description}`}
-                            disabled={opening === payment.id}
-                            onClick={() => void openEvidence(payment.id)}
+                            disabled={evidence.opening === payment.id}
+                            onClick={() => void evidence.open(payment.id)}
                           >
                             Ver
                           </Button>

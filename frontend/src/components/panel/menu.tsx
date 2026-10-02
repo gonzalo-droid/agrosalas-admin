@@ -61,6 +61,7 @@ function MenuLinks({ links, isActive, profileActive, me, onNavigate }: MenuLinks
   )
 }
 
+// The sidebar, the phone bar and the side menu are hidden when printing (print:hidden): a receipt or a report prints without the menu.
 export function Menu() {
   const pathname = usePathname()
   const { data: me } = useMe()
@@ -91,7 +92,7 @@ export function Menu() {
   return (
     <>
       {/* Fixed to the screen height: the profile link is always in view even if the page is long. */}
-      <nav aria-label="Principal" className="sticky top-0 hidden h-screen w-52 shrink-0 flex-col gap-1 overflow-y-auto bg-[#0f3d24] p-3 md:flex">
+      <nav aria-label="Principal" className="sticky top-0 hidden h-screen w-52 shrink-0 flex-col gap-1 overflow-y-auto bg-[#0f3d24] p-3 md:flex print:hidden">
         <p className="px-3 pt-2 pb-5 font-semibold text-white">
           Agrosalas <span className="font-normal text-[#a7e3bd]">Admin</span>
         </p>
@@ -100,7 +101,7 @@ export function Menu() {
 
       {/* Phones: a top bar in the page flow (the layout is a column there) with a button that opens the side menu. */}
       <Dialog.Root open={open} onOpenChange={(next) => setOpenedOn(next ? pathname : null)}>
-        <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-2 bg-[#0f3d24] px-2 md:hidden">
+        <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-2 bg-[#0f3d24] px-2 md:hidden print:hidden">
           <Dialog.Trigger
             aria-label="Abrir menú"
             className="flex size-11 shrink-0 items-center justify-center rounded-lg text-white outline-none hover:bg-[#1c5a37] focus-visible:ring-2 focus-visible:ring-[#a7e3bd]"
@@ -110,8 +111,8 @@ export function Menu() {
           <p className="min-w-0 truncate font-semibold text-white">Agrosalas Admin</p>
         </header>
         <Dialog.Portal>
-          <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/50 duration-200 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 md:hidden" />
-          <Dialog.Popup className="fixed inset-y-0 left-0 z-50 flex w-64 max-w-full flex-col gap-1 overflow-y-auto bg-[#0f3d24] p-3 outline-none duration-200 data-open:animate-in data-open:slide-in-from-left data-closed:animate-out data-closed:slide-out-to-left md:hidden">
+          <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/50 duration-200 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 md:hidden print:hidden" />
+          <Dialog.Popup className="fixed inset-y-0 left-0 z-50 flex w-64 max-w-full flex-col gap-1 overflow-y-auto bg-[#0f3d24] p-3 outline-none duration-200 data-open:animate-in data-open:slide-in-from-left data-closed:animate-out data-closed:slide-out-to-left md:hidden print:hidden">
             <Dialog.Title className="sr-only">Menú principal</Dialog.Title>
             <div className="flex items-center justify-between pb-3 pl-3">
               <p className="font-semibold text-white">

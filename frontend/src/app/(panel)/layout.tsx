@@ -14,7 +14,7 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
       <Menu />
-      <main className="min-w-0 flex-1 p-4 md:p-8">
+      <main className="min-w-0 flex-1 p-4 md:p-8 print:p-0">
         {isPending ? (
           <p className="text-sm text-muted-foreground">Cargando…</p>
         ) : error ? (
