@@ -52,28 +52,95 @@ export async function applyClock(
     .where(and(eq(payrollWorkers.payrollId, payrollId), eq(payrollWorkers.workerId, workerId)))
   if (!member) throw new ApiError(400, 'not_in_payroll', 'El trabajador no está en esta planilla')
 
-  // Locked, so that two marks of the same record at once are applied one after the other.
-  const [existing] = await tx
+  const position = MARKS.indexOf(mark)
+  const [existing] = await lockRecord(tx, workerId, date)
+  if (existing) return markExisting(tx, user, existing, { payrollId, mark, at })
+
+  // No record yet: only a first clock-in can start one.
+  if (position > 0) throw new ApiError(409, 'out_of_order', 'Falta la marca anterior')
+  if (limaDate(at) !== date) {
+    throw new ApiError(400, 'validation', 'La hora de ingreso no corresponde a ese día', 'at')
+  }
+
+  // The rates come from the position only when it is paid by the hour; anything else starts at zero.
+  const [workerPosition] = worker.positionId
+    ? await tx.select().from(positions).where(eq(positions.id, worker.positionId))
+    : []
+  const hourly = workerPosition?.payType === 'hourly'
+  const hourlyRate = hourly ? (workerPosition.hourlyRate ?? 0) : 0
+  const overtimeRate = hourly ? (workerPosition.overtimeRate ?? 0) : 0
+  const marks: Marks = { clockIn1: at, clockOut1: null, clockIn2: null, clockOut2: null }
+  const totals = computeRecord({
+    type: 'worked',
+    marks,
+    employmentType: worker.employmentType,
+    hourlyRate,
+    overtimeRate,
+    overtimeMinutes: null,
+  })
+  // Two first marks at once (a double tap) both find no record. The unique index lets only one insert win;
+  // the other gets nothing back and goes on as a mark on the record that the winner created.
+  const [record] = await tx
+    .insert(attendanceRecords)
+    .values({
+      workerId,
+      date,
+      payrollId,
+      type: 'worked',
+      ...marks,
+      ...totals,
+      hourlyRate,
+      overtimeRate,
+      areaId: worker.areaId,
+      employmentType: worker.employmentType,
+      recordedBy: user.id,
+      // A temporary worker without a rate is paid nothing until accounting sets one.
+      needsReview: worker.employmentType === 'temporary' && hourlyRate === 0 && overtimeRate === 0,
+    })
+    .onConflictDoNothing()
+    .returning()
+  if (record) {
+    await recordAudit(tx, user.id, 'create', 'attendance_records', record.id, null, record)
+    return { record, created: true }
+  }
+  const [raced] = await lockRecord(tx, workerId, date)
+  // The winner was deleted in the meantime: the caller can simply try again.
+  if (!raced) throw new ApiError(409, 'conflict', 'El registro cambió mientras se guardaba; inténtalo de nuevo')
+  return markExisting(tx, user, raced, { payrollId, mark, at })
+}
+
+// Reads the record of a worker and a date and locks its row, so that two marks of the same existing record
+// are applied one after the other. When there is no row there is nothing to lock: the first mark is protected
+// by the unique index instead (see the insert in applyClock).
+const lockRecord = (tx: Tx, workerId: string, date: string) =>
+  tx
     .select()
     .from(attendanceRecords)
     .where(and(eq(attendanceRecords.workerId, workerId), eq(attendanceRecords.date, date)))
     .for('update')
-  if (existing) {
-    if (existing.payrollId !== payrollId) {
-      throw new ApiError(409, 'other_payroll', 'El trabajador ya tiene un registro ese día en otra planilla')
-    }
-    if (existing.type !== 'worked') {
-      throw new ApiError(409, 'not_worked', 'Ese día está marcado como falta o permiso; edita el registro')
-    }
-    if (existing[mark]) return { record: existing, created: false }
+
+// A mark on a record that already exists, whether it was found at the start or created by a request that won the race.
+async function markExisting(
+  tx: Tx,
+  user: SessionUser,
+  existing: AttendanceRecord,
+  input: { payrollId: string; mark: Mark; at: Date },
+): Promise<{ record: AttendanceRecord; created: boolean }> {
+  const { payrollId, mark, at } = input
+  if (existing.payrollId !== payrollId) {
+    throw new ApiError(409, 'other_payroll', 'El trabajador ya tiene un registro ese día en otra planilla')
   }
+  if (existing.type !== 'worked') {
+    throw new ApiError(409, 'not_worked', 'Ese día está marcado como falta o permiso; edita el registro')
+  }
+  if (existing[mark]) return { record: existing, created: false }
 
   const position = MARKS.indexOf(mark)
-  const previous = position === 0 ? null : (existing?.[MARKS[position - 1]] ?? null)
+  const previous = position === 0 ? null : (existing[MARKS[position - 1]] ?? null)
   if (position > 0 && !previous) throw new ApiError(409, 'out_of_order', 'Falta la marca anterior')
 
   if (position === 0) {
-    if (limaDate(at) !== date) {
+    if (limaDate(at) !== existing.date) {
       throw new ApiError(400, 'validation', 'La hora de ingreso no corresponde a ese día', 'at')
     }
   } else {
@@ -81,48 +148,9 @@ export async function applyClock(
       throw new ApiError(400, 'validation', 'La hora no puede ser anterior a la marca previa', 'at')
     }
     // The first clock-in is there: a later mark cannot exist without it.
-    if (at.getTime() - existing!.clockIn1!.getTime() > DAY_MS) {
+    if (at.getTime() - existing.clockIn1!.getTime() > DAY_MS) {
       throw new ApiError(400, 'validation', 'La hora está a más de un día del ingreso', 'at')
     }
-  }
-
-  if (!existing) {
-    // The rates come from the position only when it is paid by the hour; anything else starts at zero.
-    const [workerPosition] = worker.positionId
-      ? await tx.select().from(positions).where(eq(positions.id, worker.positionId))
-      : []
-    const hourly = workerPosition?.payType === 'hourly'
-    const hourlyRate = hourly ? (workerPosition.hourlyRate ?? 0) : 0
-    const overtimeRate = hourly ? (workerPosition.overtimeRate ?? 0) : 0
-    const marks: Marks = { clockIn1: at, clockOut1: null, clockIn2: null, clockOut2: null }
-    const totals = computeRecord({
-      type: 'worked',
-      marks,
-      employmentType: worker.employmentType,
-      hourlyRate,
-      overtimeRate,
-      overtimeMinutes: null,
-    })
-    const [record] = await tx
-      .insert(attendanceRecords)
-      .values({
-        workerId,
-        date,
-        payrollId,
-        type: 'worked',
-        ...marks,
-        ...totals,
-        hourlyRate,
-        overtimeRate,
-        areaId: worker.areaId,
-        employmentType: worker.employmentType,
-        recordedBy: user.id,
-        // A temporary worker without a rate is paid nothing until accounting sets one.
-        needsReview: worker.employmentType === 'temporary' && hourlyRate === 0 && overtimeRate === 0,
-      })
-      .returning()
-    await recordAudit(tx, user.id, 'create', 'attendance_records', record.id, null, record)
-    return { record, created: true }
   }
 
   const marks: Marks = { ...marksOf(existing), [mark]: at }
