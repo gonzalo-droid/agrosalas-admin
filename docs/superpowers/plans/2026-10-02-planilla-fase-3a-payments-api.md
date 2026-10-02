@@ -1,6 +1,6 @@
 # Planilla fase 3A: API de conceptos, pagos, evidencia y cierre — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Dejar funcionando y probada la API de la fase 3: conceptos de planilla (sueldo, bono, destajo, descuento), pagos parciales con evidencia, saldos por trabajador, cierre y reapertura de planillas, el detalle para el recibo y el sueldo automático de la planilla mensual.
 
@@ -32,6 +32,67 @@ Resuelven lo que el spec deja abierto y lo que el plan 2A dejó anotado para est
 14. **Gerencia** lee conceptos, pagos, evidencias, saldos, resumen y recibo; no escribe.
 15. **Resumen de la lista.** "Pendiente acumulado" es la suma del pendiente de las planillas abiertas; "por pagar" cuenta las planillas abiertas cuyo periodo ya terminó; "pagado en el mes" suma los pagos con fecha en el mes en curso de Lima, de cualquier planilla.
 16. **Total de la planilla.** Desde esta fase `totalCents` incluye los conceptos (asistencia + lo que suma − descuentos).
+
+## Estado de ejecución
+
+Ejecutado el 2026-10-02 en la rama `feat/phase-3a-payments-api`, en un worktree aparte; base: `master` en `38526cd`. Las siete tareas están hechas y todos sus pasos marcados.
+
+Commits (`git log --oneline --reverse 38526cd..HEAD`; el último es el de la tarea 7):
+
+- `a0a0937` docs(planilla): add the phase 3A plan (items, payments, evidence and closing API)
+- `51402ba` feat(api): add the pure balance, evidence and payment method modules
+- `5a96565` feat(api): add payroll item and payment tables tied to the payroll members
+- `af1e556` feat(api): add payroll items, the monthly salary item and row locks on the payroll
+- `3323710` feat(api): add payments with their evidence in a private bucket
+- `d32cebf` feat(api): add worker balances, payroll totals with items and payments, the summary and the receipt detail
+- `c210668` feat(api): close and reopen payrolls, with confirmation when balances are pending
+- este commit: test(api): cover items, payments, evidence and closing in the role matrix and the coordinator sweep (con el README, el spec y esta sección)
+
+Pruebas del backend, en total, al terminar cada tarea:
+
+| Después de | Pruebas |
+|---|---|
+| Inicio | 285 |
+| Tareas 1 y 2 | 312 |
+| Tarea 3 | 323 |
+| Tarea 4 | 341 |
+| Tarea 5 | 353 |
+| Tarea 6 | 376 |
+| Tarea 7 | 400 |
+
+Total final del backend: 400 (24 casos nuevos en `permissions.test.ts`: 7 lecturas de dinero prohibidas al coordinador, 7 rutas de escritura prohibidas a gerencia y coordinador, y 3 roles prohibidos en la reapertura; el barrido y la prueba de control del administrador ampliaron aserciones sin sumar casos). Las del frontend siguen en 234 (no cambia en este plan). Verificación final desde la raíz: `npm run lint && npm run typecheck && npm test && npm run build`, todo en verde. El `lint` de la raíz solo revisa el frontend: la comprobación estática del backend es `npm run typecheck`.
+
+Cada tarea pasó revisión de especificación y de calidad, sin hallazgos críticos ni importantes.
+
+Lo que difirió del texto del plan:
+
+- Las tareas 1 y 2 se despacharon juntas: dos commits y una sola revisión.
+- La API no deja crear un cargo mensual sin sueldo, así que el "cargo sin sueldo" de las pruebas de la tarea 3 se prepara con una actualización directa. En la práctica, el caso "trabajador de contrato sin concepto de sueldo" es un trabajador de contrato con un cargo por hora o sin cargo.
+- Una planilla sin trabajadores se crea omitiendo `workers` (el esquema pide al menos un id).
+- Una `note` de pago en blanco se guarda como `null`, igual que un `methodDetail` en blanco.
+- Las 13 escrituras que ejerce la prueba de la planilla cerrada (tarea 6) ya respondían `payroll_closed` cuando llegó la tarea: ninguna ruta hubo que corregir.
+- En la tarea 7 la matriz de roles no necesitó cambios en las rutas: cada combinación prohibida respondió 403 `forbidden`. Las filas de `DELETE`, cerrar y reabrir van al final de la matriz.
+
+Pendiente para el plan 3B (pantallas):
+
+- Pestaña Pagos de la planilla: saldo por trabajador, conceptos, historial de pagos con su evidencia y formulario de pago que propone el pendiente y el método principal.
+- Subida de la evidencia: pedir la URL firmada, subir el archivo (con compresión de imágenes en el navegador) y registrar el pago con su `evidencePath`.
+- Columnas Pagado y Pendiente en la grilla y en la lista; las tres cifras del resumen.
+- Cerrar (con la lista de pendientes y `confirmPending`) y reabrir; avisar antes de cerrar si hay registros `needs_review` o con un tramo abierto.
+- Ocultar los controles de edición en una planilla cerrada (anotado en el plan 2B).
+- Recibo imprimible por trabajador y planilla.
+- Historial de planillas y pagos en la ficha del trabajador.
+- Planilla mensual: mostrar y editar el sueldo generado.
+
+Pendiente de la API (hallazgos menores de las revisiones de cada tarea, sin corregir todavía; la revisión final de la rama decide cuáles se corrigen antes de fusionar):
+
+- Leer la evidencia de un archivo que nunca se subió responde 502 `storage_error` con "inténtalo de nuevo": conviene tratar el "no encontrado" del almacenamiento como 404. Nada comprueba que el archivo exista al registrar el pago.
+- `z.uuid()` acepta mayúsculas: la misma evidencia con el prefijo en mayúsculas y en minúsculas contaría como dos archivos.
+- Con `workerIds`, `payrollBalances` suma toda la planilla y filtra en memoria; el historial del trabajador hace cuatro consultas por cada planilla de la página.
+- El recibo hace varias lecturas fuera de una transacción.
+- Dos altas de sueldo simultáneas: la que pierde recibe el `duplicate` genérico, sin `field`.
+- Pruebas por reforzar: restricciones de asistencia sin una fila aceptada de control; "repetir no crea otro sueldo" no ejerce el conflicto; una sola fila por tabla en las pruebas de saldos; los casos de planilla cerrada no comprueban que nada cambió; el orden de bloqueos no se puede probar con PGlite (una sola conexión).
+- Antes de aplicar la migración `0002` a una base con datos, comprobar que no haya registros de asistencia de trabajadores que no estén en su planilla: `select count(*) from attendance_records a left join payroll_workers pw using (payroll_id, worker_id) where pw.worker_id is null` debe dar 0.
 
 ## Global Constraints
 
@@ -128,7 +189,7 @@ export const describeMethod: (method: { type: 'yape' | 'plin' | 'bank_account'; 
 export const monthRange: (date: string) => { from: string; to: string }
 ```
 
-- [ ] **Step 1: Escribir las pruebas (fallan)**
+- [x] **Step 1: Escribir las pruebas (fallan)**
 
 `backend/test/balance.test.ts`:
 
@@ -288,7 +349,7 @@ describe('monthRange', () => {
 Run: `npx vitest run test/balance.test.ts test/evidence-rules.test.ts test/time.test.ts` (desde `backend/`)
 Expected: FAIL, los módulos y `monthRange` no existen.
 
-- [ ] **Step 2: Escribir `backend/src/payroll/balance.ts`**
+- [x] **Step 2: Escribir `backend/src/payroll/balance.ts`**
 
 ```ts
 export type ItemType = 'salary' | 'bonus' | 'piecework' | 'deduction'
@@ -346,7 +407,7 @@ export function sumBalances(balances: WorkerBalance[]): BalanceTotals {
 export const salaryCents = (monthlySalary: number | null): number => (monthlySalary ? Math.round(monthlySalary * 100) : 0)
 ```
 
-- [ ] **Step 3: Escribir `backend/src/payroll/evidence.ts` y `backend/src/payroll/payment-method.ts`**
+- [x] **Step 3: Escribir `backend/src/payroll/evidence.ts` y `backend/src/payroll/payment-method.ts`**
 
 ```ts
 // evidence.ts
@@ -395,7 +456,7 @@ export const describeMethod = (method: Method): string =>
     .join(' · ')
 ```
 
-- [ ] **Step 4: `monthRange` en `backend/src/payroll/time.ts`**
+- [x] **Step 4: `monthRange` en `backend/src/payroll/time.ts`**
 
 ```ts
 // The first and the last day of the month of a date ('YYYY-MM-DD').
@@ -408,7 +469,7 @@ export function monthRange(date: string): { from: string; to: string } {
 }
 ```
 
-- [ ] **Step 5: Verificar**
+- [x] **Step 5: Verificar**
 
 Run: `npx vitest run test/balance.test.ts test/evidence-rules.test.ts test/time.test.ts` (desde `backend/`)
 Expected: PASS.
@@ -416,7 +477,7 @@ Expected: PASS.
 Run: `npm run lint && npm run typecheck` (desde la raíz)
 Expected: sin errores.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add backend/src/payroll/balance.ts backend/src/payroll/evidence.ts backend/src/payroll/payment-method.ts backend/src/payroll/time.ts backend/test/balance.test.ts backend/test/evidence-rules.test.ts backend/test/time.test.ts
@@ -436,7 +497,7 @@ git commit -m "feat(api): add the pure balance, evidence and payment method modu
 - Consumes: tablas de las fases 1 y 2.
 - Produces: `payrollItems`, `payments`, `payrollItemTypeEnum`, `paymentMediumEnum` exportados desde `src/db/schema.ts`; restricciones nuevas en `attendance_records` y `payrolls`.
 
-- [ ] **Step 1: Escribir las pruebas (fallan)**
+- [x] **Step 1: Escribir las pruebas (fallan)**
 
 En `backend/test/health.test.ts`, agregar `'payments'` y `'payroll_items'` a la lista esperada de tablas, en orden alfabético (entre `'groups'` y `'payroll_workers'` van `'payments'`, `'payroll_items'`).
 
@@ -454,7 +515,7 @@ En `backend/test/health.test.ts`, agregar `'payments'` y `'payroll_items'` a la 
 Run: `npx vitest run test/health.test.ts test/constraints.test.ts` (desde `backend/`)
 Expected: FAIL (las tablas no existen).
 
-- [ ] **Step 2: Ampliar `backend/src/db/schema.ts`**
+- [x] **Step 2: Ampliar `backend/src/db/schema.ts`**
 
 Al import de `drizzle-orm/pg-core` se agregan `check` y `foreignKey`.
 
@@ -541,14 +602,14 @@ export const payments = pgTable(
 ).enableRLS()
 ```
 
-- [ ] **Step 3: Generar la migración**
+- [x] **Step 3: Generar la migración**
 
 Run (desde `backend/`): `npx drizzle-kit generate --name payroll_items_payments`
 Expected: crea `drizzle/0002_payroll_items_payments.sql` y `drizzle/meta/0002_snapshot.json`, y actualiza `drizzle/meta/_journal.json`.
 
 Leer el SQL generado y comprobar que contiene: los dos `CREATE TYPE`, las dos `CREATE TABLE` con `ENABLE ROW LEVEL SECURITY`, las tres claves compuestas (`attendance_records_member_fk`, `payroll_items_member_fk`, `payments_member_fk`) hacia `payroll_workers("payroll_id","worker_id")`, los cinco `CHECK` y los índices. Si `drizzle-kit` genera un `CHECK` con el nombre de la tabla antepuesto a las columnas (`"payments"."amount_cents"`), es válido en Postgres: no se edita. No se edita la migración a mano salvo que falte algo de esta lista.
 
-- [ ] **Step 4: Verificar**
+- [x] **Step 4: Verificar**
 
 Run: `npm test -w @agrosalas/backend`
 Expected: PASS; todas las pruebas anteriores siguen pasando (las de asistencia insertan registros de miembros de la planilla, así que la clave compuesta no las afecta). Si alguna prueba anterior falla por la clave compuesta o por un CHECK, la causa es un defecto real de esa ruta o de la preparación de la prueba: reportarlo, no relajar la restricción.
@@ -556,7 +617,7 @@ Expected: PASS; todas las pruebas anteriores siguen pasando (las de asistencia i
 Run: `npm run lint && npm run typecheck`
 Expected: sin errores.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend/src/db/schema.ts backend/drizzle backend/test/health.test.ts backend/test/constraints.test.ts
@@ -694,7 +755,7 @@ Se llama en `routes/payrolls.ts`:
 
 **Quitar a un trabajador con conceptos o pagos** (`DELETE /v1/payrolls/:id/workers/:workerId`): después de la comprobación de registros de asistencia y antes de borrar, si el trabajador tiene alguna fila en `payroll_items` o en `payments` de esa planilla → 409 `has_records`, `'El trabajador tiene conceptos o pagos en esta planilla; elimínalos primero'`.
 
-- [ ] **Step 1: Escribir las pruebas (fallan)**
+- [x] **Step 1: Escribir las pruebas (fallan)**
 
 `backend/test/payroll-items.test.ts`. Preparación en `beforeAll`: área `Producción`; cargo `Operario` por hora (6.25 / 7.8125); cargo `Supervisor` mensual con `monthlySalary: 1800`; cargo `Asistente` mensual sin sueldo (`monthlySalary` omitido); trabajadores `w1` (temporal, Operario), `w2` (contrato, Supervisor), `w3` (contrato, Asistente), `w4` (temporal, Operario, no se agrega a ninguna planilla); el coordinador con el área Producción (`insert` directo en `userAreas`); una planilla semanal `weekly` del `2026-10-05` al `2026-10-11` con `w1` y `w2`.
 
@@ -717,18 +778,18 @@ En `backend/test/payrolls.test.ts` no cambia ningún caso en esta tarea: sus pru
 Run: `npx vitest run test/payroll-items.test.ts` (desde `backend/`)
 Expected: FAIL, la ruta `/v1/payroll-items` responde 404.
 
-- [ ] **Step 2: Bloqueo**
+- [x] **Step 2: Bloqueo**
 
 Reemplazar `backend/src/payroll/open-payroll.ts` por el código de arriba y actualizar las llamadas de la tabla "Llamadas existentes que cambian".
 
 Run: `npm test -w @agrosalas/backend`
 Expected: las 285 pruebas anteriores y las de las tareas 1 y 2 pasan; solo falla `payroll-items.test.ts`.
 
-- [ ] **Step 3: `salary-items.ts`, `routes/payroll-items.ts` y los cambios de `routes/payrolls.ts`**
+- [x] **Step 3: `salary-items.ts`, `routes/payroll-items.ts` y los cambios de `routes/payrolls.ts`**
 
 Escribir `createSalaryItems` (código de arriba), las rutas del contrato y montar `.route('/payroll-items', payrollItemsRoutes(deps))` en `backend/src/app.ts` después de `/attendance`.
 
-- [ ] **Step 4: Verificar**
+- [x] **Step 4: Verificar**
 
 Run: `npm test -w @agrosalas/backend`
 Expected: PASS.
@@ -736,7 +797,7 @@ Expected: PASS.
 Run: `npm run lint && npm run typecheck`
 Expected: sin errores (el frontend sigue compilando contra el tipo nuevo de la API).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend/src backend/test
@@ -918,7 +979,7 @@ en las dependencias:
 
 y `uploadUrls`, `readUrls` en el objeto que devuelve.
 
-- [ ] **Step 1: Escribir las pruebas (fallan)**
+- [x] **Step 1: Escribir las pruebas (fallan)**
 
 `backend/test/env.test.ts`: un caso nuevo: sin `EVIDENCE_BUCKET` el valor es `'payment-evidence'`; con `EVIDENCE_BUCKET: 'otro'` es `'otro'`.
 
@@ -945,15 +1006,15 @@ Casos, uno por `it`:
 Run: `npx vitest run test/payments.test.ts test/env.test.ts` (desde `backend/`)
 Expected: FAIL.
 
-- [ ] **Step 2: Tipos, entorno, doble de pruebas y almacenamiento**
+- [x] **Step 2: Tipos, entorno, doble de pruebas y almacenamiento**
 
 `EvidenceStorage` y `evidence` en `Dependencies`; `EVIDENCE_BUCKET`; el doble en `test/helpers.ts`; `storage/evidence.ts`; `server.ts`; el script del bucket.
 
-- [ ] **Step 3: `routes/payments.ts` y `routes/evidence.ts`**
+- [x] **Step 3: `routes/payments.ts` y `routes/evidence.ts`**
 
 Según los contratos. Montar en `backend/src/app.ts`: `.route('/payments', paymentsRoutes(deps))` y `.route('/evidence', evidenceRoutes(deps))`.
 
-- [ ] **Step 4: Verificar**
+- [x] **Step 4: Verificar**
 
 Run: `npm test -w @agrosalas/backend`
 Expected: PASS.
@@ -961,7 +1022,7 @@ Expected: PASS.
 Run: `npm run lint && npm run typecheck`
 Expected: sin errores.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend/src backend/test backend/scripts backend/package.json backend/.env.example
@@ -1025,7 +1086,7 @@ Las sumas se leen con ``sql<number>`coalesce(sum(${col}), 0)::bigint`.mapWith(Nu
 
 - Historial (`routes/worker-history.ts`, montado con `.route('/workers', workerHistoryRoutes(deps))` junto a `paymentMethodsRoutes`): `findWorker(db, user, id)` para el 404; las planillas donde el trabajador es miembro, paginadas con `pageSchema`; por cada planilla de la página, su saldo con `payrollBalances(db, payrollId, [id])`.
 
-- [ ] **Step 1: Escribir las pruebas (fallan)**
+- [x] **Step 1: Escribir las pruebas (fallan)**
 
 `backend/test/balances.test.ts`. Preparación en `beforeAll`: área `Producción`; cargo `Operario` por hora (6.25 / 7.8125); trabajadores temporales `w1` (apellido `Quispe`) y `w2` (apellido `Huamán`); coordinador con el área Producción. Planilla A semanal del `2026-10-05` al `2026-10-11` con `w1` y `w2`. Para `w1`, el lunes `2026-10-05`, las cuatro marcas con `POST /v1/attendance/clock` y `at` explícito: `12:10Z`, `18:00Z`, `19:00Z`, `23:30Z` (620 minutos → 6823 céntimos). Conceptos de `w1`: `bonus` 2000 y `deduction` 1000. Pago a `w1`: 5000 en efectivo con fecha `2026-10-05`. Pago a `w2`: 3000 con fecha `2026-10-05` (sin asistencia: pendiente −3000). Planilla B semanal del `2026-09-21` al `2026-09-27` (ya terminó) con `w1` y un `bonus` de 4000, sin pagos.
 
@@ -1044,15 +1105,15 @@ En `backend/test/payrolls.test.ts`: si algún caso existente compara `totalCents
 Run: `npx vitest run test/balances.test.ts` (desde `backend/`)
 Expected: FAIL.
 
-- [ ] **Step 2: `payroll/balance-service.ts`**
+- [x] **Step 2: `payroll/balance-service.ts`**
 
 `payrollBalances` según la descripción de arriba.
 
-- [ ] **Step 3: Rutas**
+- [x] **Step 3: Rutas**
 
 Lista con los tres montos; `/summary` antes de `/:id`; `/:id/balances`; `/:id/workers/:workerId`; `routes/worker-history.ts` y su montaje. `payrollsRoutes` pasa a recibir `{ db, now }`.
 
-- [ ] **Step 4: Verificar**
+- [x] **Step 4: Verificar**
 
 Run: `npm test -w @agrosalas/backend`
 Expected: PASS.
@@ -1060,7 +1121,7 @@ Expected: PASS.
 Run: `npm run lint && npm run typecheck`
 Expected: sin errores. El frontend lee `totalCents` de la lista: debe seguir compilando.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend/src backend/test
@@ -1096,7 +1157,7 @@ Reglas, en una transacción:
 - Reabrir: lectura con `.for('update')`; inexistente → 404; no cerrada → 409 `not_closed`, `'La planilla no está cerrada'`. Si pasa: `status: 'open'`, `closedBy: null`, `closedAt: null`; auditoría `update`.
 - Una planilla cerrada rechaza con 409 `payroll_closed` toda escritura que pase por `findOpenPayroll`: marcar, carga en bloque, crear, editar y eliminar registros; editar la planilla; agregar y quitar trabajadores; crear, editar y eliminar conceptos; crear y eliminar pagos; pedir una URL de subida. Las lecturas siguen funcionando.
 
-- [ ] **Step 1: Escribir las pruebas (fallan)**
+- [x] **Step 1: Escribir las pruebas (fallan)**
 
 `backend/test/closing.test.ts`. Preparación: área, cargo por hora, trabajadores temporales `w1` y `w2`; coordinador con el área; planilla semanal del `2026-10-05` al `2026-10-11` con `w1`; para `w1`, un registro de asistencia completo el lunes (6823 céntimos), un `bonus` de 2000 (`itemId`) y un pago en efectivo de 5000 (`paymentId`).
 
@@ -1116,11 +1177,11 @@ Casos, en este orden (comparten estado):
 Run: `npx vitest run test/closing.test.ts` (desde `backend/`)
 Expected: FAIL, las rutas no existen.
 
-- [ ] **Step 2: Implementar `close` y `reopen` en `routes/payrolls.ts`**
+- [x] **Step 2: Implementar `close` y `reopen` en `routes/payrolls.ts`**
 
 Según el contrato.
 
-- [ ] **Step 3: Verificar**
+- [x] **Step 3: Verificar**
 
 Run: `npm test -w @agrosalas/backend`
 Expected: PASS.
@@ -1128,7 +1189,7 @@ Expected: PASS.
 Run: `npm run lint && npm run typecheck`
 Expected: sin errores.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add backend/src/routes/payrolls.ts backend/test/closing.test.ts
@@ -1146,7 +1207,7 @@ git commit -m "feat(api): close and reopen payrolls, with confirmation when bala
 - Consumes: todas las rutas de las tareas 3 a 6.
 - Produces: el repo listo para el PR.
 
-- [ ] **Step 1: Ampliar la matriz de roles**
+- [x] **Step 1: Ampliar la matriz de roles**
 
 En `backend/test/permissions.test.ts`, el `beforeAll` crea además, en la planilla existente y para el trabajador temporal: un concepto `bonus` de 2000 (`itemId`) y un pago en efectivo de 1000 con fecha `RECORD_DATE` (`paymentId`); `path` reemplaza también `:item` y `:payment`.
 
@@ -1175,14 +1236,14 @@ Los casos de `DELETE`, `close` y `reopen` van al final de la matriz o usan filas
 Run: `npx vitest run test/permissions.test.ts` (desde `backend/`)
 Expected: PASS. Si algún caso responde otra cosa que 403, es un defecto de la tarea que hizo esa ruta: se corrige ahí.
 
-- [ ] **Step 2: Ampliar el barrido del coordinador**
+- [x] **Step 2: Ampliar el barrido del coordinador**
 
 A `NULLABLE_MONEY_KEYS` se agregan `paidCents` y `pendingCents`. El barrido sigue recorriendo las rutas `GET` que el coordinador sí alcanza (la lista y el detalle de planillas y la lista del día): ahora la lista trae además `paidCents` y `pendingCents`, que deben llegar en `null`. La prueba de control con `admin` comprueba que `admin` recibe en la lista `totalCents`, `paidCents` (1000) y `pendingCents` con número.
 
 Run: `npx vitest run test/permissions.test.ts` (desde `backend/`)
 Expected: PASS.
 
-- [ ] **Step 3: Documentación**
+- [x] **Step 3: Documentación**
 
 - `README.md`: en la sección de puesta en marcha, la variable `EVIDENCE_BUCKET` y el paso `npm run create-evidence-bucket -w @agrosalas/backend` (una vez por proyecto de Supabase, después de las migraciones); en "Reglas", una línea: `El saldo de cada trabajador se calcula en backend/src/payroll/balance.ts: asistencia + conceptos que suman − descuentos − pagos.`
 - Spec, sección 5: en `payroll_items`, que `amount_cents` es siempre positivo y el tipo da el signo, que hay un solo `salary` por trabajador y planilla, y que conceptos, pagos y asistencias solo existen para trabajadores de la planilla; en `payments`, que un archivo de evidencia pertenece a un solo pago y que `method_detail` es un texto.
@@ -1192,7 +1253,7 @@ Expected: PASS.
 - Spec, sección 17: los códigos de error nuevos `pending_balances` (409), `not_closed` (409) y `storage_error` (502), y que `has_records` cubre también conceptos y pagos; en variables de entorno, `EVIDENCE_BUCKET`; en scripts, `create-evidence-bucket`.
 - Este plan: sección "Estado de ejecución" con fecha, commits, total de pruebas por tarea y lo que difirió del texto; y "Pendiente para el plan 3B".
 
-- [ ] **Step 4: Verificación final**
+- [x] **Step 4: Verificación final**
 
 ```bash
 npm run lint && npm run typecheck && npm test && npm run build
@@ -1200,7 +1261,7 @@ npm run lint && npm run typecheck && npm test && npm run build
 
 Expected: todo en verde. El frontend no cambia: sus 234 pruebas siguen igual. Anotar el total de pruebas del backend.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend/test/permissions.test.ts README.md docs

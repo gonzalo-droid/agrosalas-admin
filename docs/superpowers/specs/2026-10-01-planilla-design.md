@@ -183,9 +183,18 @@ Una por trabajador y fecha (único).
 
 `(payroll_id, worker_id, type, amount_cents, note, recorded_by)`. Tipos: `salary`, `bonus`, `piecework` (suman) y `deduction` (resta).
 
+- `amount_cents` es siempre positivo (entre 1 y 99 999 999): el tipo da el signo, así que un descuento se guarda en positivo y resta.
+- Hay un solo `salary` por trabajador y planilla (índice único parcial); los demás tipos se pueden repetir.
+- Conceptos, pagos y asistencias solo existen para trabajadores de la planilla: una clave foránea compuesta hacia `payroll_workers (payroll_id, worker_id)` lo garantiza en las tres tablas, y la API responde 400 `not_in_payroll` antes de llegar a ella.
+- Un concepto solo cambia en monto y nota; para cambiar el tipo se elimina y se crea otro.
+
 ### `payments`
 
 `(payroll_id, worker_id, date, amount_cents, method, method_detail, evidence_path?, note, recorded_by)`. `method` es `yape`, `plin`, `transfer` o `cash`; `method_detail` copia el número y el titular usados, para que el historial no cambie si luego se edita el método del trabajador.
+
+- `amount_cents` es positivo (entre 1 y 99 999 999). Un pago no se edita: se elimina y se registra de nuevo.
+- `method_detail` es un texto (hasta 160 caracteres). Si el pago indica un método registrado del trabajador (`paymentMethodId`, que no se guarda), el servidor lo escribe con el número, el banco y el CCI cuando son de cuenta bancaria, y el titular de ese momento; el medio del pago debe corresponder al tipo del método (`yape`, `plin`, `bank_account` → `transfer`). Sin método registrado se acepta un texto libre, que en efectivo normalmente queda vacío. Un `method_detail` o una `note` en blanco se guardan como `null`.
+- Un archivo de evidencia pertenece a un solo pago (índice único sobre `evidence_path`).
 
 ### `audit_log`
 
@@ -225,9 +234,11 @@ Reglas:
 - Solo se registra asistencia dentro de una planilla abierta cuyas fechas incluyan ese día, y solo a los trabajadores agregados a esa planilla. Si no hay ninguna, la pantalla de asistencia pide crearla.
 - Dos planillas pueden coincidir en fechas (por ejemplo, dos campañas la misma semana con cuadrillas distintas), pero un trabajador solo puede tener un registro de asistencia por fecha, así que no puede estar en dos planillas el mismo día.
 - Un registro nuevo de un trabajador temporal cuyo cargo no tiene tarifa por hora (no tiene cargo, o es mensual) se crea por defecto con tarifa 0 y queda marcado `needs_review`, para que contabilidad ponga la tarifa. Lo mismo ocurre al editar una falta y convertirla en día trabajado.
-- Al crear una planilla mensual se genera un concepto `salary` por cada trabajador de contrato incluido (monto editable, por ejemplo para un mes incompleto).
+- Al crear una planilla mensual, y al agregarle trabajadores después, se genera un concepto `salary` por cada trabajador de contrato cuyo cargo es mensual y tiene sueldo mensual: el monto sale del sueldo mensual del cargo y es editable (por ejemplo, para un mes incompleto). Si el cargo no tiene sueldo mensual no se crea nada y contabilidad agrega el concepto a mano; quien ya tiene un `salary` en la planilla lo conserva.
 - **Total por trabajador:** suma de montos de asistencia + conceptos que suman − descuentos.
 - **Pendiente:** total − pagos. Puede ser negativo (adelanto mayor al total acumulado); se muestra como saldo a favor de la empresa.
+- **Resumen de la lista** (`GET /v1/payrolls/summary`): *pendiente acumulado* es la suma del pendiente de las planillas abiertas; *por pagar* cuenta las planillas abiertas cuyo periodo ya terminó; *pagado en el mes* suma los pagos con fecha en el mes en curso de Lima, de cualquier planilla.
+- El total de la planilla (`totalCents` en la lista) incluye los conceptos: asistencia + lo que suma − descuentos. El saldo de cada trabajador sale de `backend/src/payroll/balance.ts`.
 
 Estado que ve el usuario:
 
@@ -242,7 +253,8 @@ Además, una planilla abierta cuyo periodo todavía no empieza se muestra como "
 Cierre:
 
 - Bloquea crear, editar y eliminar asistencias, conceptos y pagos de esa planilla.
-- Si algún trabajador tiene pendiente distinto de 0, el cierre pide confirmación y muestra la lista.
+- Si algún trabajador tiene pendiente distinto de 0, el cierre pide confirmación: la API responde 409 `pending_balances` hasta que el cuerpo lleve `confirmPending: true`; la lista de pendientes sale de `GET /v1/payrolls/:id/balances`. Los registros `needs_review` o con un tramo abierto no impiden cerrar (la pantalla los avisará).
+- Cerrar una planilla ya cerrada responde 409 `payroll_closed`; reabrir una que no está cerrada, 409 `not_closed`.
 - Solo el administrador puede reabrir. Cierre y reapertura quedan en auditoría.
 
 Campañas:
@@ -255,7 +267,11 @@ Campañas:
 
 - Un pago tiene monto, fecha, medio, nota y evidencia opcional. Al pagar se elige entre los métodos del trabajador (se propone el principal) o efectivo.
 - Historial: en la pestaña Pagos de la planilla se ven todos los pagos hechos a cada trabajador en ese periodo; en la ficha del trabajador, sus pagos de todas las planillas.
-- La evidencia va a un bucket privado de Supabase Storage. El backend entrega una URL firmada de subida y, para verla, una URL firmada de lectura de corta duración.
+- La evidencia va a un bucket privado de Supabase Storage (`EVIDENCE_BUCKET`). El backend entrega una URL firmada de subida y, para verla, una URL firmada de lectura de corta duración.
+- Ruta del archivo: `payrolls/<payrollId>/<workerId>/<uuid>.<ext>`. La URL de subida solo se entrega para un trabajador de una planilla abierta y no escribe nada en la base: el archivo queda asociado cuando se registra el pago con su `evidencePath`, que debe ser de esa planilla y ese trabajador, con un nombre que generó la API, y que ningún otro pago use.
+- La URL de lectura dura 60 segundos. Un pago sin evidencia responde 404.
+- La fecha de un pago puede caer fuera del periodo de la planilla (se suele pagar después), pero no puede ser futura respecto de hoy en Lima. Se puede pagar más que el total (adelanto): el pendiente queda negativo.
+- Al eliminar un pago su archivo se conserva en el bucket, como respaldo de lo que se pagó.
 - Formatos: JPG, PNG, WebP, PDF. Máximo 5 MB. El frontend comprime las imágenes antes de subir.
 - Recibo: página imprimible por trabajador y planilla (detalle por día, conceptos, pagos, pendiente). Se guarda como PDF desde el navegador y se puede compartir desde el celular.
 
@@ -269,11 +285,12 @@ REST bajo `/v1`, con validación Zod en entrada y salida.
 | `/users`, `/areas`, `/shifts`, `/campaigns`, `/positions`, `/groups` | CRUD (administrador) |
 | `/workers` | Listar con filtros (`areaId`, `employmentType`, `status`, `search`), crear, ver, editar, cesar; métodos de pago en `/workers/:id/payment-methods` (agregar, editar, quitar, marcar principal) |
 | `/attendance` | Listar por fecha y área; `POST /clock` recibe `payrollId`, `workerId`, `date`, `mark` (ingreso, salida a refrigerio, regreso, salida) y `at` opcional (si falta, se usa la hora actual), y es idempotente: una marca que ya tiene hora se responde tal cual; `POST /bulk` (misma marca para varios); editar registro completo; eliminar |
-| `/payrolls` | Listar (texto, rango de fechas, campaña, estado, tipo); crear; editar nombre, fechas y campaña; agregar y quitar trabajadores; detalle en grilla; cerrar, reabrir y exportar a Excel llegan en las fases 3 y 4 |
-| `/payrolls/:id/workers/:workerId` | Detalle para el recibo |
-| `/payroll-items` | Crear, editar, eliminar |
-| `/payments` | Crear, listar, eliminar |
-| `/evidence` | URL firmada de subida y de lectura |
+| `/payrolls` | Listar (texto, rango de fechas, campaña, estado, tipo; cada fila con total, pagado y pendiente); crear; editar nombre, fechas y campaña; agregar y quitar trabajadores; detalle en grilla; `GET /summary` (pendiente acumulado, por pagar y pagado en el mes); `GET /:id/balances` (saldo de cada trabajador y totales); `POST /:id/close` (cuerpo `{ confirmPending? }`); `POST /:id/reopen` (administrador). Exportar a Excel llega en la fase 4 |
+| `/payrolls/:id/workers/:workerId` | `GET`: detalle para el recibo (planilla, trabajador con su cargo, registros, conceptos, pagos, saldo y métodos de pago del trabajador) |
+| `/payroll-items` | Listar (`payrollId` obligatorio, `workerId` opcional), crear, editar (monto y nota), eliminar |
+| `/payments` | Listar (paginado, con `payrollId` o `workerId`; cada fila trae el nombre del trabajador y de la planilla), crear, eliminar |
+| `/evidence` | `POST /upload-url` (planilla, trabajador, `contentType`, `sizeBytes`) y `GET /read-url?paymentId=` |
+| `/workers/:id/payrolls` | Planillas en las que está el trabajador, paginadas, con su total, pagado y pendiente en cada una |
 | `/reports/costs` | Agrupado por semana, mes, área o campaña, en un rango de fechas; exportar a Excel |
 | `/audit-log` | Listar (administrador) |
 
@@ -501,10 +518,13 @@ El valor `entity` de la auditoría es el nombre de la tabla en inglés (`workers
 | `not_worked` | Se intenta marcar una hora en un día registrado como falta o permiso (409) |
 | `out_of_order` | Se marca una hora sin haber marcado la anterior (409) |
 | `records_outside_range` | Las fechas nuevas de la planilla dejan registros de asistencia fuera (409) |
-| `has_records` | Se quita de la planilla a un trabajador que tiene registros en ella (409) |
+| `has_records` | Se quita de la planilla a un trabajador que tiene registros de asistencia, conceptos o pagos en ella (409) |
 | `conflict` | El registro cambió o desapareció mientras se guardaba; se puede reintentar (409) |
+| `pending_balances` | Se cierra una planilla con algún trabajador con pendiente distinto de 0 sin `confirmPending: true` (409) |
+| `not_closed` | Se reabre una planilla que no está cerrada (409) |
+| `storage_error` | El almacenamiento de evidencias no pudo entregar la URL firmada (502) |
 
-Los ocho últimos códigos nacen en inglés y no tienen equivalente en español.
+Los once últimos códigos nacen en inglés y no tienen equivalente en español.
 
 ### Direcciones del panel
 
@@ -528,3 +548,5 @@ Los ocho últimos códigos nacen en inglés y no tienen equivalente en español.
 | `npm run db:generar` | `npm run db:generate` |
 | `npm run db:migrar` | `npm run db:migrate` |
 | `npm run crear-admin` | `npm run create-admin` |
+
+`EVIDENCE_BUCKET` (nombre del bucket privado de evidencias de pago, por defecto `payment-evidence`) y `npm run create-evidence-bucket` (crea el bucket, o actualiza sus límites si ya existe) nacen en inglés y no tienen equivalente en español.

@@ -15,12 +15,13 @@ Node 22 o superior y un proyecto Supabase (Postgres y Auth).
 ## Puesta en marcha
 
 1. `npm install`
-2. Copia `backend/.env.example` a `backend/.env` y complétalo.
+2. Copia `backend/.env.example` a `backend/.env` y complétalo. `EVIDENCE_BUCKET` es el nombre del bucket privado de las evidencias de pago (por defecto `payment-evidence`).
 3. `npm run db:migrate -w @agrosalas/backend`
-4. `npm run create-admin -w @agrosalas/backend -- <correo> "<nombre>" "<contraseña>"`
-5. `npm run dev:api` (API en http://localhost:8787)
-6. Copia `frontend/.env.example` a `frontend/.env.local` y complétalo con la URL y la clave pública del proyecto Supabase y con `NEXT_PUBLIC_API_URL` (la URL de la API del paso 5).
-7. `npm run dev:web` (panel en http://localhost:3000)
+4. `npm run create-evidence-bucket -w @agrosalas/backend` (una vez por proyecto de Supabase, después de las migraciones: crea el bucket privado, con tope de 5 MB y solo JPG, PNG, WebP y PDF; si ya existe, actualiza esos límites)
+5. `npm run create-admin -w @agrosalas/backend -- <correo> "<nombre>" "<contraseña>"`
+6. `npm run dev:api` (API en http://localhost:8787)
+7. Copia `frontend/.env.example` a `frontend/.env.local` y complétalo con la URL y la clave pública del proyecto Supabase y con `NEXT_PUBLIC_API_URL` (la URL de la API del paso 6).
+8. `npm run dev:web` (panel en http://localhost:3000)
 
 ## Despliegue y Supabase
 
@@ -41,6 +42,7 @@ Revisar en cada entorno (local, pruebas, producción):
 | `npm run typecheck` | Tipos de todos los workspaces |
 | `npm run db:generate -w @agrosalas/backend -- --name <nombre>` | Genera una migración a partir de `backend/src/db/schema.ts` |
 | `npm run db:migrate -w @agrosalas/backend` | Aplica las migraciones a la base de `backend/.env` |
+| `npm run create-evidence-bucket -w @agrosalas/backend` | Crea (o actualiza) el bucket privado de evidencias de pago del proyecto de `backend/.env` |
 | `npm run lint` | ESLint del frontend |
 | `npm run build` | Build de producción del frontend |
 
@@ -50,4 +52,5 @@ Revisar en cada entorno (local, pruebas, producción):
 - Toda tabla nueva lleva `.enableRLS()` y ninguna política: solo la API accede a la base.
 - Todo cambio de datos deja una fila en `audit_log`.
 - El cálculo de horas y montos vive en backend/src/payroll/calc.ts y trabaja con enteros (minutos y céntimos).
+- El saldo de cada trabajador se calcula en backend/src/payroll/balance.ts: asistencia + conceptos que suman − descuentos − pagos.
 - Nunca se versionan `.env` ni archivos con datos personales.
