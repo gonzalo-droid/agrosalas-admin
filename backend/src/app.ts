@@ -3,6 +3,7 @@ import { cors } from 'hono/cors'
 import { authenticate } from './auth/middleware'
 import { handleError } from './lib/errors'
 import { attendanceRoutes } from './routes/attendance'
+import { evidenceRoutes } from './routes/evidence'
 import { areasRoutes, campaignsRoutes, shiftsRoutes } from './routes/catalogs'
 import { auditLogRoutes } from './routes/audit-log'
 import { meRoutes } from './routes/me'
@@ -10,6 +11,7 @@ import { positionsRoutes } from './routes/positions'
 import { workersRoutes } from './routes/workers'
 import { paymentMethodsRoutes } from './routes/payment-methods'
 import { groupsRoutes } from './routes/groups'
+import { paymentsRoutes } from './routes/payments'
 import { payrollItemsRoutes } from './routes/payroll-items'
 import { payrollsRoutes } from './routes/payrolls'
 import { usersRoutes } from './routes/users'
@@ -31,6 +33,8 @@ export function createApp(deps: Dependencies) {
     .route('/payrolls', payrollsRoutes(deps))
     .route('/attendance', attendanceRoutes(deps))
     .route('/payroll-items', payrollItemsRoutes(deps))
+    .route('/payments', paymentsRoutes(deps))
+    .route('/evidence', evidenceRoutes(deps))
 
   return new Hono()
     .use(

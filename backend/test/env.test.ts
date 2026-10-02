@@ -12,6 +12,11 @@ describe('readEnv', () => {
     expect(readEnv(complete)).toMatchObject({ PANEL_ORIGIN: 'http://localhost:3000', PORT: 8787 })
   })
 
+  it('defaults EVIDENCE_BUCKET to payment-evidence and reads it when given', () => {
+    expect(readEnv(complete).EVIDENCE_BUCKET).toBe('payment-evidence')
+    expect(readEnv({ ...complete, EVIDENCE_BUCKET: 'otro' }).EVIDENCE_BUCKET).toBe('otro')
+  })
+
   it('strips the trailing slash from SUPABASE_URL and PANEL_ORIGIN', () => {
     const env = readEnv({ ...complete, SUPABASE_URL: 'https://project.supabase.co/', PANEL_ORIGIN: 'http://localhost:3000/' })
     expect(env.SUPABASE_URL).toBe('https://project.supabase.co')
