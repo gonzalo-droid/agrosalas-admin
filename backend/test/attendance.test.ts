@@ -1,6 +1,6 @@
 import { and, eq } from 'drizzle-orm'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { auditLog, userAreas } from '../src/db/schema'
+import { auditLog, payrolls, userAreas } from '../src/db/schema'
 import { createTestApp, USERS } from './helpers'
 
 let t: Awaited<ReturnType<typeof createTestApp>>
@@ -1019,5 +1019,69 @@ describe('attendance: edit path fixes of the final review', () => {
       const last = await at('admin', paidSecond, '2026-12-10', 'clockOut2', '2026-12-11T01:00:00Z')
       expect(last.json).toMatchObject({ workedMinutes: 720, overtimeEdited: true, overtimeMinutes: 0, regularMinutes: 720 })
     })
+  })
+})
+
+describe('attendance: audit only what changed', () => {
+  it('a PATCH whose resulting record equals the stored one answers 200 and writes no audit row', async () => {
+    const payrollId = await createPayroll('Sin cambios', [temp])
+    const created = await t.request('admin', 'POST', '/v1/attendance', {
+      payrollId,
+      workerId: temp,
+      date: '2026-10-07',
+      clockIn1: '07:00',
+      clockOut1: '15:00',
+      note: 'Igual',
+    })
+    expect(created.status).toBe(201)
+    const id = created.json.id
+    const r = await t.request('admin', 'PATCH', `/v1/attendance/${id}`, {
+      clockIn1: '07:00',
+      clockOut1: '15:00',
+      note: 'Igual',
+      hourlyRate: 6.25,
+      overtimeMinutes: null,
+    })
+    expect(r.status).toBe(200)
+    expect(r.json).toEqual(created.json)
+    expect(await auditRows(id)).toHaveLength(1)
+    // A real change is still audited.
+    expect((await t.request('admin', 'PATCH', `/v1/attendance/${id}`, { note: 'Distinto' })).status).toBe(200)
+    expect(await auditRows(id)).toHaveLength(2)
+  })
+})
+
+describe('attendance: a closed payroll', () => {
+  it('rejects every write with 409 payroll_closed and still answers the reads', async () => {
+    const payrollId = await createPayroll('Cerrada', [temp, noRate])
+    const created = await t.request('admin', 'POST', '/v1/attendance', {
+      payrollId,
+      workerId: temp,
+      date: '2026-10-09',
+      clockIn1: '07:00',
+    })
+    expect(created.status).toBe(201)
+    const recordId = created.json.id
+    // There is no close endpoint in this phase: the status is set directly.
+    await t.db.update(payrolls).set({ status: 'closed' }).where(eq(payrolls.id, payrollId))
+
+    const writes = [
+      await t.request('admin', 'PATCH', `/v1/payrolls/${payrollId}`, { name: 'Otro nombre' }),
+      await clock('admin', temp, '2026-10-09', 'clockOut1', '2026-10-09T20:00:00Z', payrollId),
+      await t.request('admin', 'POST', '/v1/attendance', { payrollId, workerId: noRate, date: '2026-10-07', type: 'absence' }),
+      await t.request('admin', 'PATCH', `/v1/attendance/${recordId}`, { note: 'x' }),
+      await t.request('admin', 'DELETE', `/v1/attendance/${recordId}`),
+    ]
+    for (const r of writes) {
+      expect(r.status).toBe(409)
+      expect(r.json.error).toMatchObject({ code: 'payroll_closed', message: 'La planilla está cerrada' })
+    }
+
+    const detail = await t.request('admin', 'GET', `/v1/payrolls/${payrollId}`)
+    expect(detail.status).toBe(200)
+    expect(detail.json).toMatchObject({ id: payrollId, name: 'Cerrada', status: 'closed' })
+    expect(detail.json.records).toHaveLength(1)
+    const day = await t.request('admin', 'GET', `/v1/attendance?payrollId=${payrollId}&date=2026-10-09`)
+    expect(day.status).toBe(200)
   })
 })

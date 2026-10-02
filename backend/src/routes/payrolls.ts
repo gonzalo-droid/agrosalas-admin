@@ -82,15 +82,15 @@ async function resolveWorkerIds(tx: Db | Tx, source: WorkerSource): Promise<stri
   return rows.map((row) => row.id)
 }
 
-// Returns how many workers were actually added: the ones already in the payroll are ignored.
-async function addWorkers(tx: Db | Tx, payrollId: string, workerIds: string[]): Promise<number> {
-  if (workerIds.length === 0) return 0
+// Returns the ids of the workers actually added: the ones already in the payroll are ignored.
+async function addWorkers(tx: Db | Tx, payrollId: string, workerIds: string[]): Promise<string[]> {
+  if (workerIds.length === 0) return []
   const inserted = await tx
     .insert(payrollWorkers)
     .values(workerIds.map((workerId) => ({ payrollId, workerId })))
     .onConflictDoNothing()
-    .returning()
-  return inserted.length
+    .returning({ workerId: payrollWorkers.workerId })
+  return inserted.map((row) => row.workerId)
 }
 
 async function countWorkers(db: Db | Tx, payrollId: string): Promise<number> {
@@ -226,6 +226,8 @@ export const payrollsRoutes = ({ db }: Dependencies) =>
               throw new ApiError(409, 'records_outside_range', 'Hay registros de asistencia fuera de las fechas nuevas')
             }
           }
+          // Values equal to the stored ones: nothing to write and nothing to audit.
+          if (Object.entries(changes).every(([key, value]) => before[key as keyof typeof before] === value)) return before
           const [after] = await tx.update(payrolls).set(changes).where(eq(payrolls.id, id)).returning()
           await recordAudit(tx, c.get('user').id, 'update', 'payrolls', id, before, after)
           return after
@@ -245,8 +247,8 @@ export const payrollsRoutes = ({ db }: Dependencies) =>
           await findOpenPayroll(tx, id)
           const workerIds = await resolveWorkerIds(tx, source)
           const added = await addWorkers(tx, id, workerIds)
-          await recordAudit(tx, c.get('user').id, 'update', 'payrolls', id, null, { added: workerIds })
-          return { added, workerCount: await countWorkers(tx, id) }
+          if (added.length > 0) await recordAudit(tx, c.get('user').id, 'update', 'payrolls', id, null, { added })
+          return { added: added.length, workerCount: await countWorkers(tx, id) }
         })
         return c.json(result)
       },

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addDays, limaDate, limaInstant, limaTime, marksFromTimes } from '../src/payroll/time'
+import { limaDate, limaInstant, marksFromTimes, notBefore } from '../src/payroll/time'
 
 describe('Lima time', () => {
   it('gives the Lima date of an instant, five hours behind UTC', () => {
@@ -7,17 +7,8 @@ describe('Lima time', () => {
     expect(limaDate(new Date('2026-10-06T05:00:00Z'))).toBe('2026-10-06')
   })
 
-  it('gives the Lima wall-clock time of an instant', () => {
-    expect(limaTime(new Date('2026-10-06T03:30:00Z'))).toBe('22:30')
-  })
-
   it('turns a Lima date and time into an instant', () => {
     expect(limaInstant('2026-10-05', '07:10').toISOString()).toBe('2026-10-05T12:10:00.000Z')
-  })
-
-  it('adds days to a date across a month end', () => {
-    expect(addDays('2026-10-31', 1)).toBe('2026-11-01')
-    expect(addDays('2026-10-05', -1)).toBe('2026-10-04')
   })
 })
 
@@ -46,5 +37,21 @@ describe('marksFromTimes', () => {
       '2026-10-06T07:30:00.000Z',
       '2026-10-06T11:00:00.000Z',
     ])
+  })
+})
+
+describe('notBefore', () => {
+  const at = (iso: string) => new Date(iso)
+
+  it('returns the instant as it is when there is no previous mark or it is not earlier', () => {
+    expect(notBefore(at('2026-10-05T12:00:00Z'), null).toISOString()).toBe('2026-10-05T12:00:00.000Z')
+    expect(notBefore(at('2026-10-05T18:00:00Z'), at('2026-10-05T12:00:00Z')).toISOString()).toBe('2026-10-05T18:00:00.000Z')
+    // The same instant is not earlier.
+    expect(notBefore(at('2026-10-05T12:00:00Z'), at('2026-10-05T12:00:00Z')).toISOString()).toBe('2026-10-05T12:00:00.000Z')
+  })
+
+  it('moves an earlier instant forward a day at a time until it is not earlier', () => {
+    expect(notBefore(at('2026-10-05T09:00:00Z'), at('2026-10-05T12:00:00Z')).toISOString()).toBe('2026-10-06T09:00:00.000Z')
+    expect(notBefore(at('2026-10-05T09:00:00Z'), at('2026-10-07T12:00:00Z')).toISOString()).toBe('2026-10-08T09:00:00.000Z')
   })
 })

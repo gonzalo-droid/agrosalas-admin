@@ -169,6 +169,24 @@ describe('payrolls: add and remove workers', () => {
     expect(rows[0].after).toEqual({ added: [w4] })
   })
 
+  it('adding nobody writes no audit row, and the audit lists only the workers actually added', async () => {
+    const p = await t.request('admin', 'POST', '/v1/payrolls', weekly('Altas repetidas', { workers: { workerIds: [w1] } }))
+    const updates = () =>
+      t.db
+        .select()
+        .from(auditLog)
+        .where(and(eq(auditLog.entity, 'payrolls'), eq(auditLog.entityId, p.json.id), eq(auditLog.action, 'update')))
+    const none = await t.request('admin', 'POST', `/v1/payrolls/${p.json.id}/workers`, { workerIds: [w1] })
+    expect(none.json).toEqual({ added: 0, workerCount: 1 })
+    expect(await updates()).toHaveLength(0)
+
+    const some = await t.request('admin', 'POST', `/v1/payrolls/${p.json.id}/workers`, { workerIds: [w1, w2] })
+    expect(some.json).toEqual({ added: 1, workerCount: 2 })
+    const rows = await updates()
+    expect(rows).toHaveLength(1)
+    expect(rows[0].after).toEqual({ added: [w2] })
+  })
+
   it('only the administrator and accounting add workers; a missing payroll answers 404', async () => {
     const p = await t.request('admin', 'POST', '/v1/payrolls', weekly('Permisos de altas'))
     for (const role of ['management', 'coordinator'] as const) {
@@ -344,6 +362,26 @@ describe('payrolls: edit', () => {
     expect(rows).toHaveLength(1)
     expect(rows[0].before).toMatchObject({ name: 'Por editar', campaignId: null })
     expect(rows[0].after).toMatchObject({ name: 'Editada', campaignId })
+  })
+
+  it('a request whose values equal the stored ones answers 200 and writes no audit row', async () => {
+    const p = await t.request('admin', 'POST', '/v1/payrolls', weekly('Sin cambios', { campaignId }))
+    const updates = () =>
+      t.db
+        .select()
+        .from(auditLog)
+        .where(and(eq(auditLog.entity, 'payrolls'), eq(auditLog.entityId, p.json.id), eq(auditLog.action, 'update')))
+    const r = await t.request('admin', 'PATCH', `/v1/payrolls/${p.json.id}`, {
+      name: 'Sin cambios',
+      campaignId,
+      startDate: '2026-10-05',
+    })
+    expect(r.status).toBe(200)
+    expect(r.json).toMatchObject({ id: p.json.id, name: 'Sin cambios', campaignId, startDate: '2026-10-05', endDate: '2026-10-11' })
+    expect(await updates()).toHaveLength(0)
+    // A real change is still audited.
+    await t.request('admin', 'PATCH', `/v1/payrolls/${p.json.id}`, { name: 'Con cambios' })
+    expect(await updates()).toHaveLength(1)
   })
 
   it('removes the campaign with null', async () => {

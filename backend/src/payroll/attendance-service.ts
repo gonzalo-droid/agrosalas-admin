@@ -6,7 +6,7 @@ import { findWorker } from '../routes/workers'
 import type { SessionUser, Tx } from '../types'
 import { computeRecord, workedMinutes, type Marks } from './calc'
 import { findOpenPayroll } from './open-payroll'
-import { limaDate, limaInstant } from './time'
+import { limaDate, limaInstant, notBefore } from './time'
 
 type MoneyKey = 'hourlyRate' | 'overtimeRate' | 'amountCents'
 type Redacted<T> = Omit<T, MoneyKey> & Record<MoneyKey, number | null>
@@ -33,6 +33,9 @@ const MINUTE_MS = 60 * 1000
 // Every stored mark starts at the beginning of its minute: the seconds are not paid (spec rule 10), and an hour that is
 // edited later as 'HH:MM' must compare equal to the mark that was stored.
 const startOfMinute = (instant: Date) => new Date(Math.floor(instant.getTime() / MINUTE_MS) * MINUTE_MS)
+
+const sameValue = (stored: unknown, next: unknown) =>
+  stored instanceof Date && next instanceof Date ? stored.getTime() === next.getTime() : stored === next
 
 const overtimeAboveWorked = () =>
   new ApiError(400, 'validation', 'Las horas extra no pueden superar las horas trabajadas', 'overtimeMinutes')
@@ -271,8 +274,7 @@ function resolveMarks(
     } else if (sent === null) {
       instant = null
     } else {
-      instant = limaInstant(date, sent)
-      while (previous && instant.getTime() < previous.getTime()) instant = new Date(instant.getTime() + DAY_MS)
+      instant = notBefore(limaInstant(date, sent), previous)
     }
     if (instant) previous = instant
     return instant
@@ -331,20 +333,21 @@ export async function saveFullRecord(
       overtimeRate,
       overtimeMinutes: handSet,
     })
-    const [record] = await tx
-      .update(attendanceRecords)
-      .set({
-        type,
-        ...marks,
-        ...totals,
-        overtimeEdited: handSet !== null,
-        hourlyRate,
-        overtimeRate,
-        ...(fields.note !== undefined ? { note: fields.note } : {}),
-        ...(flagged !== undefined ? { needsReview: flagged } : {}),
-      })
-      .where(eq(attendanceRecords.id, existing.id))
-      .returning()
+    const changes = {
+      type,
+      ...marks,
+      ...totals,
+      overtimeEdited: handSet !== null,
+      hourlyRate,
+      overtimeRate,
+      ...(fields.note !== undefined ? { note: fields.note } : {}),
+      ...(flagged !== undefined ? { needsReview: flagged } : {}),
+    }
+    // A request that leaves the record as it is writes nothing and leaves no audit row.
+    if (Object.entries(changes).every(([key, value]) => sameValue(existing[key as keyof AttendanceRecord], value))) {
+      return { record: existing, created: false }
+    }
+    const [record] = await tx.update(attendanceRecords).set(changes).where(eq(attendanceRecords.id, existing.id)).returning()
     await recordAudit(tx, user.id, 'update', 'attendance_records', record.id, existing, record)
     return { record, created: false }
   }
