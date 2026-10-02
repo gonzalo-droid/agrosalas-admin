@@ -1,6 +1,6 @@
 # Planilla fase 3A: API de conceptos, pagos, evidencia y cierre — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Dejar funcionando y probada la API de la fase 3: conceptos de planilla (sueldo, bono, destajo, descuento), pagos parciales con evidencia, saldos por trabajador, cierre y reapertura de planillas, el detalle para el recibo y el sueldo automático de la planilla mensual.
 
@@ -46,7 +46,9 @@ Commits (`git log --oneline --reverse 38526cd..HEAD`; el último es el de la tar
 - `3323710` feat(api): add payments with their evidence in a private bucket
 - `d32cebf` feat(api): add worker balances, payroll totals with items and payments, the summary and the receipt detail
 - `c210668` feat(api): close and reopen payrolls, with confirmation when balances are pending
-- este commit: test(api): cover items, payments, evidence and closing in the role matrix and the coordinator sweep (con el README, el spec y esta sección)
+- `e7da122` test(api): cover items, payments, evidence and closing in the role matrix and the coordinator sweep (con el README, el spec y esta sección)
+- `1dea9a9` fix(api): let a monthly payroll drop a worker with only a salary item, and tighten payment dates and evidence paths (revisión final, ver abajo)
+- el commit siguiente: docs(planilla): record the final review of plan 3A
 
 Pruebas del backend, en total, al terminar cada tarea:
 
@@ -64,12 +66,18 @@ Total final del backend: 400 (24 casos nuevos en `permissions.test.ts`: 7 lectur
 
 Cada tarea pasó revisión de especificación y de calidad, sin hallazgos críticos ni importantes.
 
+Revisión final de la rama: ningún hallazgo crítico y uno importante, el sueldo automático de una planilla mensual impedía quitar al trabajador de la planilla; se corrigió en `1dea9a9`, junto con los hallazgos menores de los puntos 2 a 5 de abajo. El revisor reprodujo los totales de pruebas y la migración. Tras `1dea9a9`: backend 409 pruebas (nueve más: tres de quitar trabajadores, una de notas en blanco, tres de fechas y rutas de evidencia, dos de `addDays`), frontend 234; lint, typecheck y build en verde.
+
 Lo que difirió del texto del plan:
 
 - Las tareas 1 y 2 se despacharon juntas: dos commits y una sola revisión.
 - La API no deja crear un cargo mensual sin sueldo, así que el "cargo sin sueldo" de las pruebas de la tarea 3 se prepara con una actualización directa. En la práctica, el caso "trabajador de contrato sin concepto de sueldo" es un trabajador de contrato con un cargo por hora o sin cargo.
 - Una planilla sin trabajadores se crea omitiendo `workers` (el esquema pide al menos un id).
-- Una `note` de pago en blanco se guarda como `null`, igual que un `methodDetail` en blanco.
+- Una `note` de pago en blanco se guarda como `null`, igual que un `methodDetail` en blanco; la `note` de un concepto, también (revisión final).
+- Quitar a un trabajador de una planilla mensual cuyo único concepto es el sueldo automático es posible: el sueldo se elimina con él y se audita (`DELETE /payrolls/:id/workers/:workerId`). Asistencia, pagos u otros conceptos siguen bloqueando con 409 `has_records`.
+- La fecha de un pago no puede ser anterior en más de 31 días al inicio de su planilla (400 `validation`, campo `date`); el cálculo usa `addDays` de `backend/src/payroll/time.ts`.
+- Las rutas de evidencia (`upload-url` y el alta del pago) pasan los ids a minúsculas antes de armar o comprobar la ruta del archivo.
+- `payrollBalances` filtra por `workerIds` en SQL en las tres consultas, y la prueba de saldos tiene más de una fila por tabla en el trabajador `w1`.
 - Las 13 escrituras que ejerce la prueba de la planilla cerrada (tarea 6) ya respondían `payroll_closed` cuando llegó la tarea: ninguna ruta hubo que corregir.
 - En la tarea 7 la matriz de roles no necesitó cambios en las rutas: cada combinación prohibida respondió 403 `forbidden`. Las filas de `DELETE`, cerrar y reabrir van al final de la matriz.
 
@@ -83,15 +91,21 @@ Pendiente para el plan 3B (pantallas):
 - Recibo imprimible por trabajador y planilla.
 - Historial de planillas y pagos en la ficha del trabajador.
 - Planilla mensual: mostrar y editar el sueldo generado.
+- `/balances` trae solo `workerId`: los nombres salen de `GET /payrolls/:id`. Proponer `max(0, pendiente)` como monto del pago.
+- El método principal que se propone sale de `paymentMethods` del recibo.
+- La subida de evidencia usa `signedUrl` (PUT del archivo) o `uploadToSignedUrl` con el bucket.
+- Al cerrar, enviar `{}`; ante 409 `pending_balances` mostrar la lista y reenviar con `confirmPending: true`.
+- Los avisos de `needs_review` y de tramos abiertos se calculan en la pantalla.
 
 Pendiente de la API (hallazgos menores de las revisiones de cada tarea, sin corregir todavía; la revisión final de la rama decide cuáles se corrigen antes de fusionar):
 
 - Leer la evidencia de un archivo que nunca se subió responde 502 `storage_error` con "inténtalo de nuevo": conviene tratar el "no encontrado" del almacenamiento como 404. Nada comprueba que el archivo exista al registrar el pago.
-- `z.uuid()` acepta mayúsculas: la misma evidencia con el prefijo en mayúsculas y en minúsculas contaría como dos archivos.
-- Con `workerIds`, `payrollBalances` suma toda la planilla y filtra en memoria; el historial del trabajador hace cuatro consultas por cada planilla de la página.
+- El historial del trabajador hace cuatro consultas por cada planilla de la página.
+- Un pago enviado dos veces no se detecta en la API: lo evita la pantalla (plan 3B).
+- El total de la lista incluye los conceptos (el sueldo de una planilla mensual) y la grilla del plan 2B todavía no: se alinean en el 3B.
 - El recibo hace varias lecturas fuera de una transacción.
 - Dos altas de sueldo simultáneas: la que pierde recibe el `duplicate` genérico, sin `field`.
-- Pruebas por reforzar: restricciones de asistencia sin una fila aceptada de control; "repetir no crea otro sueldo" no ejerce el conflicto; una sola fila por tabla en las pruebas de saldos; los casos de planilla cerrada no comprueban que nada cambió; el orden de bloqueos no se puede probar con PGlite (una sola conexión).
+- Pruebas por reforzar: restricciones de asistencia sin una fila aceptada de control; "repetir no crea otro sueldo" no ejerce el conflicto; los casos de planilla cerrada no comprueban que nada cambió; el orden de bloqueos no se puede probar con PGlite (una sola conexión).
 - Antes de aplicar la migración `0002` a una base con datos, comprobar que no haya registros de asistencia de trabajadores que no estén en su planilla: `select count(*) from attendance_records a left join payroll_workers pw using (payroll_id, worker_id) where pw.worker_id is null` debe dar 0.
 
 ## Global Constraints

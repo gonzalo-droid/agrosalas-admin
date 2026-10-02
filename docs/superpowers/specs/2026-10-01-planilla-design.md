@@ -183,7 +183,7 @@ Una por trabajador y fecha (único).
 
 `(payroll_id, worker_id, type, amount_cents, note, recorded_by)`. Tipos: `salary`, `bonus`, `piecework` (suman) y `deduction` (resta).
 
-- `amount_cents` es siempre positivo (entre 1 y 99 999 999): el tipo da el signo, así que un descuento se guarda en positivo y resta.
+- `amount_cents` es siempre positivo (la base solo exige que sea mayor que 0 y la API lo limita a 99 999 999): el tipo da el signo, así que un descuento se guarda en positivo y resta.
 - Hay un solo `salary` por trabajador y planilla (índice único parcial); los demás tipos se pueden repetir.
 - Conceptos, pagos y asistencias solo existen para trabajadores de la planilla: una clave foránea compuesta hacia `payroll_workers (payroll_id, worker_id)` lo garantiza en las tres tablas, y la API responde 400 `not_in_payroll` antes de llegar a ella.
 - Un concepto solo cambia en monto y nota; para cambiar el tipo se elimina y se crea otro.
@@ -192,7 +192,7 @@ Una por trabajador y fecha (único).
 
 `(payroll_id, worker_id, date, amount_cents, method, method_detail, evidence_path?, note, recorded_by)`. `method` es `yape`, `plin`, `transfer` o `cash`; `method_detail` copia el número y el titular usados, para que el historial no cambie si luego se edita el método del trabajador.
 
-- `amount_cents` es positivo (entre 1 y 99 999 999). Un pago no se edita: se elimina y se registra de nuevo.
+- `amount_cents` es positivo (la base solo exige que sea mayor que 0 y la API lo limita a 99 999 999). Un pago no se edita: se elimina y se registra de nuevo.
 - `method_detail` es un texto (hasta 160 caracteres). Si el pago indica un método registrado del trabajador (`paymentMethodId`, que no se guarda), el servidor lo escribe con el número, el banco y el CCI cuando son de cuenta bancaria, y el titular de ese momento; el medio del pago debe corresponder al tipo del método (`yape`, `plin`, `bank_account` → `transfer`). Sin método registrado se acepta un texto libre, que en efectivo normalmente queda vacío. Un `method_detail` o una `note` en blanco se guardan como `null`.
 - Un archivo de evidencia pertenece a un solo pago (índice único sobre `evidence_path`).
 
@@ -231,6 +231,7 @@ Las planillas se crean a mano (administrador o contabilidad) con el formulario "
 
 Reglas:
 
+- Quitar a un trabajador de una planilla lo bloquean la asistencia, los pagos y los conceptos que no sean el sueldo; el sueldo automático de una planilla mensual se elimina junto con el trabajador (y queda en la auditoría).
 - Solo se registra asistencia dentro de una planilla abierta cuyas fechas incluyan ese día, y solo a los trabajadores agregados a esa planilla. Si no hay ninguna, la pantalla de asistencia pide crearla.
 - Dos planillas pueden coincidir en fechas (por ejemplo, dos campañas la misma semana con cuadrillas distintas), pero un trabajador solo puede tener un registro de asistencia por fecha, así que no puede estar en dos planillas el mismo día.
 - Un registro nuevo de un trabajador temporal cuyo cargo no tiene tarifa por hora (no tiene cargo, o es mensual) se crea por defecto con tarifa 0 y queda marcado `needs_review`, para que contabilidad ponga la tarifa. Lo mismo ocurre al editar una falta y convertirla en día trabajado.
@@ -270,7 +271,8 @@ Campañas:
 - La evidencia va a un bucket privado de Supabase Storage (`EVIDENCE_BUCKET`). El backend entrega una URL firmada de subida y, para verla, una URL firmada de lectura de corta duración.
 - Ruta del archivo: `payrolls/<payrollId>/<workerId>/<uuid>.<ext>`. La URL de subida solo se entrega para un trabajador de una planilla abierta y no escribe nada en la base: el archivo queda asociado cuando se registra el pago con su `evidencePath`, que debe ser de esa planilla y ese trabajador, con un nombre que generó la API, y que ningún otro pago use.
 - La URL de lectura dura 60 segundos. Un pago sin evidencia responde 404.
-- La fecha de un pago puede caer fuera del periodo de la planilla (se suele pagar después), pero no puede ser futura respecto de hoy en Lima. Se puede pagar más que el total (adelanto): el pendiente queda negativo.
+- La fecha de un pago puede caer fuera del periodo de la planilla (se suele pagar después), pero no puede ser futura respecto de hoy en Lima ni anterior en más de 31 días al inicio de su planilla. Se puede pagar más que el total (adelanto): el pendiente queda negativo.
+- Un pago enviado dos veces no lo detecta la API: la pantalla debe deshabilitar el botón mientras envía.
 - Al eliminar un pago su archivo se conserva en el bucket, como respaldo de lo que se pagó.
 - Formatos: JPG, PNG, WebP, PDF. Máximo 5 MB. El frontend comprime las imágenes antes de subir.
 - Recibo: página imprimible por trabajador y planilla (detalle por día, conceptos, pagos, pendiente). Se guarda como PDF desde el navegador y se puede compartir desde el celular.

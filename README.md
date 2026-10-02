@@ -52,5 +52,5 @@ Revisar en cada entorno (local, pruebas, producción):
 - Toda tabla nueva lleva `.enableRLS()` y ninguna política: solo la API accede a la base.
 - Todo cambio de datos deja una fila en `audit_log`.
 - El cálculo de horas y montos vive en backend/src/payroll/calc.ts y trabaja con enteros (minutos y céntimos).
-- El saldo de cada trabajador se calcula en backend/src/payroll/balance.ts: asistencia + conceptos que suman − descuentos − pagos.
+- El saldo de cada trabajador se calcula en backend/src/payroll/balance.ts: asistencia + conceptos que suman − descuentos − pagos. La lista de planillas y el resumen aplican la misma regla en SQL (backend/src/routes/payrolls.ts): si cambia la regla, hay que cambiar ambos lugares a la vez.
 - Nunca se versionan `.env` ni archivos con datos personales.
