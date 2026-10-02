@@ -8,6 +8,7 @@ import { areasRoutes, campaignsRoutes, shiftsRoutes } from './routes/catalogs'
 import { auditLogRoutes } from './routes/audit-log'
 import { meRoutes } from './routes/me'
 import { positionsRoutes } from './routes/positions'
+import { workerHistoryRoutes } from './routes/worker-history'
 import { workersRoutes } from './routes/workers'
 import { paymentMethodsRoutes } from './routes/payment-methods'
 import { groupsRoutes } from './routes/groups'
@@ -28,6 +29,7 @@ export function createApp(deps: Dependencies) {
     .route('/positions', positionsRoutes(deps))
     .route('/workers', workersRoutes(deps))
     .route('/workers', paymentMethodsRoutes(deps))
+    .route('/workers', workerHistoryRoutes(deps))
     .route('/groups', groupsRoutes(deps))
     .route('/users', usersRoutes(deps))
     .route('/payrolls', payrollsRoutes(deps))

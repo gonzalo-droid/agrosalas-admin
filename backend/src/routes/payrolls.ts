@@ -1,17 +1,22 @@
+import type { SQL } from 'drizzle-orm'
 import { and, asc, count, desc, eq, getTableColumns, gt, gte, ilike, inArray, lt, lte, or, sql } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { requireRole } from '../auth/middleware'
 import {
-  attendanceRecords, campaigns, groups, groupWorkers, payrollItems, payrolls, payrollWorkers, payments, workers,
+  attendanceRecords, campaigns, groups, groupWorkers, payrollItems, payrolls, payrollWorkers, payments, positions,
+  workerPaymentMethods, workers,
 } from '../db/schema'
 import { recordAudit } from '../lib/audit'
 import { ApiError, notFound } from '../lib/errors'
 import { offsetOf, pageSchema, paginated } from '../lib/pagination'
 import { idSchema, validate, withAtLeastOneField } from '../lib/validate'
 import { redactMoney } from '../payroll/attendance-service'
+import { sumBalances } from '../payroll/balance'
+import { payrollBalances } from '../payroll/balance-service'
 import { findOpenPayroll } from '../payroll/open-payroll'
 import { createSalaryItems } from '../payroll/salary-items'
+import { limaDate, monthRange } from '../payroll/time'
 import type { AppEnv, Db, Dependencies, Tx } from '../types'
 import { workerScope } from './workers'
 
@@ -99,7 +104,16 @@ async function countWorkers(db: Db | Tx, payrollId: string): Promise<number> {
   return total
 }
 
-export const payrollsRoutes = ({ db }: Dependencies) =>
+// The three sums of a payroll, as correlated subqueries: two joins at once would multiply the rows. A deduction is
+// stored positive and subtracts because of its type.
+const attendanceSum = (payrollId: SQL) =>
+  sql`(select coalesce(sum(${attendanceRecords.amountCents}), 0) from ${attendanceRecords} where ${attendanceRecords.payrollId} = ${payrollId})`
+const itemsSum = (payrollId: SQL) =>
+  sql`(select coalesce(sum(case when ${payrollItems.type} = 'deduction' then -${payrollItems.amountCents} else ${payrollItems.amountCents} end), 0) from ${payrollItems} where ${payrollItems.payrollId} = ${payrollId})`
+const paymentsSum = (payrollId: SQL) =>
+  sql`(select coalesce(sum(${payments.amountCents}), 0) from ${payments} where ${payments.payrollId} = ${payrollId})`
+
+export const payrollsRoutes = ({ db, now }: Dependencies) =>
   new Hono<AppEnv>()
     .get('/', validate('query', payrollFilters), async (c) => {
       const user = c.get('user')
@@ -126,7 +140,8 @@ export const payrollsRoutes = ({ db }: Dependencies) =>
           campaignName: campaigns.name,
           status: payrolls.status,
           workerCount: sql<number>`(select count(*) from ${payrollWorkers} where ${payrollWorkers.payrollId} = ${payrolls.id})::int`.mapWith(Number),
-          totalCents: sql<number>`(select coalesce(sum(${attendanceRecords.amountCents}), 0) from ${attendanceRecords} where ${attendanceRecords.payrollId} = ${payrolls.id})::bigint`.mapWith(Number),
+          totalCents: sql<number>`(${attendanceSum(sql`${payrolls.id}`)} + ${itemsSum(sql`${payrolls.id}`)})::bigint`.mapWith(Number),
+          paidCents: sql<number>`${paymentsSum(sql`${payrolls.id}`)}::bigint`.mapWith(Number),
           createdAt: payrolls.createdAt,
         })
         .from(payrolls)
@@ -136,8 +151,29 @@ export const payrollsRoutes = ({ db }: Dependencies) =>
         .limit(filters.pageSize)
         .offset(offsetOf(filters))
       // The coordinator never receives amounts.
-      const items = rows.map((row) => ({ ...row, totalCents: user.role === 'coordinator' ? null : row.totalCents }))
+      const items = rows.map((row) =>
+        user.role === 'coordinator'
+          ? { ...row, totalCents: null, paidCents: null, pendingCents: null }
+          : { ...row, pendingCents: row.totalCents - row.paidCents },
+      )
       return c.json(paginated(items, total, filters))
+    })
+    // Declared before '/:id': otherwise 'summary' would be read as an id.
+    .get('/summary', requireRole('admin', 'accounting', 'management'), async (c) => {
+      const today = limaDate(now())
+      const month = monthRange(today)
+      const [open] = await db
+        .select({
+          pendingCents: sql<number>`coalesce(sum(${attendanceSum(sql`${payrolls.id}`)} + ${itemsSum(sql`${payrolls.id}`)} - ${paymentsSum(sql`${payrolls.id}`)}), 0)::bigint`.mapWith(Number),
+          toPayCount: sql<number>`count(*) filter (where ${payrolls.endDate} < ${today})::int`.mapWith(Number),
+        })
+        .from(payrolls)
+        .where(eq(payrolls.status, 'open'))
+      const [paid] = await db
+        .select({ paidThisMonthCents: sql<number>`coalesce(sum(${payments.amountCents}), 0)::bigint`.mapWith(Number) })
+        .from(payments)
+        .where(and(gte(payments.date, month.from), lte(payments.date, month.to)))
+      return c.json({ pendingCents: open.pendingCents, toPayCount: open.toPayCount, paidThisMonthCents: paid.paidThisMonthCents })
     })
     .post('/', requireRole('admin', 'accounting'), validate('json', payrollInput), async (c) => {
       const { workers: source, ...fields } = c.req.valid('json')
@@ -197,6 +233,71 @@ export const payrollsRoutes = ({ db }: Dependencies) =>
               .orderBy(asc(attendanceRecords.date), asc(attendanceRecords.workerId))
       return c.json({ ...payroll, workers: members, records: records.map((record) => redactMoney(user, record)) })
     })
+    .get('/:id/balances', requireRole('admin', 'accounting', 'management'), validate('param', idSchema), async (c) => {
+      const { id } = c.req.valid('param')
+      const [payroll] = await db.select({ id: payrolls.id }).from(payrolls).where(eq(payrolls.id, id))
+      if (!payroll) throw notFound('La planilla')
+      const items = await payrollBalances(db, id)
+      return c.json({ items, totals: sumBalances(items) })
+    })
+    .get(
+      '/:id/workers/:workerId',
+      requireRole('admin', 'accounting', 'management'),
+      validate('param', memberIds),
+      async (c) => {
+        const { id, workerId } = c.req.valid('param')
+        const [payroll] = await db
+          .select({
+            id: payrolls.id,
+            name: payrolls.name,
+            type: payrolls.type,
+            startDate: payrolls.startDate,
+            endDate: payrolls.endDate,
+            status: payrolls.status,
+            campaignName: campaigns.name,
+          })
+          .from(payrolls)
+          .leftJoin(campaigns, eq(campaigns.id, payrolls.campaignId))
+          .where(eq(payrolls.id, id))
+        if (!payroll) throw notFound('La planilla')
+        const [worker] = await db
+          .select({
+            id: workers.id,
+            firstName: workers.firstName,
+            lastName: workers.lastName,
+            dni: workers.dni,
+            employmentType: workers.employmentType,
+            positionName: positions.name,
+          })
+          .from(payrollWorkers)
+          .innerJoin(workers, eq(workers.id, payrollWorkers.workerId))
+          .leftJoin(positions, eq(positions.id, workers.positionId))
+          .where(and(eq(payrollWorkers.payrollId, id), eq(payrollWorkers.workerId, workerId)))
+        if (!worker) throw new ApiError(404, 'not_found', 'El trabajador no está en la planilla')
+        const records = await db
+          .select()
+          .from(attendanceRecords)
+          .where(and(eq(attendanceRecords.payrollId, id), eq(attendanceRecords.workerId, workerId)))
+          .orderBy(asc(attendanceRecords.date))
+        const items = await db
+          .select()
+          .from(payrollItems)
+          .where(and(eq(payrollItems.payrollId, id), eq(payrollItems.workerId, workerId)))
+          .orderBy(asc(payrollItems.createdAt), asc(payrollItems.id))
+        const paid = await db
+          .select()
+          .from(payments)
+          .where(and(eq(payments.payrollId, id), eq(payments.workerId, workerId)))
+          .orderBy(asc(payments.date), asc(payments.createdAt), asc(payments.id))
+        const [balance] = await payrollBalances(db, id, [workerId])
+        const paymentMethods = await db
+          .select()
+          .from(workerPaymentMethods)
+          .where(eq(workerPaymentMethods.workerId, workerId))
+          .orderBy(asc(workerPaymentMethods.createdAt))
+        return c.json({ payroll, worker, records, items, payments: paid, balance, paymentMethods })
+      },
+    )
     .patch(
       '/:id',
       requireRole('admin', 'accounting'),
