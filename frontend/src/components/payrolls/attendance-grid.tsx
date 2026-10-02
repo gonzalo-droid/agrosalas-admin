@@ -50,14 +50,19 @@ export function AttendanceGrid({
   const dates = useMemo(() => datesBetween(payroll.startDate, payroll.endDate), [payroll.startDate, payroll.endDate])
   const grid = useMemo(() => buildGrid(payroll.workers, dates, payroll.records), [payroll.workers, dates, payroll.records])
 
-  // On a phone the grid opens on the first days of the payroll: bring today's column into view, inside the grid's own
-  // scroll container. 'nearest' on the block axis leaves the page where it is; the scroll margin keeps the column from
-  // hiding under the sticky name column (w-36, or w-48 from the sm breakpoint).
+  // On a phone the grid opens on the first days of the payroll: bring today's column next to the name column. The
+  // scroll is set on the grid's own container, so the page never moves, and the name column is measured rather than
+  // assumed: it is sticky and grows with the longest name.
+  const scroller = useRef<HTMLDivElement>(null)
+  const nameColumn = useRef<HTMLTableCellElement>(null)
   const todayColumn = useRef<HTMLTableCellElement>(null)
   const hasWorkers = payroll.workers.length > 0
   const todayInRange = dates.includes(today)
   useEffect(() => {
-    if (hasWorkers && todayInRange) todayColumn.current?.scrollIntoView({ inline: 'start', block: 'nearest' })
+    const container = scroller.current
+    const column = todayColumn.current
+    if (!hasWorkers || !todayInRange || !container || !column) return
+    container.scrollLeft = column.offsetLeft - (nameColumn.current?.offsetWidth ?? 0)
   }, [payroll.id, hasWorkers, todayInRange])
 
   if (payroll.workers.length === 0) {
@@ -79,11 +84,11 @@ export function AttendanceGrid({
         </p>
       )}
 
-      <div className="overflow-x-auto rounded-xl border bg-background">
+      <div ref={scroller} className="overflow-x-auto rounded-xl border bg-background">
         <table className="w-max min-w-full border-separate border-spacing-0 text-xs">
           <thead>
             <tr>
-              <th scope="col" className={cn(STICKY, 'z-20 h-10 w-36 min-w-36 border-b px-2 text-left font-medium sm:w-48 sm:min-w-48')}>
+              <th ref={nameColumn} scope="col" className={cn(STICKY, 'z-20 h-10 w-36 min-w-36 border-b px-2 text-left font-medium sm:w-48 sm:min-w-48')}>
                 Trabajador
               </th>
               {dates.map((date) => (
@@ -92,7 +97,7 @@ export function AttendanceGrid({
                   ref={date === today ? todayColumn : undefined}
                   scope="col"
                   aria-current={date === today ? 'date' : undefined}
-                  className={cn('h-10 min-w-[4.75rem] scroll-ml-36 border-b px-1 text-center font-medium whitespace-nowrap sm:scroll-ml-48', date === today && 'bg-primary/10 text-primary')}
+                  className={cn('h-10 min-w-[4.75rem] border-b px-1 text-center font-medium whitespace-nowrap', date === today && 'bg-primary/10 text-primary')}
                 >
                   {dayHeader(date)}
                 </th>
