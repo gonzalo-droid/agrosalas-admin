@@ -15,6 +15,13 @@
       "when": 1790962620251,
       "tag": "0001_payrolls_attendance",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790979073858,
+      "tag": "0002_payroll_items_payments",
+      "breakpoints": true
     }
   ]
 }
