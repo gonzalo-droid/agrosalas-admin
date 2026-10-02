@@ -23,6 +23,9 @@ const NOTE_MAX = 300
 const FORM_FIELDS = ['amountCents', 'date', 'method', 'paymentMethodId', 'methodDetail', 'evidencePath', 'note']
 const AMOUNT_ERROR = 'Escribe un monto válido, por ejemplo 68.23'
 const UPLOAD_ERROR = 'No se pudo subir la evidencia. Inténtalo de nuevo.'
+// The request of the payment was sent but its answer never came: it may or may not have been saved.
+const PAYMENT_UNKNOWN_CODE = 'payment_unknown'
+const PAYMENT_UNKNOWN_ERROR = 'No se sabe si el pago se registró. Revisa la lista de Pagos antes de volver a intentarlo.'
 
 type Values = { amount: string; date: string; optionKey: string; detail: string; note: string; evidence: File | null }
 type FormError = { field?: string; message: string }
@@ -104,20 +107,39 @@ export function PaymentDialog({
   // Until a method is chosen, the default one follows the methods as they load.
   const selected = options.find((o) => o.key === (values.optionKey || defaultPayOption(options))) ?? options[0]
 
+  // True from the moment a submit starts until its mutation settles: a second tap or Enter before the button is
+  // disabled by the re-render must not send a second payment.
+  const inFlight = useRef(false)
+
   // One mutation for the whole submit: the upload and the payment. A payment is never retried by itself.
   const save = useMutation({
     networkMode: 'always',
     retry: false,
     mutationFn: async ({ file, ...input }: PaymentInput) => {
       const evidencePath = file ? await uploadEvidence(payroll.id, workerId, file) : null
-      return unwrap(api.v1.payments.$post({ json: paymentBody({ ...input, payrollId: payroll.id, workerId, evidencePath }) }))
+      try {
+        return await unwrap(api.v1.payments.$post({ json: paymentBody({ ...input, payrollId: payroll.id, workerId, evidencePath }) }))
+      } catch (e) {
+        // Only the payment step: a lost answer of the upload is just a failed upload.
+        if (e instanceof ApiClientError && e.code === 'network_error') {
+          throw new ApiClientError({ code: PAYMENT_UNKNOWN_CODE, message: PAYMENT_UNKNOWN_ERROR })
+        }
+        throw e
+      }
     },
     onSuccess: () => {
       invalidateMoney(queryClient)
       toast.success('Pago registrado')
       onOpenChange(false)
     },
-    onError: (e) => setError({ field: e instanceof ApiClientError ? e.field : undefined, message: errorMessage(e) }),
+    onError: (e) => {
+      // The payment may have been saved: the lists must show it if so.
+      if (e instanceof ApiClientError && e.code === PAYMENT_UNKNOWN_CODE) invalidateMoney(queryClient)
+      setError({ field: e instanceof ApiClientError ? e.field : undefined, message: errorMessage(e) })
+    },
+    onSettled: () => {
+      inFlight.current = false
+    },
   })
 
   const clearEvidenceError = () => setError((current) => (current?.field === 'evidencePath' ? null : current))
@@ -126,7 +148,11 @@ export function PaymentDialog({
     const file = e.target.files?.[0]
     const mine = ++choice.current
     clearEvidenceError()
-    if (!file) return setForm((f) => f && { ...f, evidence: null })
+    if (!file) {
+      // A pending reduction was dropped by the new choice above: nothing is being prepared any more.
+      setPreparing(false)
+      return setForm((f) => f && { ...f, evidence: null })
+    }
     setPreparing(true)
     const ready = isImage(file.type) ? await compressImage(file) : file
     if (mine !== choice.current) return
@@ -150,10 +176,12 @@ export function PaymentDialog({
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
+    if (inFlight.current) return
     setError(null)
     // parseSolesToCents reads "0" as 0: a payment of nothing is not an amount either.
     const amountCents = parseSolesToCents(values.amount)
     if (!amountCents) return setError({ field: 'amountCents', message: AMOUNT_ERROR })
+    inFlight.current = true
     save.mutate({ amountCents, date: values.date, option: selected, detail: values.detail, note: values.note, file: values.evidence })
   }
 

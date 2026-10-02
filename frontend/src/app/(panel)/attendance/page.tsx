@@ -145,6 +145,7 @@ function DailyAttendance() {
     onSettled: (_data, _error, v) => {
       // The list of payrolls shows totals and the grid shows the records.
       void queryClient.invalidateQueries({ queryKey: ['payrolls'], refetchType: 'none' })
+      void queryClient.invalidateQueries({ queryKey: ['workers'], refetchType: 'none' })
       setPending((current) => Object.fromEntries(Object.entries(current).filter(([key]) => key !== pendingKey(v.payrollId, v.date, v.workerId))))
     },
   })
@@ -195,6 +196,7 @@ function DailyAttendance() {
     onSettled: (_data, _error, v) => {
       void queryClient.invalidateQueries({ queryKey: dayPrefix(v.payrollId, v.date) })
       void queryClient.invalidateQueries({ queryKey: ['payrolls'], refetchType: 'none' })
+      void queryClient.invalidateQueries({ queryKey: ['workers'], refetchType: 'none' })
     },
   })
 

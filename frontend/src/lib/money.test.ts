@@ -38,7 +38,7 @@ describe('pendingText', () => {
   it('says when the balance is in favour of the company', () => {
     expect(pendingText(2823)).toBe('S/ 28.23')
     expect(pendingText(0)).toBe('S/ 0.00')
-    expect(pendingText(-1000)).toBe('S/ 10.00 a favor')
+    expect(pendingText(-1000)).toBe('S/ 10.00 a favor de la empresa')
   })
 })
 

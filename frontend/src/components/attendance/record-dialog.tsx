@@ -54,6 +54,8 @@ export function RecordDialog({ open, onOpenChange, payrollId, date, worker, reco
     toast.success(message)
     // The list of payrolls shows totals and the grid shows the records: one reconcile per action, in the background.
     void queryClient.invalidateQueries({ queryKey: ['payrolls'] })
+    // Attendance changes the totals of the worker too.
+    void queryClient.invalidateQueries({ queryKey: ['workers'] })
     onSaved(saved)
     onOpenChange(false)
   }

@@ -125,7 +125,7 @@ function PayrollDetail() {
             )}
             {canEdit && (
               <>
-                <Button variant="outline" size="lg" onClick={() => setClosing(true)}>
+                <Button variant="outline" size="lg" className="h-11" onClick={() => setClosing(true)}>
                   Cerrar planilla
                 </Button>
                 <Button size="lg" onClick={() => setEditing(true)}>
@@ -152,6 +152,7 @@ function PayrollDetail() {
             <Button
               variant="outline"
               size="lg"
+              className="h-11"
               disabled={reopen.isPending}
               onClick={() => {
                 if (window.confirm('¿Reabrir la planilla? Se podrán volver a registrar asistencias, conceptos y pagos.')) reopen.mutate()

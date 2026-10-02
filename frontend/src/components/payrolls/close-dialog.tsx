@@ -26,6 +26,9 @@ export function CloseDialog({ payroll, open, onOpenChange }: { payroll: Payroll;
     queryKey: ['payrolls', payroll.id, 'balances'],
     queryFn: () => unwrap(api.v1.payrolls[':id'].balances.$get({ param: { id: payroll.id } })),
     enabled: open,
+    // The dialog stays mounted and only `enabled` changes: with no stale time, every opening refetches (the cached
+    // list shows meanwhile, and the button waits for the fresh one).
+    staleTime: 0,
   })
 
   if (!open && error) setError(null)
@@ -107,10 +110,10 @@ export function CloseDialog({ payroll, open, onOpenChange }: { payroll: Payroll;
           )}
         </div>
         <DialogFooter>
-          <Button type="button" variant="outline" size="lg" disabled={close.isPending} onClick={() => onOpenChange(false)}>
+          <Button type="button" variant="outline" size="lg" className="h-11" disabled={close.isPending} onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button type="button" variant="destructive" size="lg" disabled={!ready || close.isPending} onClick={submit}>
+          <Button type="button" variant="destructive" size="lg" className="h-11" disabled={!ready || close.isPending} onClick={submit}>
             {close.isPending ? 'Cerrando…' : 'Cerrar planilla'}
           </Button>
         </DialogFooter>

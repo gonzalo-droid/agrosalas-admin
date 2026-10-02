@@ -15,9 +15,9 @@ export const centsToInput = (cents: number): string => `${Math.trunc(cents / 100
 // A payment proposes what is pending; a balance in favour of the company proposes nothing.
 export const proposedPaymentCents = (pendingCents: number): number => Math.max(0, pendingCents)
 
-// "S/ 28.23", or "S/ 10.00 a favor" when more than the total was paid.
+// "S/ 28.23", or "S/ 10.00 a favor de la empresa" when more than the total was paid.
 export const pendingText = (pendingCents: number): string =>
-  pendingCents < 0 ? `${formatCents(-pendingCents)} a favor` : formatCents(pendingCents)
+  pendingCents < 0 ? `${formatCents(-pendingCents)} a favor de la empresa` : formatCents(pendingCents)
 
 // "+S/ 20.00", "−S/ 10.00" (a real minus sign), or a dash when there is nothing: the items of a balance.
 export const signedCentsText = (cents: number): string => (cents === 0 ? '–' : cents > 0 ? `+${formatCents(cents)}` : `−${formatCents(-cents)}`)

@@ -63,7 +63,7 @@ export default function ReceiptPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
         {backLink}
-        <Button size="lg" onClick={() => window.print()}>
+        <Button size="lg" className="h-11" onClick={() => window.print()}>
           Imprimir o guardar PDF
         </Button>
       </div>
