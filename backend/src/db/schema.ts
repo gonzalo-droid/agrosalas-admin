@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm'
 import {
-  boolean, date, index, jsonb, numeric, pgEnum, pgTable, primaryKey, text, time, timestamp, uniqueIndex, uuid,
+  boolean, date, index, integer, jsonb, numeric, pgEnum, pgTable, primaryKey, text, time, timestamp, uniqueIndex, uuid,
 } from 'drizzle-orm/pg-core'
 
 const timestamps = {
@@ -146,4 +146,71 @@ export const auditLog = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('audit_log_entity_idx').on(t.entity, t.entityId)],
+).enableRLS()
+
+export const payrollTypeEnum = pgEnum('payroll_type', ['weekly', 'monthly'])
+export const payrollStatusEnum = pgEnum('payroll_status', ['open', 'closed'])
+export const attendanceTypeEnum = pgEnum('attendance_type', ['worked', 'absence', 'leave', 'medical_leave'])
+
+export const payrolls = pgTable(
+  'payrolls',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').notNull(),
+    type: payrollTypeEnum('type').notNull(),
+    startDate: date('start_date').notNull(),
+    endDate: date('end_date').notNull(),
+    campaignId: uuid('campaign_id').references(() => campaigns.id),
+    status: payrollStatusEnum('status').notNull().default('open'),
+    createdBy: uuid('created_by').notNull().references(() => users.id),
+    closedBy: uuid('closed_by').references(() => users.id),
+    closedAt: timestamp('closed_at', { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [index('payrolls_dates_idx').on(t.startDate, t.endDate)],
+).enableRLS()
+
+export const payrollWorkers = pgTable(
+  'payroll_workers',
+  {
+    payrollId: uuid('payroll_id').notNull().references(() => payrolls.id, { onDelete: 'cascade' }),
+    workerId: uuid('worker_id').notNull().references(() => workers.id),
+  },
+  (t) => [primaryKey({ columns: [t.payrollId, t.workerId] })],
+).enableRLS()
+
+export const attendanceRecords = pgTable(
+  'attendance_records',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workerId: uuid('worker_id').notNull().references(() => workers.id),
+    // The date of the first clock-in, in Lima time.
+    date: date('date').notNull(),
+    payrollId: uuid('payroll_id').notNull().references(() => payrolls.id),
+    type: attendanceTypeEnum('type').notNull().default('worked'),
+    clockIn1: timestamp('clock_in_1', { withTimezone: true }),
+    clockOut1: timestamp('clock_out_1', { withTimezone: true }),
+    clockIn2: timestamp('clock_in_2', { withTimezone: true }),
+    clockOut2: timestamp('clock_out_2', { withTimezone: true }),
+    workedMinutes: integer('worked_minutes').notNull().default(0),
+    regularMinutes: integer('regular_minutes').notNull().default(0),
+    overtimeMinutes: integer('overtime_minutes').notNull().default(0),
+    overtimeEdited: boolean('overtime_edited').notNull().default(false),
+    // Copied from the worker's position when the record is created; editable per record.
+    hourlyRate: numeric('hourly_rate', { precision: 10, scale: 4, mode: 'number' }).notNull().default(0),
+    overtimeRate: numeric('overtime_rate', { precision: 10, scale: 4, mode: 'number' }).notNull().default(0),
+    amountCents: integer('amount_cents').notNull().default(0),
+    // Copies of the worker's values on that day.
+    areaId: uuid('area_id').references(() => areas.id),
+    employmentType: employmentTypeEnum('employment_type').notNull(),
+    note: text('note'),
+    recordedBy: uuid('recorded_by').notNull().references(() => users.id),
+    source: text('source').notNull().default('panel'),
+    needsReview: boolean('needs_review').notNull().default(false),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex('attendance_records_worker_date_unique').on(t.workerId, t.date),
+    index('attendance_records_payroll_idx').on(t.payrollId, t.date),
+  ],
 ).enableRLS()
