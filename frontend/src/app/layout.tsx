@@ -12,7 +12,9 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className={`${inter.variable} h-full antialiased`}>
+    // The body background is translucent, so the page needs a solid colour underneath: without it a dark browser
+    // canvas shows through and the muted text becomes unreadable.
+    <html lang="es" className={`${inter.variable} h-full bg-background antialiased`}>
       <body className="min-h-full bg-muted/40">
         <Providers>{children}</Providers>
       </body>

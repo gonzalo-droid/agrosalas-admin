@@ -49,6 +49,8 @@
 }
 
 :root {
+  /* The panel only has a light theme: native controls and scrollbars must not follow the system's dark mode. */
+  color-scheme: light;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
