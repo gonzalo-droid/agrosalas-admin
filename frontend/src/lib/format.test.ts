@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDate, formatSoles, suggestedOvertimeRate, dateRange } from './format'
+import { formatDate, formatSoles, suggestedOvertimeRate, dateRange, formatCents } from './format'
 
 describe('formatSoles', () => {
   it('shows two decimals and a dash when there is no amount', () => {
@@ -36,5 +36,18 @@ describe('dateRange', () => {
     expect(dateRange('2026-10-04', null)).toBe('desde 04/10/2026')
     expect(dateRange(null, '2026-10-10')).toBe('hasta 10/10/2026')
     expect(dateRange(null, undefined)).toBe('')
+  })
+})
+
+describe('formatCents', () => {
+  it('writes cents as soles', () => {
+    expect(formatCents(6823)).toBe('S/ 68.23')
+    expect(formatCents(180000)).toBe('S/ 1,800.00')
+    expect(formatCents(0)).toBe('S/ 0.00')
+  })
+
+  it('shows a dash when there is no amount', () => {
+    expect(formatCents(null)).toBe('—')
+    expect(formatCents(undefined)).toBe('—')
   })
 })
