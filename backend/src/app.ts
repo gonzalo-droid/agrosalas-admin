@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { authenticate } from './auth/middleware'
 import { handleError } from './lib/errors'
+import { attendanceRoutes } from './routes/attendance'
 import { areasRoutes, campaignsRoutes, shiftsRoutes } from './routes/catalogs'
 import { auditLogRoutes } from './routes/audit-log'
 import { meRoutes } from './routes/me'
@@ -27,6 +28,7 @@ export function createApp(deps: Dependencies) {
     .route('/groups', groupsRoutes(deps))
     .route('/users', usersRoutes(deps))
     .route('/payrolls', payrollsRoutes(deps))
+    .route('/attendance', attendanceRoutes(deps))
 
   return new Hono()
     .use(

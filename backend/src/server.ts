@@ -13,6 +13,7 @@ const app = createApp({
   verifyToken: createSupabaseVerifier(env.SUPABASE_URL),
   authAdmin: createSupabaseAuthAdmin(env.SUPABASE_URL, env.SUPABASE_SECRET_KEY),
   panelOrigin: env.PANEL_ORIGIN,
+  now: () => new Date(),
 })
 
 serve({ fetch: app.fetch, port: env.PORT }, (info) => {

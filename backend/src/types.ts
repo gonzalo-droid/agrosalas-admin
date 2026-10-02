@@ -27,4 +27,6 @@ export type Dependencies = {
   verifyToken: (token: string) => Promise<{ sub: string } | null>
   authAdmin: AuthAdmin
   panelOrigin: string
+  // The clock. Injected so that tests never depend on the real time.
+  now: () => Date
 }

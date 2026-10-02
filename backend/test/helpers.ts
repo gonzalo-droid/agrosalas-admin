@@ -14,6 +14,12 @@ export const USERS: Record<Role, string> = {
 }
 
 export async function createTestApp() {
+  // The test clock: Monday 5 October 2026, 08:00 in Lima. A test moves it with setNow.
+  let currentTime = new Date('2026-10-05T13:00:00Z')
+  const setNow = (date: Date) => {
+    currentTime = date
+  }
+
   const db = drizzle(new PGlite(), { schema })
   await migrate(db, { migrationsFolder: './drizzle' })
 
@@ -48,6 +54,7 @@ export async function createTestApp() {
       },
     },
     panelOrigin: 'http://localhost:3000',
+    now: () => currentTime,
   })
 
   // request('admin', 'POST', '/v1/areas', { name: 'Producción' })
@@ -65,5 +72,5 @@ export async function createTestApp() {
     return { status: response.status, json }
   }
 
-  return { app, db, request, createdInAuth, deletedInAuth }
+  return { app, db, request, setNow, createdInAuth, deletedInAuth }
 }
