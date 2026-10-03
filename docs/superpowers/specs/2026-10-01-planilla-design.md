@@ -289,13 +289,13 @@ REST bajo `/v1`, con validación Zod en entrada y salida.
 | `/users`, `/areas`, `/shifts`, `/campaigns`, `/positions`, `/groups` | CRUD (administrador) |
 | `/workers` | Listar con filtros (`areaId`, `employmentType`, `status`, `search`), crear, ver, editar, cesar; métodos de pago en `/workers/:id/payment-methods` (agregar, editar, quitar, marcar principal) |
 | `/attendance` | Listar por fecha y área; `POST /clock` recibe `payrollId`, `workerId`, `date`, `mark` (ingreso, salida a refrigerio, regreso, salida) y `at` opcional (si falta, se usa la hora actual), y es idempotente: una marca que ya tiene hora se responde tal cual; `POST /bulk` (misma marca para varios); editar registro completo; eliminar |
-| `/payrolls` | Listar (texto, rango de fechas, campaña, estado, tipo; cada fila con total, pagado y pendiente); crear; editar nombre, fechas y campaña; agregar y quitar trabajadores; detalle en grilla; `GET /summary` (pendiente acumulado, por pagar y pagado en el mes); `GET /:id/balances` (saldo de cada trabajador y totales); `POST /:id/close` (cuerpo `{ confirmPending? }`); `POST /:id/reopen` (administrador). Exportar a Excel llega en la fase 4 |
+| `/payrolls` | Listar (texto, rango de fechas, campaña, estado, tipo; cada fila con total, pagado y pendiente); crear; editar nombre, fechas y campaña; agregar y quitar trabajadores; detalle en grilla; `GET /summary` (pendiente acumulado, por pagar y pagado en el mes); `GET /:id/balances` (saldo de cada trabajador y totales); `POST /:id/close` (cuerpo `{ confirmPending? }`); `POST /:id/reopen` (administrador). Exportar a Excel se hace en el navegador, sin ruta propia (sección 11) |
 | `/payrolls/:id/workers/:workerId` | `GET`: detalle para el recibo (planilla, trabajador con su cargo, registros, conceptos, pagos, saldo y métodos de pago del trabajador) |
 | `/payroll-items` | Listar (`payrollId` obligatorio, `workerId` opcional), crear, editar (monto y nota), eliminar |
 | `/payments` | Listar (paginado, con `payrollId` o `workerId`; cada fila trae el nombre del trabajador y de la planilla), crear, eliminar |
 | `/evidence` | `POST /upload-url` (planilla, trabajador, `contentType`, `sizeBytes`) y `GET /read-url?paymentId=` |
 | `/workers/:id/payrolls` | Planillas en las que está el trabajador, paginadas, con su total, pagado y pendiente en cada una |
-| `/reports/costs` | Agrupado por semana, mes, área o campaña, en un rango de fechas; exportar a Excel |
+| `/reports/costs` | Solo lectura, para administración, contabilidad y gerencia (el coordinador recibe 403). Cinco rutas, todas con `from` y `to` (fechas; `to` no puede ser anterior a `from` y el rango no pasa de 366 días): `GET /weekly` (semanas de lunes a domingo), `GET /monthly`, `GET /by-area`, `GET /by-campaign` y `GET /by-worker`. Devuelven todas sus filas, sin paginar, y los totales. Montos en céntimos y horas en minutos. No hay rutas de exportación: el Excel se arma en el navegador |
 | `/audit-log` | Listar (administrador) |
 
 Errores con un formato único: código, mensaje en español y, si aplica, campo.
@@ -313,7 +313,9 @@ Relación entre asistencia y planilla: la asistencia es el registro de un trabaj
 1. **Login y perfil.** Inicio de sesión con correo y contraseña, recuperación de contraseña por correo, y "Mi perfil" (nombre, rol y áreas en solo lectura, cambio de contraseña, cerrar sesión).
 2. **Asistencia del día** (prioridad celular). Selector de planilla (por defecto, la abierta que incluye hoy), filtro por área, botón "Marcar ingreso a todos". Cada fila tiene un solo botón con el siguiente paso (ingreso, refrigerio, regreso, salida). Editar abre el registro completo, incluido marcar falta o permiso. Si ayer quedaron registros sin salida (turno de noche abierto), un aviso lleva a ese día. La marca se muestra de inmediato con el texto "guardando…"; cada marca se envía una sola vez, en el momento del toque, y si falla la fila vuelve a su estado anterior y la persona vuelve a tocar el botón (marcar es idempotente). No se reintenta sola porque una marca enviada más tarde quedaría con la hora de ese momento. El botón principal solo aparece cuando el día elegido es hoy; los otros días se corrigen desde el diálogo del registro. La dirección lleva la fecha solo cuando no es hoy (`/attendance` siempre significa hoy, también si la pantalla queda abierta pasada la medianoche) y, al ver otro día, un enlace "Ir a hoy" vuelve al día en curso. Una petición de marca se corta a los 15 segundos y nunca se reintenta sola: la persona vuelve a tocar el botón.
 3. **Planillas (lista).** Una fila por planilla: nombre y fechas, etiqueta de campaña, tipo, número de personas, total, pagado, pendiente, estado (En curso, Por pagar, Cerrada, y Por iniciar cuando está abierta y todavía no empieza). Filtros por texto, rango de fechas, campaña y estado (hoy el filtro de estado es "Abiertas / Cerradas"; los estados En curso, Por pagar y Por iniciar se muestran en la etiqueta de cada fila). Arriba: pendiente acumulado, planillas por pagar, pagado en el mes. Total, Pagado y Pendiente y las tres cifras de arriba solo se muestran a los roles que ven dinero (el coordinador no los ve); el total incluye los conceptos y el pendiente en ámbar indica lo que falta pagar. Botón "Nueva planilla" que abre el formulario de la sección 7.
-4. **Planilla (detalle semanal)** (prioridad PC). Grilla como el Excel: trabajadores en filas, días en columnas con horas normales y extra, y columnas Total, Pagado y Pendiente. Totales por día y por semana. Clic en una celda abre el registro del día. Acciones: Asistencia de hoy, Cerrar planilla, Editar; exportar a Excel llega en la fase 4.
+4. **Planilla (detalle semanal)** (prioridad PC). Grilla como el Excel: trabajadores en filas, días en columnas con horas normales y extra, y columnas Total, Pagado y Pendiente. Totales por día y por semana. Clic en una celda abre el registro del día. Acciones: Asistencia de hoy, Cerrar planilla, Editar y, para los roles que ven dinero, "Exportar a Excel" (también con la planilla cerrada).
+
+   **Exportar a Excel.** Genera en el navegador un archivo `Planilla <nombre>.xlsx` con tres hojas: Asistencia (trabajadores en filas, días en columnas, horas normales y extra y los montos Total, Pagado y Pendiente, con una fila de Totales, como el Excel de hoy), Conceptos (con los descuentos en negativo) y Pagos (fecha, trabajador, medio, detalle, monto y si tiene evidencia). Los montos son números en soles con dos decimales, para poder sumarlos; las horas van como texto `8:00`. Si la planilla tiene muchos pagos, el archivo los lee todos, página por página.
 
    El detalle tiene tres pestañas, que se eligen con `?tab=` en la dirección:
    - **Asistencia:** la grilla, con horas normales y extra, totales por día y por trabajador, y para los roles que ven dinero el monto y las columnas Total (con conceptos), Pagado y Pendiente. Los totales por día son solo de asistencia, porque los conceptos no tienen día.
@@ -332,7 +334,7 @@ Relación entre asistencia y planilla: la asistencia es el registro de un trabaj
 
    **Recibo** (`/payrolls/[id]/receipt/[workerId]`, también desde la ficha del trabajador): página del panel con el detalle por día (fecha, detalle, horas y monto), los conceptos, los pagos y el resumen (asistencia, conceptos, total, pagado y pendiente). El botón "Imprimir o guardar PDF" abre la impresión del navegador; al imprimir se ocultan el menú y los botones y las filas no se parten entre páginas. El coordinador no tiene acceso.
 
-7. **Reportes.** Ver sección 11.
+7. **Reportes** (`/reports`; administración, contabilidad y gerencia; el coordinador no ve la entrada del menú ni la pantalla). Un selector de módulo (hoy solo "Planilla"), cinco pestañas (Semana, Mes, Área, Campaña, Trabajador), un rango de fechas (Desde y Hasta; por defecto, el mes en curso de Lima) y el botón "Exportar a Excel", que exporta lo que se ve. La pestaña y el rango van en la dirección (`?tab=`, `from`, `to`), así que un enlace comparte lo que hay en pantalla; un `from` o `to` que falte o no sea una fecha real vuelve al extremo del mes en curso. Solo la pestaña activa pide datos, y siempre los pide frescos. Las semanas y los meses se rotulan con los días que el rango cubre. Un rango inválido se avisa bajo "Hasta". Ver sección 11.
 8. **Configuración.** Cargos y tarifas de referencia, grupos de trabajadores, áreas, turnos, campañas, usuarios y roles, auditoría.
 
 Las listas de planillas y trabajadores llevan paginador (filas por página, anterior, siguiente, número de página) y muestran el total de filas.
@@ -345,13 +347,23 @@ La sección Reportes se organiza por módulo (Planilla ahora; Inventario, Compra
 
 Todos con rango de fechas y exportación a Excel.
 
+Reglas de los reportes (decididas en el plan de la fase 4):
+
+- **Rango:** `from` y `to` (fechas de Lima), con `to` no anterior a `from` y como mucho 366 días.
+- **Semana y mes:** la asistencia cuenta por la fecha de cada registro dentro del rango; los conceptos (sueldo, bono, destajo; los descuentos restan) cuentan en la semana (lunes a domingo) o el mes en que empieza su planilla, si ese inicio cae en el rango. Se listan todas las semanas o meses que tocan el rango, también los que suman 0. Cada fila se rotula con los días que el rango cubre de ella, no con la semana o el mes completos: "01/10 al 04/10/2026" para una semana cortada, "Octubre 2026 (01/10 al 15/10)" para un mes cortado; un solo día se escribe solo ("31/10/2026"). La pantalla y el Excel usan el mismo rótulo.
+- **Área:** la asistencia cuenta por el área copiada en cada registro; sin área va a "Sin área", siempre al final. Los conceptos no tienen área: van en una línea aparte, "Conceptos (sin área)", con la misma regla de la semana.
+- **Campaña y trabajador:** cuentan las planillas que **empiezan** en el rango, con todos sus días, conceptos y pagos, para que cuadren con el total, el pagado y el pendiente de cada planilla. Una planilla sin campaña va a "Personal con contrato" si es mensual y a "Sin campaña" si es semanal. En Campaña, cada fila se despliega ("Ver detalle") con sus planillas (enlace a la planilla) y sus trabajadores (enlace a la ficha); las personas se cuentan una vez por campaña.
+- **Pagado y pendiente** solo en los reportes por campaña y por trabajador; los de semana, mes y área muestran asistencia, conceptos y total.
+- **Dinero:** lo ven administración, contabilidad y gerencia; el coordinador recibe 403 en las cinco rutas.
+- **Excel en el navegador:** el archivo se genera con `write-excel-file` (importada solo al exportar, para no cargarla en la primera descarga de la página) a partir de los mismos datos que muestra la pantalla; la API no cambia y no hay rutas binarias. Montos como números en soles con dos decimales; horas como texto `8:00`. Nombre: `Reporte <pestaña> <desde> a <hasta>.xlsx`, sin los caracteres que los sistemas operativos no admiten. El reporte por campaña genera tres hojas (Campañas, Planillas y Trabajadores, con la campaña en cada fila para filtrar); los demás, una hoja.
+
 | Reporte | Contenido |
 |---|---|
-| Costo por semana | Total, horas normales y extra de cada semana de lunes a domingo, según la fecha de cada asistencia; los conceptos cuentan en la semana en que empieza su planilla |
+| Costo por semana | Total, horas normales y extra de cada semana de lunes a domingo, según la fecha de cada asistencia dentro del rango (la semana se rotula con los días que el rango cubre); los conceptos cuentan en la semana en que empieza su planilla |
 | Costo por mes | Igual, agrupado por mes; incluye sueldos de contrato |
 | Costo por área | Total y horas por área en el rango |
 | Costo por campaña | Costo total de cada campaña, días trabajados, personas, horas normales y extra, pagado y pendiente; detalle por planilla y por trabajador |
-| Detalle por trabajador | Días, horas, monto, pagos y pendiente en el rango |
+| Detalle por trabajador | Días, horas, monto, pagos y pendiente de las planillas que empiezan en el rango, con todos sus días, conceptos y pagos |
 
 ## 12. Migración del Excel
 

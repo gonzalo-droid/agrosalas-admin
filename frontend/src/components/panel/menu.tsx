@@ -7,13 +7,16 @@ import { Dialog } from '@base-ui/react/dialog'
 import { MenuIcon, XIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ROLE_LABEL, useMe } from '@/lib/me'
+import type { Role } from '@/lib/worker-view'
 
-// The one list of entries: the desktop sidebar and the phone side menu both render it. Reportes arrives in phase 4.
-const LINKS = [
-  { href: '/attendance', label: 'Asistencia', adminOnly: false },
-  { href: '/payrolls', label: 'Planillas', adminOnly: false },
-  { href: '/workers', label: 'Trabajadores', adminOnly: false },
-  { href: '/settings', label: 'Configuración', adminOnly: true },
+// The one list of entries: the desktop sidebar and the phone side menu both render it.
+// `roles` are the ones that see the entry; with none, everyone does. The API is what enforces the permissions.
+const LINKS: { href: string; label: string; roles?: Role[] }[] = [
+  { href: '/attendance', label: 'Asistencia' },
+  { href: '/payrolls', label: 'Planillas' },
+  { href: '/workers', label: 'Trabajadores' },
+  { href: '/reports', label: 'Reportes', roles: ['admin', 'accounting', 'management'] },
+  { href: '/settings', label: 'Configuración', roles: ['admin'] },
 ]
 
 // Width from which the desktop sidebar replaces the phone bar (Tailwind `md`).
@@ -65,7 +68,8 @@ function MenuLinks({ links, isActive, profileActive, me, onNavigate }: MenuLinks
 export function Menu() {
   const pathname = usePathname()
   const { data: me } = useMe()
-  const links = LINKS.filter((l) => !l.adminOnly || me?.role === 'admin')
+  // A role that is not known yet sees only the entries for everyone.
+  const links = LINKS.filter((l) => !l.roles || (me !== undefined && l.roles.includes(me.role)))
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`)
 
   // The side menu is open only for the page it was opened on, so any navigation closes it without an effect.

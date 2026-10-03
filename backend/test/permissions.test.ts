@@ -189,6 +189,12 @@ const deleteCases: [string, string, unknown][] = [
   ['DELETE', '/v1/payroll-items/:item', undefined],
   ['DELETE', '/v1/payments/:payment', undefined],
 ]
+// The cost reports: administration, accounting and management read them; the coordinator reaches none.
+const reportCases: [string, string, unknown][] = ['weekly', 'monthly', 'by-area', 'by-campaign', 'by-worker'].map((report) => [
+  'GET',
+  `/v1/reports/costs/${report}?from=2026-10-01&to=2026-10-31`,
+  undefined,
+])
 const closeCases: [string, string, unknown][] = [['POST', '/v1/payrolls/:payroll/close', {}]]
 const reopenCases: [string, string, unknown][] = [['POST', '/v1/payrolls/:payroll/reopen', undefined]]
 
@@ -204,7 +210,7 @@ const forbidden: Case[] = [
   // The coordinator does take attendance; only management is read-only here.
   ...withRoles(['management'], attendanceCases),
   // Items, payments, evidence, balances, the summary and the receipt: the coordinator reaches none of them.
-  ...withRoles(['coordinator'], moneyReadCases),
+  ...withRoles(['coordinator'], [...moneyReadCases, ...reportCases]),
   ...withRoles(['management', 'coordinator'], moneyWriteCases),
   // Deleting and closing go last; only the administrator reopens.
   ...withRoles(['management', 'coordinator'], [...deleteCases, ...closeCases]),
