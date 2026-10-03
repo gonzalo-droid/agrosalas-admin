@@ -17,14 +17,14 @@
 Se pueden cambiar antes de fusionar.
 
 1. **Rango.** Todos los reportes reciben `from` y `to` (fechas). `to` no puede ser anterior a `from` y el rango no puede pasar de 366 días. En pantalla el rango por defecto es el mes en curso de Lima.
-2. **Semana y mes** (spec §11): la asistencia cuenta por la fecha de cada registro dentro del rango; los conceptos cuentan en la semana (lunes a domingo) o el mes en que empieza su planilla, si ese inicio cae en el rango. Se listan todas las semanas o meses que tocan el rango, también los que suman 0.
+2. **Semana y mes** (spec §11): la asistencia cuenta por la fecha de cada registro dentro del rango; los conceptos cuentan en la semana (lunes a domingo) o el mes en que empieza su planilla, si ese inicio cae en el rango. Se listan todas las semanas o meses que tocan el rango, también los que suman 0. Cada fila se rotula con los días que el rango cubre de ella (decisión de la revisión final).
 3. **Área:** la asistencia por el área copiada en cada registro (`attendance_records.area_id`); sin área, "Sin área". Los conceptos no tienen área: van en una línea aparte "Conceptos (sin área)", con la misma regla de la semana.
 4. **Campaña y trabajador:** cuentan las planillas que **empiezan** en el rango, con todos sus días, conceptos y pagos (así cuadran con el total, pagado y pendiente de cada planilla). Una planilla sin campaña va a "Personal con contrato" si es mensual y a "Sin campaña" si es semanal.
 5. **Pagado y pendiente** solo en los reportes por campaña y por trabajador (spec §11).
 6. **Excel en el navegador** con `write-excel-file`, importada de forma diferida (`await import(...)`) solo al exportar. Montos como números en soles con dos decimales; horas como texto `8:00`.
 7. **Exportar planilla:** desde su detalle, para los roles que ven dinero, abierta o cerrada. Tres hojas: Asistencia (trabajadores por días, como el Excel de hoy, con Total, Pagado y Pendiente), Conceptos y Pagos.
 8. **Permisos:** el coordinador no ve Reportes ni exporta (403 en las rutas; sin entrada en el menú).
-9. **Sin paginar:** los reportes devuelven todas sus filas (como mucho 53 semanas, 13 meses, las áreas, las campañas y los trabajadores del rango).
+9. **Sin paginar:** los reportes devuelven todas sus filas (como mucho 54 semanas, porque un rango de 366 días que empieza en domingo toca 54 semanas; 13 meses, las áreas, las campañas y los trabajadores del rango).
 
 ## Estado de ejecución
 
@@ -39,7 +39,9 @@ Commits (`git log --oneline --reverse d6f1487..HEAD`; el último es el de la tar
 - `699802d` feat(web): export a payroll to Excel
 - `03a80ce` feat(web): add the reports screen with weekly, monthly and by-area costs
 - `82a641b` feat(web): add cost reports by campaign and by worker
-- el commit siguiente: docs(planilla): record the execution of plan 4 (con el spec y esta sección)
+- `ddb06f7` docs(planilla): record the execution of plan 4 (con el spec y esta sección)
+- `0d9b2c8` fix(web): label weeks and months by the days a report really covers (onda final, ver abajo)
+- el commit siguiente: docs(planilla): record the final review of plan 4
 
 Pruebas, en total, al terminar cada tarea:
 
@@ -65,15 +67,18 @@ Lo que difirió del texto del plan:
 
 Recorrido en el navegador (controlador, 2026-10-03, sesión de administrador, base de desarrollo, a 375 px y en escritorio):
 
-- Menú con Reportes (escritorio y celular).
+- Menú con Reportes en escritorio y en el celular; pestañas, detalle y exportaciones a 375 px.
 - `/reports` a 375 px sin desborde: Semana, Mes (septiembre a octubre), Área (con "Conceptos (sin área)"), Campaña (con el detalle desplegado) y Trabajador; los totales cuadran entre pestañas (S/ 84.58).
 - "Exportar a Excel" del reporte por campaña y de una planilla: archivos `.xlsx` generados con su nombre.
-- No se probó: las vistas de gerencia y de coordinador (no hay usuarios con esos roles en la base de desarrollo) ni abrir los archivos en una hoja de cálculo real.
+- No se probó: las vistas de gerencia y de coordinador (no hay usuarios con esos roles en la base de desarrollo) ni abrir los archivos en una hoja de cálculo real, ni la consola del navegador en este recorrido.
 
-Resultado de la verificación final: `npm run lint && npm run typecheck && npm test && npm run build` desde la raíz, todo en verde: backend 448 pruebas (27 archivos), frontend 297 (29 archivos), y la compilación lista `/reports` entre sus rutas.
+Revisión final de la rama: sin hallazgos críticos y un hallazgo importante, los rótulos de semana y mes (una fila decía la semana o el mes completos cuando el reporte cuenta solo los días dentro del rango). Se corrigió en la onda final (`0d9b2c8`): la semana muestra de `max(inicio, desde)` a `min(fin, hasta)`, el mes cortado agrega los días cubiertos entre paréntesis, la pantalla y la hoja de Excel comparten el mismo rótulo (`periodLabel`), la nota bajo la tabla aclara que solo cuentan los días dentro del rango y los conceptos de las planillas que empiezan dentro de él, y "Exportar a Excel" queda desactivado mientras el reporte se vuelve a pedir. El revisor reprodujo que los totales por campaña y por trabajador igualan los saldos de cada planilla y que los totales de semana, mes y área concuerdan entre sí. Pruebas tras la onda: backend 448, frontend 306.
 
-Pendiente (hallazgos menores de las revisiones de cada tarea, sin corregir; la revisión final de la rama decide cuáles se corrigen antes de fusionar):
+Resultado de la verificación final: `npm run lint && npm run typecheck && npm test && npm run build` desde la raíz, todo en verde: backend 448 pruebas (27 archivos), frontend 297 (29 archivos), y la compilación lista `/reports` entre sus rutas. Repetida tras la onda final: backend 448, frontend 306 (29 archivos), compilación en verde.
 
+Pendiente (hallazgos menores de las revisiones, sin corregir; la revisión final de la rama no los consideró motivo para detener la fusión):
+
+- Índice por fecha en `attendance_records` (los reportes por semana, mes y área filtran solo por fecha; con un año de datos no hace falta).
 - A 375 px, las tablas del detalle de una campaña miden lo que toda la tabla de campañas y se recorren con el desplazamiento de afuera.
 - La hoja Asistencia de la exportación de una planilla corta en 62 días sin avisar; el bucle de páginas de pagos puede perder uno si alguien paga durante la exportación.
 - Un refetch fallido de un reporte con datos en caché no se avisa.
@@ -488,7 +493,7 @@ git commit -m "feat(web): add cost reports by campaign and by worker"
 
 - [x] **Step 1: Spec**: §9, la fila de `/reports/costs` con las cinco rutas y el rango; §10, el menú con Reportes, la pantalla 4 con "Exportar a Excel" y la pantalla 7; §11, las reglas de las decisiones 2 a 5 y que el Excel se genera en el navegador.
 - [x] **Step 2: Verificación en el navegador** (la hace el controlador con la sesión de Gonzalo y los datos de prueba de la base de desarrollo): a 375 px y en escritorio, el menú con Reportes, cada pestaña con el rango del mes y con un rango de dos meses, el detalle de una campaña, las exportaciones (archivo descargado y abierto en una hoja de cálculo, o leído con `write-excel-file`), "Exportar a Excel" de una planilla, sin desborde ni errores en la consola.
-  Resultado (2026-10-03, controlador, administrador, base de desarrollo, 375 px y escritorio): se recorrieron el menú con Reportes, las cinco pestañas a 375 px sin desborde (Semana, Mes de septiembre a octubre, Área con "Conceptos (sin área)", Campaña con el detalle desplegado y Trabajador), con los totales cuadrando entre pestañas (S/ 84.58), y "Exportar a Excel" del reporte por campaña y de una planilla, que generaron sus archivos `.xlsx` con su nombre. No se probó: gerencia y coordinador (sin usuarios con esos roles) ni abrir los archivos en una hoja de cálculo real. Detalle en "Estado de ejecución".
+  Resultado (2026-10-03, controlador, administrador, base de desarrollo, 375 px y escritorio): se recorrieron el menú con Reportes en escritorio y en el celular, las cinco pestañas a 375 px sin desborde (Semana, Mes de septiembre a octubre, Área con "Conceptos (sin área)", Campaña con el detalle desplegado y Trabajador), con los totales cuadrando entre pestañas (S/ 84.58), y "Exportar a Excel" del reporte por campaña y de una planilla, que generaron sus archivos `.xlsx` con su nombre. No se probó: gerencia y coordinador (sin usuarios con esos roles) ni abrir los archivos en una hoja de cálculo real, ni la consola del navegador en este recorrido. Detalle en "Estado de ejecución".
 - [x] **Step 3: Este plan**: "Estado de ejecución" y "Pendiente".
 - [x] **Step 4: Verificación final** — Run: `npm run lint && npm run typecheck && npm test && npm run build`. Expected: todo en verde.
 - [x] **Step 5: Commit**

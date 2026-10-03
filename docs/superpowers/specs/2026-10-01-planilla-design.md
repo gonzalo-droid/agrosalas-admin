@@ -334,7 +334,7 @@ Relación entre asistencia y planilla: la asistencia es el registro de un trabaj
 
    **Recibo** (`/payrolls/[id]/receipt/[workerId]`, también desde la ficha del trabajador): página del panel con el detalle por día (fecha, detalle, horas y monto), los conceptos, los pagos y el resumen (asistencia, conceptos, total, pagado y pendiente). El botón "Imprimir o guardar PDF" abre la impresión del navegador; al imprimir se ocultan el menú y los botones y las filas no se parten entre páginas. El coordinador no tiene acceso.
 
-7. **Reportes** (`/reports`; administración, contabilidad y gerencia; el coordinador no ve la entrada del menú ni la pantalla). Un selector de módulo (hoy solo "Planilla"), cinco pestañas (Semana, Mes, Área, Campaña, Trabajador), un rango de fechas (Desde y Hasta; por defecto, el mes en curso de Lima) y el botón "Exportar a Excel", que exporta lo que se ve. La pestaña y el rango van en la dirección (`?tab=`, `from`, `to`), así que un enlace comparte lo que hay en pantalla; un `from` o `to` que falte o no sea una fecha real vuelve al extremo del mes en curso. Solo la pestaña activa pide datos, y siempre los pide frescos. Un rango inválido se avisa bajo "Hasta". Ver sección 11.
+7. **Reportes** (`/reports`; administración, contabilidad y gerencia; el coordinador no ve la entrada del menú ni la pantalla). Un selector de módulo (hoy solo "Planilla"), cinco pestañas (Semana, Mes, Área, Campaña, Trabajador), un rango de fechas (Desde y Hasta; por defecto, el mes en curso de Lima) y el botón "Exportar a Excel", que exporta lo que se ve. La pestaña y el rango van en la dirección (`?tab=`, `from`, `to`), así que un enlace comparte lo que hay en pantalla; un `from` o `to` que falte o no sea una fecha real vuelve al extremo del mes en curso. Solo la pestaña activa pide datos, y siempre los pide frescos. Las semanas y los meses se rotulan con los días que el rango cubre. Un rango inválido se avisa bajo "Hasta". Ver sección 11.
 8. **Configuración.** Cargos y tarifas de referencia, grupos de trabajadores, áreas, turnos, campañas, usuarios y roles, auditoría.
 
 Las listas de planillas y trabajadores llevan paginador (filas por página, anterior, siguiente, número de página) y muestran el total de filas.
@@ -350,7 +350,7 @@ Todos con rango de fechas y exportación a Excel.
 Reglas de los reportes (decididas en el plan de la fase 4):
 
 - **Rango:** `from` y `to` (fechas de Lima), con `to` no anterior a `from` y como mucho 366 días.
-- **Semana y mes:** la asistencia cuenta por la fecha de cada registro dentro del rango; los conceptos (sueldo, bono, destajo; los descuentos restan) cuentan en la semana (lunes a domingo) o el mes en que empieza su planilla, si ese inicio cae en el rango. Se listan todas las semanas o meses que tocan el rango, también los que suman 0.
+- **Semana y mes:** la asistencia cuenta por la fecha de cada registro dentro del rango; los conceptos (sueldo, bono, destajo; los descuentos restan) cuentan en la semana (lunes a domingo) o el mes en que empieza su planilla, si ese inicio cae en el rango. Se listan todas las semanas o meses que tocan el rango, también los que suman 0. Cada fila se rotula con los días que el rango cubre de ella, no con la semana o el mes completos: "01/10 al 04/10/2026" para una semana cortada, "Octubre 2026 (01/10 al 15/10)" para un mes cortado; un solo día se escribe solo ("31/10/2026"). La pantalla y el Excel usan el mismo rótulo.
 - **Área:** la asistencia cuenta por el área copiada en cada registro; sin área va a "Sin área", siempre al final. Los conceptos no tienen área: van en una línea aparte, "Conceptos (sin área)", con la misma regla de la semana.
 - **Campaña y trabajador:** cuentan las planillas que **empiezan** en el rango, con todos sus días, conceptos y pagos, para que cuadren con el total, el pagado y el pendiente de cada planilla. Una planilla sin campaña va a "Personal con contrato" si es mensual y a "Sin campaña" si es semanal. En Campaña, cada fila se despliega ("Ver detalle") con sus planillas (enlace a la planilla) y sus trabajadores (enlace a la ficha); las personas se cuentan una vez por campaña.
 - **Pagado y pendiente** solo en los reportes por campaña y por trabajador; los de semana, mes y área muestran asistencia, conceptos y total.
@@ -359,11 +359,11 @@ Reglas de los reportes (decididas en el plan de la fase 4):
 
 | Reporte | Contenido |
 |---|---|
-| Costo por semana | Total, horas normales y extra de cada semana de lunes a domingo, según la fecha de cada asistencia; los conceptos cuentan en la semana en que empieza su planilla |
+| Costo por semana | Total, horas normales y extra de cada semana de lunes a domingo, según la fecha de cada asistencia dentro del rango (la semana se rotula con los días que el rango cubre); los conceptos cuentan en la semana en que empieza su planilla |
 | Costo por mes | Igual, agrupado por mes; incluye sueldos de contrato |
 | Costo por área | Total y horas por área en el rango |
 | Costo por campaña | Costo total de cada campaña, días trabajados, personas, horas normales y extra, pagado y pendiente; detalle por planilla y por trabajador |
-| Detalle por trabajador | Días, horas, monto, pagos y pendiente en el rango |
+| Detalle por trabajador | Días, horas, monto, pagos y pendiente de las planillas que empiezan en el rango, con todos sus días, conceptos y pagos |
 
 ## 12. Migración del Excel
 
