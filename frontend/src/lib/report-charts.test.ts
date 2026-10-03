@@ -13,17 +13,21 @@ describe('soles', () => {
 
 describe('axisSoles', () => {
   it('writes whole soles with a thousands comma', () => {
-    expect(axisSoles(3200)).toBe('S/ 3,200')
-    expect(axisSoles(0)).toBe('S/ 0')
-    expect(axisSoles(1234.56)).toBe('S/ 1,235')
+    expect(axisSoles(3200)).toBe('S/\u00a03,200')
+    expect(axisSoles(0)).toBe('S/\u00a00')
+    expect(axisSoles(1234.56)).toBe('S/\u00a01,235')
   })
 
   it('writes a negative like formatSoles does', () => {
-    expect(axisSoles(-200)).toBe('S/ -200')
+    expect(axisSoles(-200)).toBe('S/\u00a0-200')
+  })
+
+  it('joins the symbol and the amount with a non-breaking space, so the tick never wraps', () => {
+    expect(axisSoles(3200)).not.toContain(' ')
   })
 
   it('never writes a negative zero', () => {
-    expect(axisSoles(-0.2)).toBe('S/ 0')
+    expect(axisSoles(-0.2)).toBe('S/\u00a00')
   })
 })
 

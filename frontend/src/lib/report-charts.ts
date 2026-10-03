@@ -18,8 +18,9 @@ const axisNumber = new Intl.NumberFormat('es-PE', { maximumFractionDigits: 0 })
 // The chart draws soles, not cents: 6823 → 68.23.
 export const soles = (cents: number): number => cents / 100
 
-// A money tick of the axis: whole soles, so it stays on one line. "S/ 3,200"; a negative is "S/ -200" like formatSoles.
-export const axisSoles = (amount: number): string => `S/ ${axisNumber.format(Math.round(amount) + 0)}`
+// A money tick of the axis: whole soles, so it stays short. "S/ 3,200"; a negative is "S/ -200" like formatSoles.
+// The space is a non-breaking one: recharts breaks a tick at a plain space when the axis is narrow.
+export const axisSoles = (amount: number): string => `S/\u00a0${axisNumber.format(Math.round(amount) + 0)}`
 
 // A balance in favour of the company (negative pending) is drawn as zero; the table says the exact amount.
 const pendingSoles = (pendingCents: number): number => soles(Math.max(0, pendingCents))

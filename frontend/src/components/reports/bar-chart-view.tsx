@@ -21,7 +21,8 @@ const subscribeToWidth = (onChange: () => void) => {
 }
 const isWide = () => window.matchMedia(WIDE_QUERY).matches
 
-const truncate = (text: string, max: number) => (text.length > max ? `${text.slice(0, Math.max(1, max - 1))}…` : text)
+// Cut to `max` characters and joined with non-breaking spaces: recharts breaks a tick at a plain space when the axis is narrow.
+const truncate = (text: string, max: number) => (text.length > max ? `${text.slice(0, Math.max(1, max - 1))}…` : text).replace(/ /g, ' ')
 
 type Props = {
   data: ChartData
@@ -63,7 +64,7 @@ export default function BarChartView({ data, layout }: Props) {
           <>
             {/* Recharts skips the ticks that do not fit; the tooltip names every period anyway. */}
             <XAxis dataKey={nameKey} tickLine={false} axisLine={false} tickMargin={8} minTickGap={8} />
-            <YAxis width={64} tickLine={false} axisLine={false} tickFormatter={axisSoles} />
+            <YAxis width={72} tickLine={false} axisLine={false} tickFormatter={axisSoles} />
             <ReferenceLine y={0} />
           </>
         )}
