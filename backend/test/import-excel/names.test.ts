@@ -9,6 +9,7 @@ import {
   parseAliases,
   similarNames,
   splitName,
+  titleCase,
   unusedAliases,
   workerKey,
 } from '../../scripts/import-excel/names'
@@ -26,6 +27,24 @@ describe('normalizeName', () => {
 
   it('leaves names without a comma alone', () => {
     expect(normalizeName(' 3 ')).toBe('3')
+  })
+})
+
+describe('titleCase', () => {
+  it('writes each word with a capital and the rest in lower case', () => {
+    expect(titleCase('PEREZ ROJAS')).toBe('Perez Rojas')
+    expect(titleCase('JOSE LUIS')).toBe('Jose Luis')
+    expect(titleCase('  maría   ELENA ')).toBe('María Elena')
+  })
+
+  it('keeps the joining words in lower case unless they start the name', () => {
+    expect(titleCase('TORRES DE LA CRUZ')).toBe('Torres de la Cruz')
+    expect(titleCase('DE LA CRUZ TORRES')).toBe('De la Cruz Torres')
+    expect(titleCase('ROJAS DEL AGUILA Y LOS RIOS')).toBe('Rojas del Aguila y los Rios')
+  })
+
+  it('leaves an empty name empty', () => {
+    expect(titleCase('')).toBe('')
   })
 })
 

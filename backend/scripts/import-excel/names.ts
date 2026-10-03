@@ -15,6 +15,21 @@ export const splitName = (normalized: string): { lastName: string; firstName: st
   }
 }
 
+// Joining words of Spanish names, written in lower case unless they start the name ("Torres de la Cruz").
+const JOINING_WORDS = new Set(['de', 'del', 'la', 'las', 'los', 'y', 'e'])
+
+/** How a name is stored: "TORRES DE LA CRUZ" → "Torres de la Cruz". The workbook writes every name in capitals. */
+export const titleCase = (text: string): string =>
+  text
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word, i) => {
+      const lower = word.toLocaleLowerCase('es')
+      return i > 0 && JOINING_WORDS.has(lower) ? lower : lower.charAt(0).toLocaleUpperCase('es') + lower.slice(1)
+    })
+    .join(' ')
+
 /**
  * Names the workbook writes in a way that normalising alone does not unify (normalized → normalized). Empty on
  * purpose: aliases are real people's names, so they only come from a `--aliases` file kept outside the repository.
