@@ -25,6 +25,12 @@ La web de la empresa (`www.agrosalasperu.com`) es otro proyecto de Vercel y no s
 
 **Volver atrás:** Vercel → proyecto → Deployments → un despliegue anterior → **Instant Rollback**. Revierte el código, no la base: si la versión mala trajo una migración, hay que corregirla con una migración nueva.
 
+**Despliegue manual.** Publicar es solo por git. Un despliegue desde la CLI de Vercel no trae rama de git y el `ignoreCommand` lo saltaría. Si alguna vez hace falta uno (por ejemplo, tras cambiar variables), se usa **Redeploy** en el panel de Vercel sobre un despliegue de `master`.
+
+**Si la API falla tras cambiar variables.** La API lee sus variables al arrancar. Si falta una o es inválida, todas las peticiones fallan desde el arranque en frío, y los *Runtime Logs* del proyecto en Vercel muestran `Invalid or missing environment variables: …` con los nombres. Es lo primero que hay que mirar. Las variables nuevas solo aplican en despliegues nuevos: hay que hacer **Redeploy**.
+
+**Workflows.** Las acciones oficiales (`actions/checkout@v4`, `supabase/setup-cli@v1`, etc.) están fijadas por etiqueta mayor, no por SHA; la CLI de Supabase del respaldo, por versión exacta.
+
 ### Migraciones
 
 - **Las migraciones deben ser compatibles con el código que está publicado.** Vercel publica la API en cerca de 1 minuto; *Production database* tarda de 2 a 3 minutos (instala todo el monorepo y luego migra). Por eso el código nuevo suele llegar antes que su migración, y durante esa ventana tiene que seguir funcionando con la base anterior.
@@ -34,11 +40,6 @@ La web de la empresa (`www.agrosalasperu.com`) es otro proyecto de Vercel y no s
   3. Borrar o renombrar algo solo en una entrega posterior, cuando ningún código publicado lo use.
 - **Si la migración falla:** *Instant Rollback* del proyecto API en Vercel (ver arriba) y revisar el job *Production database* en Actions.
 - **La migración no espera al CI.** El workflow corre en cada push a `master` que toca `backend/drizzle/`, haya pasado o no el CI. Se confía en que a `master` solo llega código que pasó el CI en su PR.
-- Las acciones oficiales de los workflows (`actions/checkout@v4`, `supabase/setup-cli@v1`, etc.) están fijadas por etiqueta mayor, no por SHA.
-
-**Despliegue manual.** Publicar es solo por git. Un despliegue desde la CLI de Vercel no trae rama de git y el `ignoreCommand` lo saltaría. Si alguna vez hace falta uno (por ejemplo, tras cambiar variables), se usa **Redeploy** en el panel de Vercel sobre un despliegue de `master`.
-
-**Si la API falla tras cambiar variables.** La API lee sus variables al arrancar. Si falta una o es inválida, todas las peticiones fallan desde el arranque en frío, y los *Runtime Logs* del proyecto en Vercel muestran `Invalid or missing environment variables: …` con los nombres. Es lo primero que hay que mirar. Las variables nuevas solo aplican en despliegues nuevos: hay que hacer **Redeploy**.
 
 ## Variables
 

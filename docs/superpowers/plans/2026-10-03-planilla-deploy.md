@@ -468,3 +468,27 @@ No es una tarea de subagente. Usa los conectores de Vercel y de Supabase y neces
   2. Gonzalo lo descifra.
   3. Restaurarlo en el Supabase local y comprobar que están las tablas y el usuario administrador. Si `data.sql` no trae los usuarios de `auth`, se corrige el workflow antes de cerrar.
 - [ ] **5.11 Estado de ejecución** en este plan y en la memoria del proyecto. Pendiente para después, fuera de este plan: cargar en producción el historial del Excel, cuando estén confirmadas las reglas de pago.
+
+---
+
+## Estado de ejecución
+
+**Tareas 1 a 4: ejecutadas el 2026-10-03** en la rama `feat/deploy` (desarrollo con subagentes y revisión por tarea).
+
+- **Tarea 1** (`7925ab0`): la API en Vercel (`backend/index.ts`, `createProductionApp`), la ruta `GET /internal/keep-alive` con su secreto y los `vercel.json` de los dos proyectos.
+- **Tarea 2** (`3794ccf`): Supabase local en Docker. Se verificó con Docker de verdad: tokens ES256 por JWKS, migraciones, bucket y alta pública apagada.
+- **Tarea 3** (`a670e4b`): los workflows *Production database* y *Production backup*. El respaldo se restauró en local y los usuarios de `auth` volvieron.
+- **Tarea 4** (`c4d2c97`): guía `docs/operacion/despliegue.md`, el spec (§3, §13, §16) y el README.
+- **Revisión final** (opus): pidió correcciones. El hallazgo crítico era que el build por defecto de Vercel no resuelve imports relativos sin extensión, así que la API habría caído.
+- **Ola de correcciones** (`29dd717`):
+  - Extensión `.js` en todos los imports relativos, con una prueba que lo vigila. El build transpilado ya se importa con Node puro.
+  - Orden de migraciones documentado.
+  - Los workflows de producción corren solo desde `master`.
+  - El fin del trial de Vercel quedó explicado.
+  - Pool de Postgres acotado.
+  - CLI de Supabase fijada en 2.119.0.
+  - Script robusto para la clave de firma local.
+  - La revisión acotada confirmó todos los puntos.
+- **Pruebas:** backend 566 (antes 561) y frontend 329. Lint, typecheck y build en verde.
+
+**Tarea 5: pendiente.** Antes del paso 5.6 se corre `vercel build` del proyecto API, como recomendó la revisión final, para confirmar la detección de `backend/index.ts`.
