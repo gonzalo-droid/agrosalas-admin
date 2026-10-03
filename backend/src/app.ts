@@ -15,6 +15,7 @@ import { groupsRoutes } from './routes/groups'
 import { paymentsRoutes } from './routes/payments'
 import { payrollItemsRoutes } from './routes/payroll-items'
 import { payrollsRoutes } from './routes/payrolls'
+import { reportsRoutes } from './routes/reports'
 import { usersRoutes } from './routes/users'
 import type { AppEnv, Dependencies } from './types'
 
@@ -37,6 +38,7 @@ export function createApp(deps: Dependencies) {
     .route('/payroll-items', payrollItemsRoutes(deps))
     .route('/payments', paymentsRoutes(deps))
     .route('/evidence', evidenceRoutes(deps))
+    .route('/reports', reportsRoutes(deps))
 
   return new Hono()
     .use(
