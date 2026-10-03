@@ -96,20 +96,26 @@ describe('payrollSheets', () => {
 const totals = { regularMinutes: 1500, overtimeMinutes: 200, attendanceCents: 30000, itemsCents: -1500, totalCents: 28500 }
 
 describe('periodSheet', () => {
-  const weekly = periodSheet('weekly', {
-    items: [
-      { weekStart: '2026-09-28', weekEnd: '2026-10-04', regularMinutes: 900, overtimeMinutes: 200, attendanceCents: 20000, itemsCents: -1500, totalCents: 18500 },
-      { weekStart: '2026-10-05', weekEnd: '2026-10-11', regularMinutes: 600, overtimeMinutes: 0, attendanceCents: 10000, itemsCents: 0, totalCents: 10000 },
-    ],
-    totals,
-  })
+  // The range cuts the first week (28/09 to 30/09 are outside it).
+  const range = { from: '2026-10-01', to: '2026-10-31' }
+  const weekly = periodSheet(
+    'weekly',
+    {
+      items: [
+        { weekStart: '2026-09-28', weekEnd: '2026-10-04', regularMinutes: 900, overtimeMinutes: 200, attendanceCents: 20000, itemsCents: -1500, totalCents: 18500 },
+        { weekStart: '2026-10-05', weekEnd: '2026-10-11', regularMinutes: 600, overtimeMinutes: 0, attendanceCents: 10000, itemsCents: 0, totalCents: 10000 },
+      ],
+      totals,
+    },
+    range,
+  )
 
   it('writes a row per week and a totals row, with the money in soles', () => {
     expect(weekly.name).toBe('Semana')
     expect(weekly.columns.map((c) => c.header)).toEqual(['Semana', 'Horas normales', 'Horas extra', 'Asistencia (S/)', 'Conceptos (S/)', 'Total (S/)'])
     expect(weekly.columns.map((c) => c.money === true)).toEqual([false, false, false, true, true, true])
     expect(weekly.rows).toEqual([
-      ['28/09 al 04/10/2026', '15:00', '3:20', 200, -15, 185],
+      ['01/10 al 04/10/2026', '15:00', '3:20', 200, -15, 185],
       ['05/10 al 11/10/2026', '10:00', '0:00', 100, 0, 100],
       ['Totales', '25:00', '3:20', 300, -15, 285],
     ])
@@ -117,10 +123,14 @@ describe('periodSheet', () => {
   })
 
   it('writes a row per month under the Mes header', () => {
-    const monthly = periodSheet('monthly', {
-      items: [{ month: '2026-10', regularMinutes: 1500, overtimeMinutes: 200, attendanceCents: 30000, itemsCents: -1500, totalCents: 28500 }],
-      totals,
-    })
+    const monthly = periodSheet(
+      'monthly',
+      {
+        items: [{ month: '2026-10', regularMinutes: 1500, overtimeMinutes: 200, attendanceCents: 30000, itemsCents: -1500, totalCents: 28500 }],
+        totals,
+      },
+      range,
+    )
     expect(monthly.name).toBe('Mes')
     expect(monthly.columns[0].header).toBe('Mes')
     expect(monthly.rows).toEqual([
@@ -129,8 +139,17 @@ describe('periodSheet', () => {
     ])
   })
 
+  it('labels a month that the range cuts with the days it covers, as the screen does', () => {
+    const cut = periodSheet(
+      'monthly',
+      { items: [{ month: '2026-10', regularMinutes: 600, overtimeMinutes: 0, attendanceCents: 10000, itemsCents: 0, totalCents: 10000 }], totals },
+      { from: '2026-10-01', to: '2026-10-15' },
+    )
+    expect(cut.rows[0][0]).toBe('Octubre 2026 (01/10 al 15/10)')
+  })
+
   it('still writes the totals row when there are no periods', () => {
-    const empty = periodSheet('monthly', { items: [], totals: { regularMinutes: 0, overtimeMinutes: 0, attendanceCents: 0, itemsCents: 0, totalCents: 0 } })
+    const empty = periodSheet('monthly', { items: [], totals: { regularMinutes: 0, overtimeMinutes: 0, attendanceCents: 0, itemsCents: 0, totalCents: 0 } }, range)
     expect(empty.rows).toEqual([['Totales', '0:00', '0:00', 0, 0, 0]])
   })
 })

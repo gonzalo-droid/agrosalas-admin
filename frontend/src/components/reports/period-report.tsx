@@ -2,14 +2,14 @@ import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, Table
 import { formatHours } from '@/lib/attendance'
 import { formatCents } from '@/lib/format'
 import { signedCentsText } from '@/lib/money'
-import { monthLabel, weekLabel } from '@/lib/report-view'
+import { periodLabel } from '@/lib/report-view'
 import type { MonthlyExportInput, WeeklyExportInput } from '@/lib/xlsx'
 
 // The weekly and the monthly report are the same table: only the first column changes.
-export function PeriodReport({ tab, data }: { tab: 'weekly' | 'monthly'; data: WeeklyExportInput | MonthlyExportInput }) {
+export function PeriodReport({ tab, data, range }: { tab: 'weekly' | 'monthly'; data: WeeklyExportInput | MonthlyExportInput; range: { from: string; to: string } }) {
   const rows = data.items.map((item) => ({
     key: 'month' in item ? item.month : item.weekStart,
-    label: 'month' in item ? monthLabel(item.month) : weekLabel(item.weekStart, item.weekEnd),
+    label: periodLabel(item, range),
     ...item,
   }))
 
@@ -52,7 +52,7 @@ export function PeriodReport({ tab, data }: { tab: 'weekly' | 'monthly'; data: W
         </Table>
       </div>
       <p className="text-xs text-muted-foreground">
-        La asistencia cuenta por la fecha de cada día; los conceptos, en {tab === 'weekly' ? 'la semana' : 'el mes'} en que empieza su planilla.
+        Solo cuentan los días dentro del rango. Los conceptos cuentan en {tab === 'weekly' ? 'la semana' : 'el mes'} en que empieza su planilla, si empieza dentro del rango.
       </p>
     </div>
   )

@@ -96,9 +96,9 @@ function ReportsScreen() {
   const toError = error instanceof ApiClientError && error.field === 'to' ? error.message : undefined
   const sheets: (() => Sheet[]) | null =
     tab === 'weekly' && weekly.data
-      ? () => [periodSheet('weekly', weekly.data)]
+      ? () => [periodSheet('weekly', weekly.data, { from, to })]
       : tab === 'monthly' && monthly.data
-        ? () => [periodSheet('monthly', monthly.data)]
+        ? () => [periodSheet('monthly', monthly.data, { from, to })]
         : tab === 'area' && area.data
           ? () => [areaSheet(area.data)]
           : tab === 'campaign' && campaign.data
@@ -151,7 +151,7 @@ function ReportsScreen() {
       <div role="tabpanel" id={`report-panel-${tab}`} aria-labelledby={`report-tab-${tab}`} className="space-y-4">
         <div className="flex flex-wrap items-end gap-3">
           <RangeFilter from={from} to={to} onChange={go} toError={toError} />
-          <ExportButton sheets={sheets} fileName={`${safeFileName(`Reporte ${tabLabel} ${from} a ${to}`)}.xlsx`} />
+          <ExportButton sheets={active.isFetching ? null : sheets} fileName={`${safeFileName(`Reporte ${tabLabel} ${from} a ${to}`)}.xlsx`} />
         </div>
 
         {error && !active.data ? (
@@ -159,9 +159,9 @@ function ReportsScreen() {
         ) : active.isPending ? (
           <p className="text-sm text-muted-foreground">Cargando…</p>
         ) : tab === 'weekly' && weekly.data ? (
-          <PeriodReport tab="weekly" data={weekly.data} />
+          <PeriodReport tab="weekly" data={weekly.data} range={{ from, to }} />
         ) : tab === 'monthly' && monthly.data ? (
-          <PeriodReport tab="monthly" data={monthly.data} />
+          <PeriodReport tab="monthly" data={monthly.data} range={{ from, to }} />
         ) : tab === 'area' && area.data ? (
           <AreaReport data={area.data} />
         ) : tab === 'campaign' && campaign.data ? (
@@ -174,7 +174,8 @@ function ReportsScreen() {
   )
 }
 
-// Makes the workbook in the browser from what is on screen; disabled while there is nothing to export.
+// Makes the workbook in the browser from what is on screen; disabled while there is nothing to export (the page also
+// passes none while the report is being refreshed, so a file never carries numbers that are about to be replaced).
 function ExportButton({ sheets, fileName }: { sheets: (() => Sheet[]) | null; fileName: string }) {
   const exportXlsx = useMutation({
     mutationFn: async (makeSheets: () => Sheet[]) => downloadXlsx(makeSheets(), fileName),

@@ -6,7 +6,7 @@ import { ITEM_TYPE_LABEL, PAYMENT_MEDIUM_LABEL, signedItemCents } from './paymen
 import { dayHeader } from './payroll-detail'
 import { buildGrid, cellLabel } from './payroll-grid'
 import { PAYROLL_STATUS_LABEL, payrollDisplayStatus } from './payroll-view'
-import { monthLabel, weekLabel } from './report-view'
+import { periodLabel } from './report-view'
 import { workerName } from './worker-view'
 
 export type Cell = string | number | null
@@ -131,9 +131,10 @@ export type AreaExportInput = {
 }
 
 // One row per week or month plus the totals. The concepts are signed: a deduction subtracts.
-export function periodSheet(tab: 'weekly', data: WeeklyExportInput): Sheet
-export function periodSheet(tab: 'monthly', data: MonthlyExportInput): Sheet
-export function periodSheet(tab: 'weekly' | 'monthly', data: WeeklyExportInput | MonthlyExportInput): Sheet {
+// The first column names the days the range covers, the same as the screen.
+export function periodSheet(tab: 'weekly', data: WeeklyExportInput, range: { from: string; to: string }): Sheet
+export function periodSheet(tab: 'monthly', data: MonthlyExportInput, range: { from: string; to: string }): Sheet
+export function periodSheet(tab: 'weekly' | 'monthly', data: WeeklyExportInput | MonthlyExportInput, range: { from: string; to: string }): Sheet {
   const row = (label: string, t: CostTotals): Cell[] => [
     label,
     formatHours(t.regularMinutes),
@@ -154,7 +155,7 @@ export function periodSheet(tab: 'weekly' | 'monthly', data: WeeklyExportInput |
       { header: 'Total (S/)', width: MONEY_WIDTH, money: true },
     ],
     rows: [
-      ...data.items.map((item) => row('month' in item ? monthLabel(item.month) : weekLabel(item.weekStart, item.weekEnd), item)),
+      ...data.items.map((item) => row(periodLabel(item, range), item)),
       row('Totales', data.totals),
     ],
   }
