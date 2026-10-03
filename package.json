@@ -11,9 +11,16 @@
     "test": "npm test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "npm run lint -w @agrosalas/frontend",
-    "build": "npm run build -w @agrosalas/frontend"
+    "build": "npm run build -w @agrosalas/frontend",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:status": "supabase status",
+    "db:signing-key": "node -e \"const fs=require('fs'),cp=require('child_process'),p='supabase/signing_keys.json';let n=0;try{n=JSON.parse(fs.readFileSync(p,'utf8')).length}catch{}if(n){console.log(p+' already exists; left untouched.');process.exit()}fs.writeFileSync(p,'[]');cp.execFileSync('npx',['supabase','gen','signing-key','--algorithm','ES256','--yes'],{stdio:'inherit'})\""
   },
   "engines": {
     "node": ">=22"
+  },
+  "devDependencies": {
+    "supabase": "^2.119.0"
   }
 }
