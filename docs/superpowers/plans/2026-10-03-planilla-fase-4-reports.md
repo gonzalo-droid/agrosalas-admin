@@ -26,6 +26,60 @@ Se pueden cambiar antes de fusionar.
 8. **Permisos:** el coordinador no ve Reportes ni exporta (403 en las rutas; sin entrada en el menú).
 9. **Sin paginar:** los reportes devuelven todas sus filas (como mucho 53 semanas, 13 meses, las áreas, las campañas y los trabajadores del rango).
 
+## Estado de ejecución
+
+Ejecutado el 2026-10-03 en la rama `feat/phase-4-reports`, en un worktree aparte, desde `master` (`d6f1487`). Las siete tareas están hechas y todos sus pasos marcados.
+
+Commits (`git log --oneline --reverse d6f1487..HEAD`; el último es el de la tarea 7):
+
+- `7b3fe64` docs(planilla): add the phase 4 plan (cost reports and Excel export)
+- `fa91324` feat(api): add the pure period and grouping modules of the cost reports
+- `e4224bb` feat(api): add weekly, monthly and by-area cost reports
+- `35d38cc` feat(api): add cost reports by campaign and by worker
+- `699802d` feat(web): export a payroll to Excel
+- `03a80ce` feat(web): add the reports screen with weekly, monthly and by-area costs
+- `82a641b` feat(web): add cost reports by campaign and by worker
+- el commit siguiente: docs(planilla): record the execution of plan 4 (con el spec y esta sección)
+
+Pruebas, en total, al terminar cada tarea:
+
+| Después de | Backend | Frontend |
+|---|---|---|
+| Inicio | 409 | 268 |
+| Tarea 1 | 426 | 268 |
+| Tarea 2 | 437 | 268 |
+| Tarea 3 | 448 | 268 |
+| Tarea 4 | 448 | 276 |
+| Tarea 5 | 448 | 289 |
+| Tarea 6 | 448 | 297 |
+
+Cada tarea pasó revisión de especificación y de calidad, sin hallazgos críticos ni importantes. Verificación final desde la raíz: ver "Resultado de la verificación final" más abajo.
+
+Lo que difirió del texto del plan:
+
+- `write-excel-file` 4.1.1 no tiene exportación en la raíz: el código importa `write-excel-file/browser` y guarda el archivo con `.toFile()`.
+- `workerName` pasó a `lib/worker-view.ts` (puro); `record-dialog.tsx` lo reexporta.
+- Pruebas de la tarea 3: los datos extra (la campaña y la planilla mensual C) viven en una segunda app armada con la misma preparación, para que las expectativas de la tarea 2 sigan valiendo; en el caso 2 la planilla C también queda fuera del rango (el plan nombraba solo a A).
+- La tarea 5 agregó `rangeFromParams` (un `from` o `to` inválido o ausente en la dirección vuelve a ese extremo del mes en curso) y `staleTime: 0` en las consultas de reportes; el patrón de pestañas se copió de la planilla.
+- `campaignSheets` recibe un `today` opcional para el estado de las planillas; las columnas de las tres hojas de campaña las eligió quien implementó.
+
+Recorrido en el navegador (controlador, 2026-10-03, sesión de administrador, base de desarrollo, a 375 px y en escritorio):
+
+- Menú con Reportes (escritorio y celular).
+- `/reports` a 375 px sin desborde: Semana, Mes (septiembre a octubre), Área (con "Conceptos (sin área)"), Campaña (con el detalle desplegado) y Trabajador; los totales cuadran entre pestañas (S/ 84.58).
+- "Exportar a Excel" del reporte por campaña y de una planilla: archivos `.xlsx` generados con su nombre.
+- No se probó: las vistas de gerencia y de coordinador (no hay usuarios con esos roles en la base de desarrollo) ni abrir los archivos en una hoja de cálculo real.
+
+Resultado de la verificación final: `npm run lint && npm run typecheck && npm test && npm run build` desde la raíz, todo en verde: backend 448 pruebas (27 archivos), frontend 297 (29 archivos), y la compilación lista `/reports` entre sus rutas.
+
+Pendiente (hallazgos menores de las revisiones de cada tarea, sin corregir; la revisión final de la rama decide cuáles se corrigen antes de fusionar):
+
+- A 375 px, las tablas del detalle de una campaña miden lo que toda la tabla de campañas y se recorren con el desplazamiento de afuera.
+- La hoja Asistencia de la exportación de una planilla corta en 62 días sin avisar; el bucle de páginas de pagos puede perder uno si alguien paga durante la exportación.
+- Un refetch fallido de un reporte con datos en caché no se avisa.
+- Sin pruebas de componentes (pantalla de reportes, botón de exportar, filtro del menú).
+- Pruebas por reforzar en la API: `totals.people` distinto frente a la suma de los grupos, un trabajador solo con pagos y una planilla que empieza a mitad de semana.
+
 ## Global Constraints
 
 - Todo nombre de código, tabla, columna, ruta, clave JSON, clave de consulta y prueba va en inglés; todo texto que lee una persona, en español y exactamente como lo da la tarea. Ningún valor del contrato se muestra tal cual.
@@ -183,7 +237,7 @@ export function sumByPeriod(
 - `groupByWorker`: una fila por trabajador presente en las líneas, sumando sus líneas de todas las planillas; `totalCents = attendanceCents + itemsCents`; `pendingCents = totalCents − paidCents`. Nombres y DNI de `workers` por id. Orden: apellido, nombre, id (con `localeCompare(…, 'es')`).
 - `groupByCampaign`: un grupo por `campaignKeyOf` de cada planilla. `payrollCount` = planillas del grupo; `payrolls` = cada planilla con su total, pagado y pendiente (suma de sus líneas), ordenadas por `startDate` y luego `id`; `workers` = `groupByWorker` de las líneas del grupo; `people` = cantidad de trabajadores distintos en las líneas del grupo; `workedDays`, minutos y dinero = suma de las líneas del grupo. Orden de los grupos: las campañas por nombre (`localeCompare(…, 'es')`), luego "Personal con contrato", luego "Sin campaña". Una planilla sin líneas cuenta en `payrollCount` y aparece en `payrolls` con montos 0.
 
-- [ ] **Step 1: Pruebas (fallan).** `report-periods.test.ts`:
+- [x] **Step 1: Pruebas (fallan).** `report-periods.test.ts`:
   - `daysInRange('2026-10-01', '2026-10-01')` → 1; `('2026-01-01', '2026-12-31')` → 365; `('2028-01-01', '2028-12-31')` → 366.
   - `weekStart('2026-10-05')` (lunes) → `'2026-10-05'`; `('2026-10-04')` (domingo) → `'2026-09-28'`; `('2026-01-01')` (jueves) → `'2025-12-29'`.
   - `weeksInRange('2026-10-01', '2026-10-14')` → `[{ start: '2026-09-28', end: '2026-10-04' }, { start: '2026-10-05', end: '2026-10-11' }, { start: '2026-10-12', end: '2026-10-18' }]`.
@@ -196,9 +250,9 @@ export function sumByPeriod(
   - `groupByCampaign`: tres grupos en el orden de la regla; en la campaña, `payrollCount` 2, `people` correcto (el trabajador repetido cuenta una vez), sumas, `payrolls` con su dinero y en orden, `workers` sumados; una planilla sin líneas aparece con 0.
 
   Run: `npx vitest run test/report-periods.test.ts test/report-groups.test.ts` (desde `backend/`). Expected: FAIL.
-- [ ] **Step 2: Implementar** los dos módulos.
-- [ ] **Step 3: Verificar** — Run: `npm test -w @agrosalas/backend && npm run typecheck`. Expected: PASS.
-- [ ] **Step 4: Commit**
+- [x] **Step 2: Implementar** los dos módulos.
+- [x] **Step 3: Verificar** — Run: `npm test -w @agrosalas/backend && npm run typecheck`. Expected: PASS.
+- [x] **Step 4: Commit**
 
 ```bash
 git add backend/src/payroll/report-periods.ts backend/src/payroll/report-groups.ts backend/test/report-periods.test.ts backend/test/report-groups.test.ts
@@ -243,7 +297,7 @@ Consultas:
 - **Área:** `attendance_records.area_id`, `areas.name` (unión izquierda), `count(*) filter (where type = 'worked')`, las tres sumas, con `date` en el rango, agrupado por área; `areaName` `'Sin área'` cuando no hay área; orden por nombre, "Sin área" al final. `itemsCents` = suma con signo de los conceptos de planillas que empiezan en el rango.
 - `totals` suma las filas (y, en área, `itemsCents`; `totalCents = attendanceCents + itemsCents`).
 
-- [ ] **Step 1: Pruebas (fallan).** `reports.test.ts`, preparación por la API: dos áreas (Producción, Almacén), un cargo por hora (6.25 / 7.8125), trabajadores temporales `w1` (Producción), `w2` (Almacén), `w3` (sin área); el coordinador con un área. Planilla A semanal del `2026-09-28` al `2026-10-04` y planilla B del `2026-10-05` al `2026-10-11` con los tres; registros completos (las cuatro marcas, como en `balances.test.ts`: 620 min → 6823 céntimos) de `w1` el `2026-10-02` (A) y el `2026-10-06` (B), de `w2` el `2026-10-06` (B), una falta de `w3` el `2026-10-07` (B); un `bonus` de 2000 a `w1` en A y un `deduction` de 500 a `w2` en B.
+- [x] **Step 1: Pruebas (fallan).** `reports.test.ts`, preparación por la API: dos áreas (Producción, Almacén), un cargo por hora (6.25 / 7.8125), trabajadores temporales `w1` (Producción), `w2` (Almacén), `w3` (sin área); el coordinador con un área. Planilla A semanal del `2026-09-28` al `2026-10-04` y planilla B del `2026-10-05` al `2026-10-11` con los tres; registros completos (las cuatro marcas, como en `balances.test.ts`: 620 min → 6823 céntimos) de `w1` el `2026-10-02` (A) y el `2026-10-06` (B), de `w2` el `2026-10-06` (B), una falta de `w3` el `2026-10-07` (B); un `bonus` de 2000 a `w1` en A y un `deduction` de 500 a `w2` en B.
   1. `weekly?from=2026-10-01&to=2026-10-11` → dos semanas (28/09 y 05/10); la primera con la asistencia del 02/10 (6823) y el bono de A (A empieza el 28/09, fuera del rango: **no** cuenta); la segunda con 2 × 6823, `itemsCents` −500 y su total. Comprobar minutos (480 y 140 por registro) y `totals`.
   2. `weekly?from=2026-09-28&to=2026-10-11` → ahora el bono de A sí cuenta en la primera semana.
   3. `monthly?from=2026-09-01&to=2026-10-31` → septiembre en 0 salvo el bono de A (empieza el 28/09); octubre con los tres registros trabajados y −500.
@@ -252,9 +306,9 @@ Consultas:
   6. Permisos: `coordinator` → 403 en las tres; `management` → 200.
 
   Run: `npx vitest run test/reports.test.ts` (desde `backend/`). Expected: FAIL.
-- [ ] **Step 2: Implementar** `routes/reports.ts` y montarlo en `app.ts` (`.route('/reports', reportsRoutes(deps))`).
-- [ ] **Step 3: Verificar** — Run: `npm test -w @agrosalas/backend && npm run typecheck`. Expected: PASS.
-- [ ] **Step 4: Commit**
+- [x] **Step 2: Implementar** `routes/reports.ts` y montarlo en `app.ts` (`.route('/reports', reportsRoutes(deps))`).
+- [x] **Step 3: Verificar** — Run: `npm test -w @agrosalas/backend && npm run typecheck`. Expected: PASS.
+- [x] **Step 4: Commit**
 
 ```bash
 git add backend/src backend/test
@@ -285,7 +339,7 @@ Las dos parten de las planillas con `start_date` entre `from` y `to` (decisión 
 
 Una línea existe si el trabajador aparece en cualquiera de las tres. Los trabajadores (`id`, `first_name`, `last_name`, `dni`) se leen de una vez para los ids de las líneas. `people` de `totals` cuenta trabajadores distintos de todas las líneas (en campaña, no la suma de los grupos).
 
-- [ ] **Step 1: Pruebas (fallan)**, en `reports.test.ts`, con la misma preparación de la tarea 2 más: una campaña "Contenedor Chile" asignada a A y B; una planilla mensual C sin campaña del `2026-10-01` al `2026-10-31` con un trabajador de contrato `w4` cuyo cargo mensual tiene sueldo 1500 (concepto automático de 150000); un pago de 3000 a `w1` en A y uno de 9999 a `w2` en B (más que su total).
+- [x] **Step 1: Pruebas (fallan)**, en `reports.test.ts`, con la misma preparación de la tarea 2 más: una campaña "Contenedor Chile" asignada a A y B; una planilla mensual C sin campaña del `2026-10-01` al `2026-10-31` con un trabajador de contrato `w4` cuyo cargo mensual tiene sueldo 1500 (concepto automático de 150000); un pago de 3000 a `w1` en A y uno de 9999 a `w2` en B (más que su total).
   1. `by-campaign?from=2026-09-28&to=2026-10-31` → dos grupos en orden: "Contenedor Chile" (2 planillas, 3 personas, 3 días trabajados, total = 3 × 6823 + 2000 − 500, pagado 12999, pendiente = total − 12999, `payrolls` A y B con su dinero, `workers` con w1, w2, w3) y "Personal con contrato" (1 planilla, 1 persona, total 150000, pagado 0).
   2. `by-campaign?from=2026-10-05&to=2026-10-31` → A no entra (empieza el 28/09): la campaña tiene 1 planilla.
   3. `by-worker?from=2026-09-28&to=2026-10-31` → w1, w2, w3, w4 ordenados por apellido, con días, minutos, asistencia, conceptos, total, pagado y pendiente (w2 con pendiente negativo); `totals` con `people` 4.
@@ -294,9 +348,9 @@ Una línea existe si el trabajador aparece en cualquiera de las tres. Los trabaj
   En `permissions.test.ts`, agregar a la matriz las cinco rutas de reportes (con `?from=2026-10-01&to=2026-10-31`) con `coordinator` como rol prohibido.
 
   Run: `npx vitest run test/reports.test.ts test/permissions.test.ts` (desde `backend/`). Expected: FAIL.
-- [ ] **Step 2: Implementar** las dos rutas.
-- [ ] **Step 3: Verificar** — Run: `npm test -w @agrosalas/backend && npm run lint && npm run typecheck`. Expected: PASS.
-- [ ] **Step 4: Commit**
+- [x] **Step 2: Implementar** las dos rutas.
+- [x] **Step 3: Verificar** — Run: `npm test -w @agrosalas/backend && npm run lint && npm run typecheck`. Expected: PASS.
+- [x] **Step 4: Commit**
 
 ```bash
 git add backend/src backend/test
@@ -338,11 +392,11 @@ Hojas de `payrollSheets`:
 
 **Botón** en el detalle de la planilla, junto a los demás, para los roles que ven dinero: **Exportar a Excel** (`h-11`). Al pulsarlo: dice "Preparando…" y queda deshabilitado; reúne los datos (los saldos y los conceptos de la caché o pidiéndolos; los pagos pidiendo todas las páginas de 100); arma las hojas y descarga `Planilla <nombre>.xlsx` (con `safeFileName`). Un error: `toast.error(errorMessage(e))`.
 
-- [ ] **Step 1: Pruebas (fallan)** en `xlsx.test.ts`: `solesOf(6823)` → 68.23 y `solesOf(-500)` → −5; `safeFileName` quita `/ \ : * ? " < > |`, junta los espacios repetidos en uno y recorta: `safeFileName('Semana 40 / Chile: "A"')` → `'Semana 40 Chile A'`, y `safeFileName('???')` → `'reporte'`; `payrollSheets` con una planilla de dos días, dos trabajadores (uno con registro y otro con falta), un concepto de descuento y un pago con evidencia: nombres de hojas, encabezados exactos, una fila por trabajador más `Totales`, montos en soles con signo, `Sí`.
-- [ ] **Step 2: Instalar** `npm install write-excel-file@^4 -w @agrosalas/frontend`.
-- [ ] **Step 3: Implementar** `lib/xlsx.ts` y el botón.
-- [ ] **Step 4: Verificar** — Run: `npm run lint && npm run typecheck && npm test -w @agrosalas/frontend && npm run build`. Expected: PASS; el build no incluye `write-excel-file` en el paquete inicial de la página (se importa al exportar).
-- [ ] **Step 5: Commit**
+- [x] **Step 1: Pruebas (fallan)** en `xlsx.test.ts`: `solesOf(6823)` → 68.23 y `solesOf(-500)` → −5; `safeFileName` quita `/ \ : * ? " < > |`, junta los espacios repetidos en uno y recorta: `safeFileName('Semana 40 / Chile: "A"')` → `'Semana 40 Chile A'`, y `safeFileName('???')` → `'reporte'`; `payrollSheets` con una planilla de dos días, dos trabajadores (uno con registro y otro con falta), un concepto de descuento y un pago con evidencia: nombres de hojas, encabezados exactos, una fila por trabajador más `Totales`, montos en soles con signo, `Sí`.
+- [x] **Step 2: Instalar** `npm install write-excel-file@^4 -w @agrosalas/frontend`.
+- [x] **Step 3: Implementar** `lib/xlsx.ts` y el botón.
+- [x] **Step 4: Verificar** — Run: `npm run lint && npm run typecheck && npm test -w @agrosalas/frontend && npm run build`. Expected: PASS; el build no incluye `write-excel-file` en el paquete inicial de la página (se importa al exportar).
+- [x] **Step 5: Commit**
 
 ```bash
 git add frontend/package.json package-lock.json frontend/src
@@ -389,10 +443,10 @@ export function areaSheet(data: …): Sheet
 - Carga: "Cargando…"; error: `ErrorWithRetry`; sin datos (todo en 0): la tabla se muestra igual (los periodos existen).
 - Tablas dentro de `overflow-x-auto`, sin ensanchar la página.
 
-- [ ] **Step 1: Pruebas (fallan)** de `report-view.ts` (pestañas, `defaultRange('2026-10-02')` → `{ from: '2026-10-01', to: '2026-10-31' }`, `weekLabel`, `monthLabel` de enero y diciembre) y de `periodSheet`/`areaSheet` (encabezados, filas, totales, dinero en soles).
-- [ ] **Step 2: Implementar.**
-- [ ] **Step 3: Verificar** — Run: `npm run lint && npm run typecheck && npm test -w @agrosalas/frontend`. Expected: PASS.
-- [ ] **Step 4: Commit**
+- [x] **Step 1: Pruebas (fallan)** de `report-view.ts` (pestañas, `defaultRange('2026-10-02')` → `{ from: '2026-10-01', to: '2026-10-31' }`, `weekLabel`, `monthLabel` de enero y diciembre) y de `periodSheet`/`areaSheet` (encabezados, filas, totales, dinero en soles).
+- [x] **Step 2: Implementar.**
+- [x] **Step 3: Verificar** — Run: `npm run lint && npm run typecheck && npm test -w @agrosalas/frontend`. Expected: PASS.
+- [x] **Step 4: Commit**
 
 ```bash
 git add frontend/src
@@ -415,10 +469,10 @@ git commit -m "feat(web): add the reports screen with weekly, monthly and by-are
 - **Trabajador** (`WorkerReport`, clave `['reports', 'worker', from, to]`): Trabajador (enlace), DNI, Días, Horas normales, Horas extra, Asistencia, Conceptos, Total, Pagado, Pendiente; fila de totales; la misma regla.
 - Exportar: Campaña → tres hojas (una fila por campaña; una por planilla con su campaña; una por trabajador y campaña); Trabajador → una hoja.
 
-- [ ] **Step 1: Pruebas (fallan)** de `campaignSheets` y `workerSheet`.
-- [ ] **Step 2: Implementar.**
-- [ ] **Step 3: Verificar** — Run: `npm run lint && npm run typecheck && npm test -w @agrosalas/frontend && npm run build`. Expected: PASS; el build lista `/reports`.
-- [ ] **Step 4: Commit**
+- [x] **Step 1: Pruebas (fallan)** de `campaignSheets` y `workerSheet`.
+- [x] **Step 2: Implementar.**
+- [x] **Step 3: Verificar** — Run: `npm run lint && npm run typecheck && npm test -w @agrosalas/frontend && npm run build`. Expected: PASS; el build lista `/reports`.
+- [x] **Step 4: Commit**
 
 ```bash
 git add frontend/src
@@ -432,11 +486,12 @@ git commit -m "feat(web): add cost reports by campaign and by worker"
 **Files:**
 - Modify: `docs/superpowers/specs/2026-10-01-planilla-design.md`, `README.md` (solo si algo de la puesta en marcha cambió), este plan.
 
-- [ ] **Step 1: Spec**: §9, la fila de `/reports/costs` con las cinco rutas y el rango; §10, el menú con Reportes, la pantalla 4 con "Exportar a Excel" y la pantalla 7; §11, las reglas de las decisiones 2 a 5 y que el Excel se genera en el navegador.
-- [ ] **Step 2: Verificación en el navegador** (la hace el controlador con la sesión de Gonzalo y los datos de prueba de la base de desarrollo): a 375 px y en escritorio, el menú con Reportes, cada pestaña con el rango del mes y con un rango de dos meses, el detalle de una campaña, las exportaciones (archivo descargado y abierto en una hoja de cálculo, o leído con `write-excel-file`), "Exportar a Excel" de una planilla, sin desborde ni errores en la consola.
-- [ ] **Step 3: Este plan**: "Estado de ejecución" y "Pendiente".
-- [ ] **Step 4: Verificación final** — Run: `npm run lint && npm run typecheck && npm test && npm run build`. Expected: todo en verde.
-- [ ] **Step 5: Commit**
+- [x] **Step 1: Spec**: §9, la fila de `/reports/costs` con las cinco rutas y el rango; §10, el menú con Reportes, la pantalla 4 con "Exportar a Excel" y la pantalla 7; §11, las reglas de las decisiones 2 a 5 y que el Excel se genera en el navegador.
+- [x] **Step 2: Verificación en el navegador** (la hace el controlador con la sesión de Gonzalo y los datos de prueba de la base de desarrollo): a 375 px y en escritorio, el menú con Reportes, cada pestaña con el rango del mes y con un rango de dos meses, el detalle de una campaña, las exportaciones (archivo descargado y abierto en una hoja de cálculo, o leído con `write-excel-file`), "Exportar a Excel" de una planilla, sin desborde ni errores en la consola.
+  Resultado (2026-10-03, controlador, administrador, base de desarrollo, 375 px y escritorio): se recorrieron el menú con Reportes, las cinco pestañas a 375 px sin desborde (Semana, Mes de septiembre a octubre, Área con "Conceptos (sin área)", Campaña con el detalle desplegado y Trabajador), con los totales cuadrando entre pestañas (S/ 84.58), y "Exportar a Excel" del reporte por campaña y de una planilla, que generaron sus archivos `.xlsx` con su nombre. No se probó: gerencia y coordinador (sin usuarios con esos roles) ni abrir los archivos en una hoja de cálculo real. Detalle en "Estado de ejecución".
+- [x] **Step 3: Este plan**: "Estado de ejecución" y "Pendiente".
+- [x] **Step 4: Verificación final** — Run: `npm run lint && npm run typecheck && npm test && npm run build`. Expected: todo en verde.
+- [x] **Step 5: Commit**
 
 ```bash
 git add docs README.md
