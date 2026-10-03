@@ -1,9 +1,10 @@
-import { between, eq, sql } from 'drizzle-orm'
+import { between, eq, inArray, sql, type AnyColumn } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { requireRole } from '../auth/middleware'
-import { areas, attendanceRecords, payrollItems, payrolls } from '../db/schema'
+import { areas, attendanceRecords, campaigns, payments, payrollItems, payrolls, workers } from '../db/schema'
 import { validate } from '../lib/validate'
+import { groupByCampaign, groupByWorker, type ReportLine, type ReportPayroll } from '../payroll/report-groups'
 import { daysInRange, monthsInRange, sumByPeriod, weekStart, weeksInRange, type DayTotals } from '../payroll/report-periods'
 import type { AppEnv, Db, Dependencies } from '../types'
 
@@ -14,7 +15,7 @@ const rangeQuery = z
   .refine((r) => r.to < r.from || daysInRange(r.from, r.to) <= 366, { message: 'El rango no puede pasar de un año', path: ['to'] })
 
 const NO_AREA = 'Sin área'
-const bigintSum = (column: typeof attendanceRecords.regularMinutes | typeof attendanceRecords.overtimeMinutes | typeof attendanceRecords.amountCents) =>
+const bigintSum = (column: AnyColumn) =>
   sql<number>`coalesce(sum(${column}), 0)::bigint`.mapWith(Number)
 
 // Attendance of the range added up by day.
@@ -44,6 +45,82 @@ async function itemsByPayrollStart(db: Db, from: string, to: string): Promise<{ 
     .innerJoin(payrolls, eq(payrolls.id, payrollItems.payrollId))
     .where(between(payrolls.startDate, from, to))
     .groupBy(payrolls.startDate)
+}
+
+// The payroll x worker lines of the payrolls that start in the range: attendance, signed items and payments, each
+// added up in one grouped query over those payrolls. A worker is on a line if any of the three mentions them.
+async function payrollLines(db: Db, from: string, to: string): Promise<{ payrolls: ReportPayroll[]; lines: ReportLine[] }> {
+  const payrollRows = await db
+    .select({
+      id: payrolls.id,
+      name: payrolls.name,
+      type: payrolls.type,
+      startDate: payrolls.startDate,
+      endDate: payrolls.endDate,
+      status: payrolls.status,
+      campaignId: payrolls.campaignId,
+      campaignName: campaigns.name,
+    })
+    .from(payrolls)
+    .leftJoin(campaigns, eq(campaigns.id, payrolls.campaignId))
+    .where(between(payrolls.startDate, from, to))
+  if (payrollRows.length === 0) return { payrolls: [], lines: [] }
+  const ids = payrollRows.map((payroll) => payroll.id)
+
+  const [attendance, items, paid] = await Promise.all([
+    db
+      .select({
+        payrollId: attendanceRecords.payrollId,
+        workerId: attendanceRecords.workerId,
+        workedDays: sql<number>`count(*) filter (where ${attendanceRecords.type} = 'worked')`.mapWith(Number),
+        regularMinutes: bigintSum(attendanceRecords.regularMinutes),
+        overtimeMinutes: bigintSum(attendanceRecords.overtimeMinutes),
+        attendanceCents: bigintSum(attendanceRecords.amountCents),
+      })
+      .from(attendanceRecords)
+      .where(inArray(attendanceRecords.payrollId, ids))
+      .groupBy(attendanceRecords.payrollId, attendanceRecords.workerId),
+    db
+      .select({
+        payrollId: payrollItems.payrollId,
+        workerId: payrollItems.workerId,
+        itemsCents: sql<number>`coalesce(sum(case when ${payrollItems.type} = 'deduction' then -${payrollItems.amountCents} else ${payrollItems.amountCents} end), 0)::bigint`.mapWith(
+          Number,
+        ),
+      })
+      .from(payrollItems)
+      .where(inArray(payrollItems.payrollId, ids))
+      .groupBy(payrollItems.payrollId, payrollItems.workerId),
+    db
+      .select({ payrollId: payments.payrollId, workerId: payments.workerId, paidCents: bigintSum(payments.amountCents) })
+      .from(payments)
+      .where(inArray(payments.payrollId, ids))
+      .groupBy(payments.payrollId, payments.workerId),
+  ])
+
+  const lines = new Map<string, ReportLine>()
+  const lineOf = (payrollId: string, workerId: string) => {
+    const key = `${payrollId}:${workerId}`
+    let line = lines.get(key)
+    if (!line) {
+      line = { payrollId, workerId, workedDays: 0, regularMinutes: 0, overtimeMinutes: 0, attendanceCents: 0, itemsCents: 0, paidCents: 0 }
+      lines.set(key, line)
+    }
+    return line
+  }
+  for (const { payrollId, workerId, ...sums } of attendance) Object.assign(lineOf(payrollId, workerId), sums)
+  for (const { payrollId, workerId, itemsCents } of items) lineOf(payrollId, workerId).itemsCents = itemsCents
+  for (const { payrollId, workerId, paidCents } of paid) lineOf(payrollId, workerId).paidCents = paidCents
+  return { payrolls: payrollRows, lines: [...lines.values()] }
+}
+
+async function workersOf(db: Db, lines: ReportLine[]) {
+  const workerIds = [...new Set(lines.map((line) => line.workerId))]
+  if (workerIds.length === 0) return []
+  return db
+    .select({ id: workers.id, firstName: workers.firstName, lastName: workers.lastName, dni: workers.dni })
+    .from(workers)
+    .where(inArray(workers.id, workerIds))
 }
 
 export const reportsRoutes = ({ db }: Dependencies) =>
@@ -102,6 +179,50 @@ export const reportsRoutes = ({ db }: Dependencies) =>
           attendanceCents,
           itemsCents,
           totalCents: attendanceCents + itemsCents,
+        },
+      })
+    })
+    .get('/costs/by-campaign', requireRole('admin', 'accounting', 'management'), validate('query', rangeQuery), async (c) => {
+      const { from, to } = c.req.valid('query')
+      const { payrolls: inRange, lines } = await payrollLines(db, from, to)
+      const items = groupByCampaign(inRange, lines, await workersOf(db, lines))
+      const sum = (pick: (row: (typeof items)[number]) => number) => items.reduce((total, row) => total + pick(row), 0)
+      const totalCents = sum((row) => row.totalCents)
+      const paidCents = sum((row) => row.paidCents)
+      return c.json({
+        items,
+        totals: {
+          payrollCount: sum((row) => row.payrollCount),
+          // Distinct workers over all the lines: a person in two campaigns counts once.
+          people: new Set(lines.map((line) => line.workerId)).size,
+          workedDays: sum((row) => row.workedDays),
+          regularMinutes: sum((row) => row.regularMinutes),
+          overtimeMinutes: sum((row) => row.overtimeMinutes),
+          totalCents,
+          paidCents,
+          pendingCents: totalCents - paidCents,
+        },
+      })
+    })
+    .get('/costs/by-worker', requireRole('admin', 'accounting', 'management'), validate('query', rangeQuery), async (c) => {
+      const { from, to } = c.req.valid('query')
+      const { lines } = await payrollLines(db, from, to)
+      const items = groupByWorker(lines, await workersOf(db, lines))
+      const sum = (pick: (row: (typeof items)[number]) => number) => items.reduce((total, row) => total + pick(row), 0)
+      const totalCents = sum((row) => row.totalCents)
+      const paidCents = sum((row) => row.paidCents)
+      return c.json({
+        items,
+        totals: {
+          people: items.length,
+          workedDays: sum((row) => row.workedDays),
+          regularMinutes: sum((row) => row.regularMinutes),
+          overtimeMinutes: sum((row) => row.overtimeMinutes),
+          attendanceCents: sum((row) => row.attendanceCents),
+          itemsCents: sum((row) => row.itemsCents),
+          totalCents,
+          paidCents,
+          pendingCents: totalCents - paidCents,
         },
       })
     })
