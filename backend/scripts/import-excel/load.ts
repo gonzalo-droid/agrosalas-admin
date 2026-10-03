@@ -4,7 +4,7 @@ import {
 } from '../../src/db/schema'
 import { limaInstant } from '../../src/payroll/time'
 import type { Db, Tx } from '../../src/types'
-import { aliasDni, nameKey, normalizeName, splitName, workerKey } from './names'
+import { aliasDni, nameKey, normalizeName, splitName, titleCase, workerKey } from './names'
 import { REVIEW_TEXT, type ParsedSheet, type ParsedWorker } from './parse-sheet'
 import { findNegatives, negativeText } from './summary'
 
@@ -227,8 +227,9 @@ export async function loadSheets(db: Db, userId: string, sheets: ParsedSheet[]):
         .values(
           part.map((name) => {
             const { lastName, firstName } = splitName(name)
+            // Stored as the panel writes names; the matching keys fold case, so the mapping below still finds them.
             return {
-              lastName, firstName, employmentType: 'temporary' as const, status: 'active' as const, notes: 'Migrado del Excel: falta DNI',
+              lastName: titleCase(lastName), firstName: titleCase(firstName), employmentType: 'temporary' as const, status: 'active' as const, notes: 'Migrado del Excel: falta DNI',
             }
           }),
         )

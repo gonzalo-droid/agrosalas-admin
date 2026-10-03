@@ -112,15 +112,15 @@ describe('loadSheets', () => {
     expect(all.filter((w) => w.id === existing.id)).toHaveLength(1)
     expect(all).toHaveLength(4)
     expect(result.workers).toBe(2)
-    expect(all.some((w) => w.lastName === 'SIN DATOS')).toBe(false)
+    expect(all.some((w) => w.lastName === 'Sin Datos')).toBe(false)
     expect(result.reused).toEqual([{ name: 'QUISPE MAMANI, LUIS', worker: 'QUISPE MAMANÍ, LUIS (sin DNI)' }])
     expect(result.created).toEqual(['PEREZ ROJAS, ANA', 'PEREZ LUNA, ANA'])
 
-    const ana = all.find((w) => w.lastName === 'PEREZ LUNA')!
+    const ana = all.find((w) => w.lastName === 'Perez Luna')!
     expect(ana).toMatchObject({
-      firstName: 'ANA', dni: null, employmentType: 'temporary', status: 'active', notes: 'Migrado del Excel: falta DNI',
+      firstName: 'Ana', dni: null, employmentType: 'temporary', status: 'active', notes: 'Migrado del Excel: falta DNI',
     })
-    expect(all.find((w) => w.lastName === 'PEREZ ROJAS')).toMatchObject({ firstName: 'ANA', dni: null })
+    expect(all.find((w) => w.lastName === 'Perez Rojas')).toMatchObject({ firstName: 'Ana', dni: null })
   })
 
   it('refuses a name equal to a worker with DNI, accents aside, and writes nothing', async () => {
@@ -188,9 +188,9 @@ describe('loadSheets', () => {
 
     expect(result.created).toEqual(['PEREZ ROJAS, ANA', 'PEREZ LUNA, ANA', 'ROJAS DIAZ, PEDRO'])
     const all = await t.db.select().from(workers)
-    const ana = all.filter((w) => w.lastName === 'PEREZ ROJAS')
+    const ana = all.filter((w) => w.lastName === 'Perez Rojas')
     expect(ana).toHaveLength(1)
-    const pedro = all.find((w) => w.lastName === 'ROJAS DIAZ')!
+    const pedro = all.find((w) => w.lastName === 'Rojas Diaz')!
     const dates = async (workerId: string) =>
       (await t.db.select().from(attendanceRecords).where(eq(attendanceRecords.workerId, workerId))).map((r) => r.date).sort()
     expect(await dates(ana[0]!.id)).toEqual(['2026-04-13', '2026-06-06'])
@@ -248,7 +248,7 @@ describe('loadSheets', () => {
     expect(flagged.note).toBe(`${REVIEW_TEXT.formula}; ${REVIEW_TEXT.too_long}`)
     expect(flagged.clockOut1).toEqual(new Date('2026-04-14T21:30:00Z'))
 
-    const [ana] = await t.db.select().from(workers).where(eq(workers.lastName, 'PEREZ ROJAS'))
+    const [ana] = await t.db.select().from(workers).where(eq(workers.lastName, 'Perez Rojas'))
     const [anaRecord] = await t.db.select().from(attendanceRecords).where(eq(attendanceRecords.workerId, ana!.id))
     expect(anaRecord!.employmentType).toBe('temporary')
   })
