@@ -111,3 +111,23 @@ Pasos de implementación:
 - [ ] **Step 3: Este plan:** "Estado de ejecución".
 - [ ] **Step 4: Verificación final** — `npm run lint && npm run typecheck && npm test && npm run build`.
 - [ ] **Step 5: Commit** — `docs(planilla): record the execution of the report charts plan`
+
+---
+
+## Estado de ejecución
+
+Ejecutado el 2026-10-03 en la rama `feat/report-charts` (desarrollo con subagentes y revisión por tarea).
+
+- **Tareas 1 y 2** (`4ae4d12`, `af71728`): datos de los gráficos (funciones puras con pruebas) y un gráfico por pestaña con el componente `chart` de shadcn/ui y `recharts` 3. Revisión aprobada.
+- **Revisión en el navegador** (escritorio y 375 px, datos de abril a junio): las barras cuadran con la tabla y la página no se desborda, pero los montos del eje se partían en dos líneas, las semanas inclinadas ocupaban medio gráfico y chocaban con la leyenda en el celular, Área tenía etiquetas inclinadas y una leyenda de una sola serie, y los nombres se partían en el celular.
+- **Corrección** (`b1080fd`, `15be8fa`):
+  - El eje de montos va en soles enteros con espacio que no se parte (`axisSoles`), y las semanas se rotulan en el eje por su primer día (`tick`).
+  - Área pasa a barras horizontales y la leyenda solo aparece con dos series o más. Los nombres se recortan sin partirse.
+  - El componente se dividió en una parte liviana (`ReportChart`: título, vacío y alto exacto con `chartHeight`) y `bar-chart-view`, que se carga aparte; así "Cargando gráfico…" ya ocupa el alto real y la página no salta.
+  - Revisión acotada aprobada.
+- **Diferencias con el plan:**
+  - Área usa barras horizontales en lugar de verticales.
+  - El eje de montos no lleva decimales (la ventana emergente sí).
+  - El tema oscuro no se revisó porque el panel no tiene cómo activarlo.
+- **Pruebas:** frontend 329 (antes 306), backend 561 sin cambios; lint, typecheck y build limpios; `recharts` fuera del paquete inicial de `/reports`.
+
