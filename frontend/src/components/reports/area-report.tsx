@@ -2,11 +2,14 @@ import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, Table
 import { formatHours } from '@/lib/attendance'
 import { formatCents } from '@/lib/format'
 import { signedCentsText } from '@/lib/money'
+import { areaChart } from '@/lib/report-charts'
 import type { AreaExportInput } from '@/lib/xlsx'
+import { ReportChart } from './report-chart'
 
 export function AreaReport({ data }: { data: AreaExportInput }) {
   return (
     <div className="space-y-3">
+      <ReportChart title="Costo por área" data={areaChart({ items: data.items, itemsCents: data.totals.itemsCents })} layout="horizontal" />
       <div className="overflow-x-auto rounded-xl border bg-background">
         <Table>
           <TableHeader>

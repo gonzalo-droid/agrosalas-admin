@@ -2,8 +2,10 @@ import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, Table
 import { formatHours } from '@/lib/attendance'
 import { formatCents } from '@/lib/format'
 import { signedCentsText } from '@/lib/money'
+import { periodChart } from '@/lib/report-charts'
 import { periodLabel } from '@/lib/report-view'
 import type { MonthlyExportInput, WeeklyExportInput } from '@/lib/xlsx'
+import { ReportChart } from './report-chart'
 
 // The weekly and the monthly report are the same table: only the first column changes.
 export function PeriodReport({ tab, data, range }: { tab: 'weekly' | 'monthly'; data: WeeklyExportInput | MonthlyExportInput; range: { from: string; to: string } }) {
@@ -15,6 +17,7 @@ export function PeriodReport({ tab, data, range }: { tab: 'weekly' | 'monthly'; 
 
   return (
     <div className="space-y-3">
+      <ReportChart title={tab === 'weekly' ? 'Costo por semana' : 'Costo por mes'} data={periodChart(data.items, range)} layout="vertical" />
       <div className="overflow-x-auto rounded-xl border bg-background">
         <Table>
           <TableHeader>

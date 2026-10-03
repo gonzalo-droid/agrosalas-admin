@@ -3,15 +3,18 @@ import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, Table
 import { formatHours } from '@/lib/attendance'
 import { formatCents } from '@/lib/format'
 import { pendingText, signedCentsText } from '@/lib/money'
+import { workerChart } from '@/lib/report-charts'
 import { cn } from '@/lib/utils'
 import { workerName } from '@/lib/worker-view'
 import type { WorkerExportInput } from '@/lib/xlsx'
+import { ReportChart } from './report-chart'
 
 const PENDING_CLASS = 'text-amber-700 dark:text-amber-300'
 
 export function WorkerReport({ data }: { data: WorkerExportInput }) {
   return (
     <div className="space-y-3">
+      <ReportChart title="Pagado y pendiente por trabajador (10 con mayor total)" data={workerChart(data.items)} layout="horizontal" />
       <div className="overflow-x-auto rounded-xl border bg-background">
         <Table>
           <TableHeader>
