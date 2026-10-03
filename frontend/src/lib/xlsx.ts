@@ -5,6 +5,7 @@ import { datesBetween } from './lima-time'
 import { ITEM_TYPE_LABEL, PAYMENT_MEDIUM_LABEL, signedItemCents } from './payments'
 import { dayHeader } from './payroll-detail'
 import { buildGrid, cellLabel } from './payroll-grid'
+import { monthLabel, weekLabel } from './report-view'
 import { workerName } from './worker-view'
 
 export type Cell = string | number | null
@@ -117,6 +118,64 @@ export function payrollSheets({ payroll, balances, items, payments }: PayrollExp
   }
 
   return [attendance, concepts, paymentsSheet]
+}
+
+type CostTotals = { regularMinutes: number; overtimeMinutes: number; attendanceCents: number; itemsCents: number; totalCents: number }
+// What the sheets read of the weekly, monthly and by-area reports.
+export type WeeklyExportInput = { items: (CostTotals & { weekStart: string; weekEnd: string })[]; totals: CostTotals }
+export type MonthlyExportInput = { items: (CostTotals & { month: string })[]; totals: CostTotals }
+export type AreaExportInput = {
+  items: { areaName: string; workedDays: number; regularMinutes: number; overtimeMinutes: number; attendanceCents: number }[]
+  totals: { workedDays: number; regularMinutes: number; overtimeMinutes: number; totalCents: number; itemsCents: number }
+}
+
+// One row per week or month plus the totals. The concepts are signed: a deduction subtracts.
+export function periodSheet(tab: 'weekly', data: WeeklyExportInput): Sheet
+export function periodSheet(tab: 'monthly', data: MonthlyExportInput): Sheet
+export function periodSheet(tab: 'weekly' | 'monthly', data: WeeklyExportInput | MonthlyExportInput): Sheet {
+  const row = (label: string, t: CostTotals): Cell[] => [
+    label,
+    formatHours(t.regularMinutes),
+    formatHours(t.overtimeMinutes),
+    solesOf(t.attendanceCents),
+    solesOf(t.itemsCents),
+    solesOf(t.totalCents),
+  ]
+  const header = tab === 'weekly' ? 'Semana' : 'Mes'
+  return {
+    name: header,
+    columns: [
+      { header, width: 24 },
+      { header: 'Horas normales', width: 16 },
+      { header: 'Horas extra', width: 13 },
+      { header: 'Asistencia (S/)', width: MONEY_WIDTH, money: true },
+      { header: 'Conceptos (S/)', width: MONEY_WIDTH, money: true },
+      { header: 'Total (S/)', width: MONEY_WIDTH, money: true },
+    ],
+    rows: [
+      ...data.items.map((item) => row('month' in item ? monthLabel(item.month) : weekLabel(item.weekStart, item.weekEnd), item)),
+      row('Totales', data.totals),
+    ],
+  }
+}
+
+// One row per area; the payroll items have no area, so they go on a row of their own with only an amount.
+export function areaSheet(data: AreaExportInput): Sheet {
+  return {
+    name: 'Área',
+    columns: [
+      { header: 'Área', width: 24 },
+      { header: 'Días trabajados', width: 16 },
+      { header: 'Horas normales', width: 16 },
+      { header: 'Horas extra', width: 13 },
+      { header: 'Monto (S/)', width: MONEY_WIDTH, money: true },
+    ],
+    rows: [
+      ...data.items.map((item): Cell[] => [item.areaName, item.workedDays, formatHours(item.regularMinutes), formatHours(item.overtimeMinutes), solesOf(item.attendanceCents)]),
+      ['Conceptos (sin área)', null, null, null, solesOf(data.totals.itemsCents)],
+      ['Totales', data.totals.workedDays, formatHours(data.totals.regularMinutes), formatHours(data.totals.overtimeMinutes), solesOf(data.totals.totalCents)],
+    ],
+  }
 }
 
 // The package is read only when a file is made: it stays out of the page's first download.
