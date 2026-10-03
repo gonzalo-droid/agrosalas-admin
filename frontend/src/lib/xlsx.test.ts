@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { areaSheet, payrollSheets, periodSheet, safeFileName, solesOf, type PayrollExportInput } from './xlsx'
+import { areaSheet, campaignSheets, payrollSheets, periodSheet, safeFileName, solesOf, workerSheet, type CampaignExportInput, type PayrollExportInput, type WorkerExportInput } from './xlsx'
 
 describe('solesOf', () => {
   it('turns cents into soles', () => {
@@ -155,5 +155,151 @@ describe('areaSheet', () => {
       ['Totales', 13, '104:00', '2:00', 410],
     ])
     for (const row of sheet.rows) expect(row).toHaveLength(sheet.columns.length)
+  })
+})
+
+// Two campaigns; Ana is in both, so the people total (2) is less than the sum of the rows (3).
+const campaignInput: CampaignExportInput = {
+  items: [
+    {
+      key: 'c1',
+      name: 'Chile 2026',
+      payrollCount: 2,
+      people: 2,
+      workedDays: 20,
+      regularMinutes: 9600,
+      overtimeMinutes: 150,
+      totalCents: 50000,
+      paidCents: 30000,
+      pendingCents: 20000,
+      payrolls: [
+        { id: 'p1', name: 'Semana 40', startDate: '2026-10-05', endDate: '2026-10-11', status: 'closed', totalCents: 30000, paidCents: 30000, pendingCents: 0 },
+        { id: 'p2', name: 'Semana 41', startDate: '2026-10-12', endDate: '2026-10-18', status: 'open', totalCents: 20000, paidCents: 0, pendingCents: 20000 },
+      ],
+      workers: [
+        { workerId: 'w1', firstName: 'Ana', lastName: 'Pérez', dni: '12345678', workedDays: 12, regularMinutes: 5760, overtimeMinutes: 150, totalCents: 30000, paidCents: 30000, pendingCents: 0 },
+        { workerId: 'w2', firstName: 'Luis', lastName: 'Quispe', dni: null, workedDays: 8, regularMinutes: 3840, overtimeMinutes: 0, totalCents: 20000, paidCents: 0, pendingCents: 20000 },
+      ],
+    },
+    {
+      key: 'none',
+      name: 'Sin campaña',
+      payrollCount: 1,
+      people: 1,
+      workedDays: 4,
+      regularMinutes: 1920,
+      overtimeMinutes: 0,
+      totalCents: 10000,
+      paidCents: 12000,
+      pendingCents: -2000,
+      payrolls: [{ id: 'p3', name: 'Semana 40 sin campaña', startDate: '2026-10-05', endDate: '2026-10-11', status: 'closed', totalCents: 10000, paidCents: 12000, pendingCents: -2000 }],
+      workers: [{ workerId: 'w1', firstName: 'Ana', lastName: 'Pérez', dni: '12345678', workedDays: 4, regularMinutes: 1920, overtimeMinutes: 0, totalCents: 10000, paidCents: 12000, pendingCents: -2000 }],
+    },
+  ],
+  totals: { payrollCount: 3, people: 2, workedDays: 24, regularMinutes: 11520, overtimeMinutes: 150, totalCents: 60000, paidCents: 42000, pendingCents: 18000 },
+}
+
+describe('campaignSheets', () => {
+  // Wednesday 14/10: the payroll that is open and ended on 18/10 is in progress.
+  const sheets = campaignSheets(campaignInput, '2026-10-14')
+
+  it('builds the three sheets in order', () => {
+    expect(sheets.map((s) => s.name)).toEqual(['Campañas', 'Planillas', 'Trabajadores'])
+  })
+
+  it('writes a row per campaign and the totals, with the money in soles', () => {
+    const [campaigns] = sheets
+    expect(campaigns.columns.map((c) => c.header)).toEqual([
+      'Campaña',
+      'Planillas',
+      'Personas',
+      'Días',
+      'Horas normales',
+      'Horas extra',
+      'Total (S/)',
+      'Pagado (S/)',
+      'Pendiente (S/)',
+    ])
+    expect(campaigns.columns.map((c) => c.money === true)).toEqual([false, false, false, false, false, false, true, true, true])
+    expect(campaigns.rows).toEqual([
+      ['Chile 2026', 2, 2, 20, '160:00', '2:30', 500, 300, 200],
+      ['Sin campaña', 1, 1, 4, '32:00', '0:00', 100, 120, -20],
+      ['Totales', 3, 2, 24, '192:00', '2:30', 600, 420, 180],
+    ])
+  })
+
+  it('writes a row per payroll with its campaign, the dates and the status as the screen shows it', () => {
+    const payrolls = sheets[1]
+    expect(payrolls.columns.map((c) => c.header)).toEqual(['Campaña', 'Planilla', 'Desde', 'Hasta', 'Estado', 'Total (S/)', 'Pagado (S/)', 'Pendiente (S/)'])
+    expect(payrolls.columns.map((c) => c.money === true)).toEqual([false, false, false, false, false, true, true, true])
+    expect(payrolls.rows).toEqual([
+      ['Chile 2026', 'Semana 40', '05/10/2026', '11/10/2026', 'Cerrada', 300, 300, 0],
+      ['Chile 2026', 'Semana 41', '12/10/2026', '18/10/2026', 'En curso', 200, 0, 200],
+      ['Sin campaña', 'Semana 40 sin campaña', '05/10/2026', '11/10/2026', 'Cerrada', 100, 120, -20],
+    ])
+  })
+
+  it('writes a row per worker and campaign, so a person in two campaigns has two rows', () => {
+    const workers = sheets[2]
+    expect(workers.columns.map((c) => c.header)).toEqual(['Campaña', 'Trabajador', 'DNI', 'Días', 'Horas normales', 'Horas extra', 'Total (S/)', 'Pagado (S/)', 'Pendiente (S/)'])
+    expect(workers.columns.map((c) => c.money === true)).toEqual([false, false, false, false, false, false, true, true, true])
+    expect(workers.rows).toEqual([
+      ['Chile 2026', 'Pérez, Ana', '12345678', 12, '96:00', '2:30', 300, 300, 0],
+      ['Chile 2026', 'Quispe, Luis', null, 8, '64:00', '0:00', 200, 0, 200],
+      ['Sin campaña', 'Pérez, Ana', '12345678', 4, '32:00', '0:00', 100, 120, -20],
+    ])
+  })
+
+  it('keeps every row as wide as its columns', () => {
+    for (const sheet of sheets) for (const row of sheet.rows) expect(row).toHaveLength(sheet.columns.length)
+  })
+
+  it('writes the sheets with no payrolls or workers when there are no campaigns, and still the totals row', () => {
+    const empty = campaignSheets(
+      { items: [], totals: { payrollCount: 0, people: 0, workedDays: 0, regularMinutes: 0, overtimeMinutes: 0, totalCents: 0, paidCents: 0, pendingCents: 0 } },
+      '2026-10-14',
+    )
+    expect(empty[0].rows).toEqual([['Totales', 0, 0, 0, '0:00', '0:00', 0, 0, 0]])
+    expect(empty[1].rows).toEqual([])
+    expect(empty[2].rows).toEqual([])
+  })
+})
+
+describe('workerSheet', () => {
+  const input: WorkerExportInput = {
+    items: [
+      { workerId: 'w1', firstName: 'Ana', lastName: 'Pérez', dni: '12345678', workedDays: 16, regularMinutes: 7680, overtimeMinutes: 150, attendanceCents: 32000, itemsCents: -2000, totalCents: 30000, paidCents: 30000, pendingCents: 0 },
+      { workerId: 'w2', firstName: 'Luis', lastName: 'Quispe', dni: null, workedDays: 8, regularMinutes: 3840, overtimeMinutes: 0, attendanceCents: 20000, itemsCents: 0, totalCents: 20000, paidCents: 5000, pendingCents: 15000 },
+    ],
+    totals: { people: 2, workedDays: 24, regularMinutes: 11520, overtimeMinutes: 150, attendanceCents: 52000, itemsCents: -2000, totalCents: 50000, paidCents: 35000, pendingCents: 15000 },
+  }
+  const sheet = workerSheet(input)
+
+  it('writes a row per worker and the totals, with the money in soles', () => {
+    expect(sheet.name).toBe('Trabajadores')
+    expect(sheet.columns.map((c) => c.header)).toEqual([
+      'Trabajador',
+      'DNI',
+      'Días',
+      'Horas normales',
+      'Horas extra',
+      'Asistencia (S/)',
+      'Conceptos (S/)',
+      'Total (S/)',
+      'Pagado (S/)',
+      'Pendiente (S/)',
+    ])
+    expect(sheet.columns.map((c) => c.money === true)).toEqual([false, false, false, false, false, true, true, true, true, true])
+    expect(sheet.rows).toEqual([
+      ['Pérez, Ana', '12345678', 16, '128:00', '2:30', 320, -20, 300, 300, 0],
+      ['Quispe, Luis', null, 8, '64:00', '0:00', 200, 0, 200, 50, 150],
+      ['Totales', null, 24, '192:00', '2:30', 520, -20, 500, 350, 150],
+    ])
+    for (const row of sheet.rows) expect(row).toHaveLength(sheet.columns.length)
+  })
+
+  it('still writes the totals row when there are no workers', () => {
+    const empty = workerSheet({ items: [], totals: { people: 0, workedDays: 0, regularMinutes: 0, overtimeMinutes: 0, attendanceCents: 0, itemsCents: 0, totalCents: 0, paidCents: 0, pendingCents: 0 } })
+    expect(empty.rows).toEqual([['Totales', null, 0, '0:00', '0:00', 0, 0, 0, 0, 0]])
   })
 })

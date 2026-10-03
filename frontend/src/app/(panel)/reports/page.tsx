@@ -7,8 +7,10 @@ import { toast } from 'sonner'
 import { ErrorWithRetry } from '@/components/error-with-retry'
 import { Field, controlClass } from '@/components/field'
 import { AreaReport } from '@/components/reports/area-report'
+import { CampaignReport } from '@/components/reports/campaign-report'
 import { PeriodReport } from '@/components/reports/period-report'
 import { RangeFilter } from '@/components/reports/range-filter'
+import { WorkerReport } from '@/components/reports/worker-report'
 import { Button } from '@/components/ui/button'
 import { ApiClientError, api, errorMessage, unwrap } from '@/lib/api'
 import { limaDate } from '@/lib/lima-time'
@@ -16,7 +18,7 @@ import { useMe } from '@/lib/me'
 import { seesMoney } from '@/lib/payroll-view'
 import { REPORT_TABS, rangeFromParams, reportTabFromParam, type ReportTab } from '@/lib/report-view'
 import { cn } from '@/lib/utils'
-import { areaSheet, downloadXlsx, periodSheet, safeFileName, type Sheet } from '@/lib/xlsx'
+import { areaSheet, campaignSheets, downloadXlsx, periodSheet, safeFileName, workerSheet, type Sheet } from '@/lib/xlsx'
 
 // useSearchParams needs a Suspense boundary above it: without one, the build of the page fails.
 export default function ReportsPage() {
@@ -75,18 +77,35 @@ function ReportsScreen() {
     staleTime: 0,
   })
 
-  const active = tab === 'weekly' ? weekly : tab === 'monthly' ? monthly : tab === 'area' ? area : null
+  const campaign = useQuery({
+    queryKey: ['reports', 'campaign', from, to],
+    queryFn: () => unwrap(api.v1.reports.costs['by-campaign'].$get({ query: { from, to } })),
+    enabled: tab === 'campaign',
+    staleTime: 0,
+  })
+  const worker = useQuery({
+    queryKey: ['reports', 'worker', from, to],
+    queryFn: () => unwrap(api.v1.reports.costs['by-worker'].$get({ query: { from, to } })),
+    enabled: tab === 'worker',
+    staleTime: 0,
+  })
+
+  const active = { weekly, monthly, area, campaign, worker }[tab]
   const error = active?.error
   // A bad range (e.g. the end before the start) is shown under Hasta, where it is fixed; the rest, with a retry.
   const toError = error instanceof ApiClientError && error.field === 'to' ? error.message : undefined
-  const sheet: (() => Sheet) | null =
+  const sheets: (() => Sheet[]) | null =
     tab === 'weekly' && weekly.data
-      ? () => periodSheet('weekly', weekly.data)
+      ? () => [periodSheet('weekly', weekly.data)]
       : tab === 'monthly' && monthly.data
-        ? () => periodSheet('monthly', monthly.data)
+        ? () => [periodSheet('monthly', monthly.data)]
         : tab === 'area' && area.data
-          ? () => areaSheet(area.data)
-          : null
+          ? () => [areaSheet(area.data)]
+          : tab === 'campaign' && campaign.data
+            ? () => campaignSheets(campaign.data)
+            : tab === 'worker' && worker.data
+              ? () => [workerSheet(worker.data)]
+              : null
 
   function onTabKeyDown(e: React.KeyboardEvent) {
     if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
@@ -132,15 +151,12 @@ function ReportsScreen() {
       <div role="tabpanel" id={`report-panel-${tab}`} aria-labelledby={`report-tab-${tab}`} className="space-y-4">
         <div className="flex flex-wrap items-end gap-3">
           <RangeFilter from={from} to={to} onChange={go} toError={toError} />
-          <ExportButton sheet={sheet} fileName={`${safeFileName(`Reporte ${tabLabel} ${from} a ${to}`)}.xlsx`} />
+          <ExportButton sheets={sheets} fileName={`${safeFileName(`Reporte ${tabLabel} ${from} a ${to}`)}.xlsx`} />
         </div>
 
-        {tab === 'campaign' || tab === 'worker' ? (
-          // Completed with the campaign and worker reports.
-          <p className="text-sm text-muted-foreground">Disponible pronto.</p>
-        ) : active && error && !active.data ? (
+        {error && !active.data ? (
           toError ? null : <ErrorWithRetry error={error} onRetry={active.refetch} />
-        ) : !active || active.isPending ? (
+        ) : active.isPending ? (
           <p className="text-sm text-muted-foreground">Cargando…</p>
         ) : tab === 'weekly' && weekly.data ? (
           <PeriodReport tab="weekly" data={weekly.data} />
@@ -148,6 +164,10 @@ function ReportsScreen() {
           <PeriodReport tab="monthly" data={monthly.data} />
         ) : tab === 'area' && area.data ? (
           <AreaReport data={area.data} />
+        ) : tab === 'campaign' && campaign.data ? (
+          <CampaignReport data={campaign.data} />
+        ) : tab === 'worker' && worker.data ? (
+          <WorkerReport data={worker.data} />
         ) : null}
       </div>
     </div>
@@ -155,14 +175,14 @@ function ReportsScreen() {
 }
 
 // Makes the workbook in the browser from what is on screen; disabled while there is nothing to export.
-function ExportButton({ sheet, fileName }: { sheet: (() => Sheet) | null; fileName: string }) {
+function ExportButton({ sheets, fileName }: { sheets: (() => Sheet[]) | null; fileName: string }) {
   const exportXlsx = useMutation({
-    mutationFn: async (makeSheet: () => Sheet) => downloadXlsx([makeSheet()], fileName),
+    mutationFn: async (makeSheets: () => Sheet[]) => downloadXlsx(makeSheets(), fileName),
     onError: (e) => toast.error(errorMessage(e)),
   })
 
   return (
-    <Button variant="outline" size="lg" className="h-11" disabled={!sheet || exportXlsx.isPending} onClick={() => sheet && exportXlsx.mutate(sheet)}>
+    <Button variant="outline" size="lg" className="h-11" disabled={!sheets || exportXlsx.isPending} onClick={() => sheets && exportXlsx.mutate(sheets)}>
       {exportXlsx.isPending ? 'Preparando…' : 'Exportar a Excel'}
     </Button>
   )
