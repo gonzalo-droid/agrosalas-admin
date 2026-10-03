@@ -16,6 +16,7 @@ import { useDebouncedValue } from '@/lib/debounced-value'
 import { dateRange, formatCents } from '@/lib/format'
 import { limaDate } from '@/lib/lima-time'
 import { useMe } from '@/lib/me'
+import { pendingText } from '@/lib/money'
 import { correctedPage } from '@/lib/pagination'
 import { PAYROLL_STATUS_LABEL, PAYROLL_TYPE_LABEL, payrollDisplayStatus, seesMoney } from '@/lib/payroll-view'
 import { cn } from '@/lib/utils'
@@ -61,8 +62,20 @@ export default function PayrollsPage() {
 
   const canCreate = me?.role === 'admin' || me?.role === 'accounting'
   // The coordinator never receives amounts: the column is hidden by role, not by looking at the value.
-  const showTotal = seesMoney(me?.role)
-  const columns = showTotal ? 6 : 5
+  const showMoney = seesMoney(me?.role)
+  const columns = showMoney ? 8 : 5
+
+  // Same reason: the summary answers 403 to the coordinator, so it is not even requested. It takes no filters.
+  const summary = useQuery({
+    queryKey: ['payrolls', 'summary'],
+    enabled: showMoney,
+    queryFn: () => unwrap(api.v1.payrolls.summary.$get()),
+  })
+  const summaryCards = [
+    { title: 'Pendiente acumulado', value: summary.data && formatCents(summary.data.pendingCents) },
+    { title: 'Planillas por pagar', value: summary.data && String(summary.data.toPayCount) },
+    { title: 'Pagado en el mes', value: summary.data && formatCents(summary.data.paidThisMonthCents) },
+  ]
 
   return (
     <div className="space-y-4">
@@ -74,6 +87,17 @@ export default function PayrollsPage() {
           </Link>
         )}
       </div>
+
+      {showMoney && (
+        <div className="grid gap-3 sm:grid-cols-3">
+          {summaryCards.map((card) => (
+            <div key={card.title} className="rounded-xl border bg-background p-4">
+              <p className="text-sm text-muted-foreground">{card.title}</p>
+              <p className="text-2xl font-semibold tabular-nums">{summary.isPending ? '…' : (card.value ?? '–')}</p>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <Input
@@ -121,7 +145,13 @@ export default function PayrollsPage() {
               <TableHead>Campaña</TableHead>
               <TableHead>Tipo</TableHead>
               <TableHead>Personas</TableHead>
-              {showTotal && <TableHead className="text-right">Total</TableHead>}
+              {showMoney && (
+                <>
+                  <TableHead className="text-right">Total</TableHead>
+                  <TableHead className="text-right">Pagado</TableHead>
+                  <TableHead className="text-right">Pendiente</TableHead>
+                </>
+              )}
               <TableHead>Estado</TableHead>
             </TableRow>
           </TableHeader>
@@ -156,7 +186,21 @@ export default function PayrollsPage() {
                 <TableCell>{p.campaignName ?? '–'}</TableCell>
                 <TableCell>{PAYROLL_TYPE_LABEL[p.type]}</TableCell>
                 <TableCell>{p.workerCount}</TableCell>
-                {showTotal && <TableCell className="text-right">{formatCents(p.totalCents)}</TableCell>}
+                {showMoney && (
+                  <>
+                    <TableCell className="text-right">{formatCents(p.totalCents)}</TableCell>
+                    <TableCell className="text-right">{formatCents(p.paidCents)}</TableCell>
+                    <TableCell
+                      className={cn(
+                        'text-right',
+                        p.pendingCents !== null && p.pendingCents > 0 && 'text-amber-700 dark:text-amber-300',
+                        p.pendingCents !== null && p.pendingCents < 0 && 'text-muted-foreground',
+                      )}
+                    >
+                      {p.pendingCents === null ? '—' : pendingText(p.pendingCents)}
+                    </TableCell>
+                  </>
+                )}
                 <TableCell>
                   <Badge variant={p.status === 'closed' ? 'outline' : 'secondary'}>{PAYROLL_STATUS_LABEL[payrollDisplayStatus(p, today)]}</Badge>
                 </TableCell>

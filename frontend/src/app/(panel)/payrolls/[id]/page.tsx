@@ -8,6 +8,9 @@ import { toast } from 'sonner'
 import { ErrorWithRetry } from '@/components/error-with-retry'
 import { Field, controlClass } from '@/components/field'
 import { AttendanceGrid } from '@/components/payrolls/attendance-grid'
+import { CloseDialog } from '@/components/payrolls/close-dialog'
+import { PaymentDialog } from '@/components/payrolls/payment-dialog'
+import { PaymentsTab } from '@/components/payrolls/payments-tab'
 import { PayrollWorkers } from '@/components/payrolls/payroll-workers'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -15,9 +18,10 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Input } from '@/components/ui/input'
 import { ApiClientError, api, errorMessage, unwrap, type ResponseBody } from '@/lib/api'
 import { useCampaigns } from '@/lib/catalogs'
-import { dateRange } from '@/lib/format'
+import { dateRange, formatDate } from '@/lib/format'
 import { limaDate } from '@/lib/lima-time'
 import { useMe } from '@/lib/me'
+import { invalidateClosing } from '@/lib/payments'
 import { payrollChanges, tabFromParam, type PayrollTab } from '@/lib/payroll-detail'
 import { PAYROLL_STATUS_LABEL, PAYROLL_TYPE_LABEL, payrollDisplayStatus, seesMoney } from '@/lib/payroll-view'
 import { cn } from '@/lib/utils'
@@ -27,6 +31,7 @@ type Payroll = ResponseBody<(typeof api.v1.payrolls)[':id']['$get']>
 const NAME_MAX = 80
 const TABS: { key: PayrollTab; label: string }[] = [
   { key: 'attendance', label: 'Asistencia' },
+  { key: 'payments', label: 'Pagos' },
   { key: 'workers', label: 'Trabajadores' },
 ]
 // The fields of the edit dialog that have a place under them for the API's error.
@@ -47,11 +52,24 @@ function PayrollDetail() {
   const pathname = usePathname()
   const params = useSearchParams()
   const { data: me } = useMe()
+  const queryClient = useQueryClient()
   const [editing, setEditing] = useState(false)
+  const [closing, setClosing] = useState(false)
+  // The worker being paid; kept after closing so the dialog can fade out.
+  const [paying, setPaying] = useState<{ workerId: string; open: boolean } | null>(null)
 
   const { data: payroll, error, refetch } = useQuery({
     queryKey: ['payrolls', id],
     queryFn: () => unwrap(api.v1.payrolls[':id'].$get({ param: { id } })),
+  })
+
+  const reopen = useMutation({
+    mutationFn: () => unwrap(api.v1.payrolls[':id'].reopen.$post({ param: { id } })),
+    onSuccess: () => {
+      invalidateClosing(queryClient)
+      toast.success('Planilla reabierta')
+    },
+    onError: (e) => toast.error(errorMessage(e)),
   })
 
   const backLink = (
@@ -72,18 +90,23 @@ function PayrollDetail() {
   if (!payroll || !me) return <p className="text-sm text-muted-foreground">Cargando…</p>
 
   // Hiding by role is a convenience: the API enforces the permissions. Money is hidden by role, never by looking for null.
-  const canEdit = me.role === 'admin' || me.role === 'accounting'
-  const canRegister = canEdit || me.role === 'coordinator'
+  // A closed payroll is only read, whatever the role.
+  const isOpen = payroll.status === 'open'
+  const canManage = me.role === 'admin' || me.role === 'accounting'
+  const canEdit = canManage && isOpen
+  const canRegister = (canEdit || me.role === 'coordinator') && isOpen
   const showMoney = seesMoney(me.role)
   const status = payrollDisplayStatus(payroll, limaDate(new Date()))
-  const tab = tabFromParam(params.get('tab'))
+  const tab = tabFromParam(params.get('tab'), showMoney)
+  // The payments tab exists only for the roles that see money; the arrow keys walk the tabs that are shown.
+  const tabs = TABS.filter((t) => t.key !== 'payments' || showMoney)
 
   const goTo = (next: PayrollTab) => router.replace(next === 'attendance' ? pathname : `${pathname}?tab=${next}`, { scroll: false })
 
   function onTabKeyDown(e: React.KeyboardEvent) {
     if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
     e.preventDefault()
-    const next = TABS[(TABS.findIndex((t) => t.key === tab) + (e.key === 'ArrowRight' ? 1 : TABS.length - 1)) % TABS.length].key
+    const next = tabs[(tabs.findIndex((t) => t.key === tab) + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length].key
     goTo(next)
     document.getElementById(`payroll-tab-${next}`)?.focus()
   }
@@ -101,9 +124,14 @@ function PayrollDetail() {
               </Link>
             )}
             {canEdit && (
-              <Button size="lg" onClick={() => setEditing(true)}>
-                Editar
-              </Button>
+              <>
+                <Button variant="outline" size="lg" className="h-11" onClick={() => setClosing(true)}>
+                  Cerrar planilla
+                </Button>
+                <Button size="lg" onClick={() => setEditing(true)}>
+                  Editar
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -115,8 +143,29 @@ function PayrollDetail() {
         </div>
       </div>
 
+      {!isOpen && (
+        <div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-muted/40 p-3 text-sm">
+          <p>
+            Planilla cerrada el {formatDate(payroll.closedAt ? limaDate(new Date(payroll.closedAt)) : null)}. Solo se puede consultar.
+          </p>
+          {me.role === 'admin' && (
+            <Button
+              variant="outline"
+              size="lg"
+              className="h-11"
+              disabled={reopen.isPending}
+              onClick={() => {
+                if (window.confirm('¿Reabrir la planilla? Se podrán volver a registrar asistencias, conceptos y pagos.')) reopen.mutate()
+              }}
+            >
+              {reopen.isPending ? 'Reabriendo…' : 'Reabrir'}
+            </Button>
+          )}
+        </div>
+      )}
+
       <div role="tablist" aria-label="Secciones de la planilla" className="flex gap-1 border-b">
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <button
             key={t.key}
             type="button"
@@ -143,16 +192,22 @@ function PayrollDetail() {
             payroll={payroll}
             canEditMoney={canEdit}
             canRegister={canRegister}
-            readOnly={me.role === 'management'}
+            readOnly={me.role === 'management' || !isOpen}
             showMoney={showMoney}
             onGoToWorkers={() => goTo('workers')}
           />
+        ) : tab === 'payments' ? (
+          <PaymentsTab payroll={payroll} canPay={canEdit} onPay={(workerId) => setPaying({ workerId, open: true })} />
         ) : (
           <PayrollWorkers payroll={payroll} canEdit={canEdit} />
         )}
       </div>
 
+      {canEdit && <CloseDialog payroll={payroll} open={closing} onOpenChange={setClosing} />}
       {canEdit && <EditPayrollDialog payroll={payroll} open={editing} onOpenChange={setEditing} />}
+      {canEdit && paying && (
+        <PaymentDialog payroll={payroll} workerId={paying.workerId} open={paying.open} onOpenChange={(open) => setPaying((p) => p && { ...p, open })} />
+      )}
     </div>
   )
 }

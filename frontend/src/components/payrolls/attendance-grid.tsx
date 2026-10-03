@@ -1,12 +1,14 @@
 'use client'
 
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { RecordDialog, workerName, type DayRecord } from '@/components/attendance/record-dialog'
+import { ErrorWithRetry } from '@/components/error-with-retry'
 import { Button } from '@/components/ui/button'
-import type { api, ResponseBody } from '@/lib/api'
+import { api, unwrap, type ResponseBody } from '@/lib/api'
 import { formatCents } from '@/lib/format'
 import { datesBetween, limaDate } from '@/lib/lima-time'
+import { pendingText } from '@/lib/money'
 import { buildGrid } from '@/lib/payroll-grid'
 import { cellAriaLabel, cellText, cellTone, dayHeader, hasMinutes, isRangeTruncated, totalsText, type CellTone } from '@/lib/payroll-detail'
 import { cn } from '@/lib/utils'
@@ -21,6 +23,8 @@ const TONE_CLASS: Record<CellTone, string> = {
   absence: 'bg-red-100 text-red-900 hover:bg-red-200 dark:bg-red-950 dark:text-red-100 dark:hover:bg-red-900',
   other: 'bg-muted text-foreground hover:bg-muted/70',
 }
+
+const PENDING_CLASS = 'text-amber-700 dark:text-amber-300'
 
 const STICKY = 'sticky left-0 z-10 border-r bg-background'
 
@@ -49,6 +53,18 @@ export function AttendanceGrid({
 
   const dates = useMemo(() => datesBetween(payroll.startDate, payroll.endDate), [payroll.startDate, payroll.endDate])
   const grid = useMemo(() => buildGrid(payroll.workers, dates, payroll.records), [payroll.workers, dates, payroll.records])
+
+  // The balances carry the money of each worker (attendance plus payroll items, and what was paid). The coordinator
+  // never receives them: the request is not even made. The key is shared with the payments tab and the closing dialog.
+  const balances = useQuery({
+    queryKey: ['payrolls', payroll.id, 'balances'],
+    enabled: showMoney,
+    queryFn: () => unwrap(api.v1.payrolls[':id'].balances.$get({ param: { id: payroll.id } })),
+  })
+  const balanceOf = useMemo(() => new Map(balances.data?.items.map((b) => [b.workerId, b])), [balances.data])
+  // "…" while the balances load, a dash when they could not be loaded.
+  const shown = (cents: number | undefined, text: (cents: number) => string) => (cents !== undefined ? text(cents) : balances.isPending ? '…' : '–')
+  const isDue = (cents: number | undefined) => cents !== undefined && cents > 0
 
   // On a phone the grid opens on the first days of the payroll: bring today's column next to the name column. The
   // scroll is set on the grid's own container, so the page never moves, and the name column is measured rather than
@@ -84,6 +100,8 @@ export function AttendanceGrid({
         </p>
       )}
 
+      {showMoney && balances.error && !balances.data && <ErrorWithRetry error={balances.error} onRetry={balances.refetch} />}
+
       <div ref={scroller} className="overflow-x-auto rounded-xl border bg-background">
         <table className="w-max min-w-full border-separate border-spacing-0 text-xs">
           <thead>
@@ -105,11 +123,22 @@ export function AttendanceGrid({
               <th scope="col" className="h-10 min-w-24 border-b border-l px-2 text-right font-medium">
                 Total
               </th>
+              {showMoney && (
+                <>
+                  <th scope="col" className="h-10 min-w-24 border-b px-2 text-right font-medium">
+                    Pagado
+                  </th>
+                  <th scope="col" className="h-10 min-w-24 border-b px-2 text-right font-medium">
+                    Pendiente
+                  </th>
+                </>
+              )}
             </tr>
           </thead>
           <tbody>
             {grid.rows.map((row) => {
               const name = workerName(row.worker)
+              const balance = balanceOf.get(row.worker.id)
               return (
                 <tr key={row.worker.id}>
                   <th scope="row" className={cn(STICKY, 'h-10 w-36 min-w-36 border-b px-2 text-left font-medium sm:w-48 sm:min-w-48')}>
@@ -141,8 +170,17 @@ export function AttendanceGrid({
                   })}
                   <td className="h-10 border-b border-l px-2 text-right tabular-nums">
                     <span className="block font-medium">{totalsText(row.totals)}</span>
-                    {showMoney && <span className="block text-muted-foreground">{formatCents(row.totals.amountCents)}</span>}
+                    {/* The balance's total includes the payroll items; the sum of the days does not. */}
+                    {showMoney && <span className="block text-muted-foreground">{shown(balance?.totalCents, formatCents)}</span>}
                   </td>
+                  {showMoney && (
+                    <>
+                      <td className="h-10 border-b px-2 text-right tabular-nums">{shown(balance?.paidCents, formatCents)}</td>
+                      <td className={cn('h-10 border-b px-2 text-right tabular-nums', isDue(balance?.pendingCents) && PENDING_CLASS)}>
+                        {shown(balance?.pendingCents, pendingText)}
+                      </td>
+                    </>
+                  )}
                 </tr>
               )
             })}
@@ -160,8 +198,16 @@ export function AttendanceGrid({
               ))}
               <td className="border-l px-2 py-1 text-right tabular-nums">
                 <span className="block font-semibold">{totalsText(grid.total)}</span>
-                {showMoney && <span className="block font-semibold">{formatCents(grid.total.amountCents)}</span>}
+                {showMoney && <span className="block font-semibold">{shown(balances.data?.totals.totalCents, formatCents)}</span>}
               </td>
+              {showMoney && (
+                <>
+                  <td className="px-2 py-1 text-right font-semibold tabular-nums">{shown(balances.data?.totals.paidCents, formatCents)}</td>
+                  <td className={cn('px-2 py-1 text-right font-semibold tabular-nums', isDue(balances.data?.totals.pendingCents) && PENDING_CLASS)}>
+                    {shown(balances.data?.totals.pendingCents, pendingText)}
+                  </td>
+                </>
+              )}
             </tr>
           </tfoot>
         </table>

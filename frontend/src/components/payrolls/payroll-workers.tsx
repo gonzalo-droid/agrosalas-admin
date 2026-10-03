@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { api, errorMessage, unwrap, type ResponseBody } from '@/lib/api'
 import { useGroups } from '@/lib/catalogs'
 import { dateRange, plural } from '@/lib/format'
+import { invalidateClosing } from '@/lib/payments'
 import { addedMessage, daysRecordedByWorker } from '@/lib/payroll-detail'
 
 type Payroll = ResponseBody<(typeof api.v1.payrolls)[':id']['$get']>
@@ -23,12 +24,9 @@ export function PayrollWorkers({ payroll, canEdit }: { payroll: Payroll; canEdit
   const [removeError, setRemoveError] = useState<string | null>(null)
   const days = useMemo(() => daysRecordedByWorker(payroll.records), [payroll.records])
 
-  // ['payrolls'] is also the prefix of this detail (['payrolls', id]) and of the list, whose totals change; the day
-  // screens (['attendance']) list who is in the payroll.
-  const refresh = () => {
-    void queryClient.invalidateQueries({ queryKey: ['payrolls'] })
-    void queryClient.invalidateQueries({ queryKey: ['attendance'] })
-  }
+  // Adding workers can create their salary items and removing one deletes its salary item, so the money (payrolls,
+  // items, payments, workers) refreshes too, and the day screens (['attendance']) list who is in the payroll.
+  const refresh = () => invalidateClosing(queryClient)
 
   const remove = useMutation({
     mutationFn: (workerId: string) => unwrap(api.v1.payrolls[':id'].workers[':workerId'].$delete({ param: { id: payroll.id, workerId } })),
