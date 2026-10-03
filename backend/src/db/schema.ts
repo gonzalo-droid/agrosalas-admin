@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm'
 import {
-  boolean, date, index, integer, jsonb, numeric, pgEnum, pgTable, primaryKey, text, time, timestamp, uniqueIndex, uuid,
+  boolean, check, date, foreignKey, index, integer, jsonb, numeric, pgEnum, pgTable, primaryKey, text, time, timestamp, uniqueIndex, uuid,
 } from 'drizzle-orm/pg-core'
 
 const timestamps = {
@@ -167,7 +167,10 @@ export const payrolls = pgTable(
     closedAt: timestamp('closed_at', { withTimezone: true }),
     ...timestamps,
   },
-  (t) => [index('payrolls_dates_idx').on(t.startDate, t.endDate)],
+  (t) => [
+    index('payrolls_dates_idx').on(t.startDate, t.endDate),
+    check('payrolls_dates_order', sql`${t.endDate} >= ${t.startDate}`),
+  ],
 ).enableRLS()
 
 export const payrollWorkers = pgTable(
@@ -212,5 +215,77 @@ export const attendanceRecords = pgTable(
   (t) => [
     uniqueIndex('attendance_records_worker_date_unique').on(t.workerId, t.date),
     index('attendance_records_payroll_idx').on(t.payrollId, t.date),
+    // Only a worker of the payroll can have records in it.
+    foreignKey({
+      name: 'attendance_records_member_fk',
+      columns: [t.payrollId, t.workerId],
+      foreignColumns: [payrollWorkers.payrollId, payrollWorkers.workerId],
+    }),
+    check(
+      'attendance_records_minutes_not_negative',
+      sql`${t.workedMinutes} >= 0 and ${t.regularMinutes} >= 0 and ${t.overtimeMinutes} >= 0`,
+    ),
+    check(
+      'attendance_records_money_not_negative',
+      sql`${t.hourlyRate} >= 0 and ${t.overtimeRate} >= 0 and ${t.amountCents} >= 0`,
+    ),
+  ],
+).enableRLS()
+
+export const payrollItemTypeEnum = pgEnum('payroll_item_type', ['salary', 'bonus', 'piecework', 'deduction'])
+export const paymentMediumEnum = pgEnum('payment_medium', ['yape', 'plin', 'transfer', 'cash'])
+
+export const payrollItems = pgTable(
+  'payroll_items',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    // No cascade: a payroll with items cannot be deleted from under them.
+    payrollId: uuid('payroll_id').notNull().references(() => payrolls.id),
+    workerId: uuid('worker_id').notNull().references(() => workers.id),
+    type: payrollItemTypeEnum('type').notNull(),
+    // Always positive: a deduction subtracts because of its type.
+    amountCents: integer('amount_cents').notNull(),
+    note: text('note'),
+    recordedBy: uuid('recorded_by').notNull().references(() => users.id),
+    ...timestamps,
+  },
+  (t) => [
+    foreignKey({
+      name: 'payroll_items_member_fk',
+      columns: [t.payrollId, t.workerId],
+      foreignColumns: [payrollWorkers.payrollId, payrollWorkers.workerId],
+    }),
+    check('payroll_items_amount_positive', sql`${t.amountCents} > 0`),
+    uniqueIndex('payroll_items_salary_unique').on(t.payrollId, t.workerId).where(sql`type = 'salary'`),
+    index('payroll_items_payroll_idx').on(t.payrollId, t.workerId),
+  ],
+).enableRLS()
+
+export const payments = pgTable(
+  'payments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    payrollId: uuid('payroll_id').notNull().references(() => payrolls.id),
+    workerId: uuid('worker_id').notNull().references(() => workers.id),
+    date: date('date').notNull(),
+    amountCents: integer('amount_cents').notNull(),
+    method: paymentMediumEnum('method').notNull(),
+    // A copy of the number and the holder used, so that the history does not change with the worker's methods.
+    methodDetail: text('method_detail'),
+    evidencePath: text('evidence_path'),
+    note: text('note'),
+    recordedBy: uuid('recorded_by').notNull().references(() => users.id),
+    ...timestamps,
+  },
+  (t) => [
+    foreignKey({
+      name: 'payments_member_fk',
+      columns: [t.payrollId, t.workerId],
+      foreignColumns: [payrollWorkers.payrollId, payrollWorkers.workerId],
+    }),
+    check('payments_amount_positive', sql`${t.amountCents} > 0`),
+    uniqueIndex('payments_evidence_unique').on(t.evidencePath).where(sql`evidence_path is not null`),
+    index('payments_payroll_idx').on(t.payrollId, t.workerId),
+    index('payments_worker_idx').on(t.workerId, t.date),
   ],
 ).enableRLS()

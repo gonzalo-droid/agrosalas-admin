@@ -261,6 +261,9 @@ describe('payrolls: list', () => {
     })
     expect(typeof json.items[0].workerCount).toBe('number')
     expect(typeof json.items[0].totalCents).toBe('number')
+    // Nothing paid yet: everything that is owed is still pending.
+    expect(json.items[0].paidCents).toBe(0)
+    expect(json.items[0].pendingCents).toBe(json.items[0].totalCents)
     expect(json.items[0].createdAt).toEqual(expect.any(String))
   })
 

@@ -21,6 +21,13 @@ export interface AuthAdmin {
   deleteUser(id: string): Promise<void>
 }
 
+export interface EvidenceStorage {
+  // A signed URL (and its token) to upload one file to that path of the private bucket.
+  createUploadUrl(path: string): Promise<{ signedUrl: string; token: string }>
+  // A signed URL to read the file, valid for that many seconds.
+  createReadUrl(path: string, expiresInSeconds: number): Promise<{ signedUrl: string }>
+}
+
 export type Dependencies = {
   db: Db
   // Returns the Supabase Auth user id, or null if the token is not valid.
@@ -29,4 +36,5 @@ export type Dependencies = {
   panelOrigin: string
   // The clock. Injected so that tests never depend on the real time.
   now: () => Date
+  evidence: EvidenceStorage
 }

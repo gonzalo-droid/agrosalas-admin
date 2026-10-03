@@ -11,6 +11,8 @@ let workerId: string
 let methodId: string
 let payrollId: string
 let recordId: string
+let itemId: string
+let paymentId: string
 // The day of the attendance record created in the setup (a Monday, inside the payroll).
 const RECORD_DATE = '2026-10-05'
 
@@ -57,13 +59,14 @@ beforeAll(async () => {
     areaId,
     positionId,
   })
+  const temporaryId: string = temporary.json.id
   payrollId = (
     await t.request('admin', 'POST', '/v1/payrolls', {
       name: 'Semana 41',
       type: 'weekly',
       startDate: '2026-10-05',
       endDate: '2026-10-11',
-      workers: { workerIds: [workerId, temporary.json.id] },
+      workers: { workerIds: [workerId, temporaryId] },
     })
   ).json.id
   // 12:10 to 18:00 and 19:00 to 23:30 UTC: 350 + 270 = 620 minutes.
@@ -76,13 +79,31 @@ beforeAll(async () => {
   for (const [mark, hour] of marks) {
     const r = await t.request('admin', 'POST', '/v1/attendance/clock', {
       payrollId,
-      workerId: temporary.json.id,
+      workerId: temporaryId,
       date: RECORD_DATE,
       mark,
       at: `${RECORD_DATE}T${hour}:00Z`,
     })
     recordId = r.json.id
   }
+  // A bonus of 2000 and a cash payment of 1000 for the same worker, so that the money routes have rows to answer with.
+  itemId = (
+    await t.request('admin', 'POST', '/v1/payroll-items', {
+      payrollId,
+      workerId: temporaryId,
+      type: 'bonus',
+      amountCents: 2000,
+    })
+  ).json.id
+  paymentId = (
+    await t.request('admin', 'POST', '/v1/payments', {
+      payrollId,
+      workerId: temporaryId,
+      date: RECORD_DATE,
+      amountCents: 1000,
+      method: 'cash',
+    })
+  ).json.id
 })
 
 // The paths carry placeholders (:worker, :group, :method) that are replaced with the ids created above.
@@ -95,6 +116,8 @@ const path = (template: string) =>
     .replace(':area', areaId)
     .replace(':payroll', payrollId)
     .replace(':record', recordId)
+    .replace(':item', itemId)
+    .replace(':payment', paymentId)
 
 type Case = [role: Role, method: string, path: string, body?: unknown]
 
@@ -140,6 +163,34 @@ const attendanceCases: [string, string, unknown][] = [
   ['DELETE', '/v1/attendance/:record', undefined],
 ]
 const auditLogCases: [string, string, unknown][] = [['GET', '/v1/audit-log', undefined]]
+// Money reads: management and accounting read them, the coordinator reaches none.
+const moneyReadCases: [string, string, unknown][] = [
+  ['GET', '/v1/payroll-items?payrollId=:payroll', undefined],
+  ['GET', '/v1/payments?payrollId=:payroll', undefined],
+  ['GET', '/v1/evidence/read-url?paymentId=:payment', undefined],
+  ['GET', '/v1/payrolls/summary', undefined],
+  ['GET', '/v1/payrolls/:payroll/balances', undefined],
+  ['GET', '/v1/payrolls/:payroll/workers/:worker', undefined],
+  ['GET', '/v1/workers/:worker/payrolls', undefined],
+]
+// Money writes: only administration and accounting write them. The ones that delete or change the payroll go last
+// in the matrix (deleteCases, closeCases), although a forbidden role never modifies anything.
+const moneyWriteCases: [string, string, unknown][] = [
+  ['POST', '/v1/payroll-items', { payrollId: SOME_ID, workerId: SOME_ID, type: 'bonus', amountCents: 500 }],
+  ['PATCH', '/v1/payroll-items/:item', { amountCents: 2500 }],
+  [
+    'POST',
+    '/v1/payments',
+    { payrollId: SOME_ID, workerId: SOME_ID, date: RECORD_DATE, amountCents: 500, method: 'cash' },
+  ],
+  ['POST', '/v1/evidence/upload-url', { payrollId: SOME_ID, workerId: SOME_ID, contentType: 'image/png', sizeBytes: 1000 }],
+]
+const deleteCases: [string, string, unknown][] = [
+  ['DELETE', '/v1/payroll-items/:item', undefined],
+  ['DELETE', '/v1/payments/:payment', undefined],
+]
+const closeCases: [string, string, unknown][] = [['POST', '/v1/payrolls/:payroll/close', {}]]
+const reopenCases: [string, string, unknown][] = [['POST', '/v1/payrolls/:payroll/reopen', undefined]]
 
 const withRoles = (roles: Role[], cases: [string, string, unknown][]): Case[] =>
   roles.flatMap((role) => cases.map(([method, template, body]): Case => [role, method, template, body]))
@@ -152,6 +203,12 @@ const forbidden: Case[] = [
   ...withRoles(['management', 'coordinator'], payrollCases),
   // The coordinator does take attendance; only management is read-only here.
   ...withRoles(['management'], attendanceCases),
+  // Items, payments, evidence, balances, the summary and the receipt: the coordinator reaches none of them.
+  ...withRoles(['coordinator'], moneyReadCases),
+  ...withRoles(['management', 'coordinator'], moneyWriteCases),
+  // Deleting and closing go last; only the administrator reopens.
+  ...withRoles(['management', 'coordinator'], [...deleteCases, ...closeCases]),
+  ...withRoles(['management', 'accounting', 'coordinator'], reopenCases),
 ]
 
 describe('permission matrix by role', () => {
@@ -166,7 +223,7 @@ describe('permission matrix by role', () => {
 const BANK_KEYS = ['number', 'cci', 'bank', 'holderName']
 // Amounts: the coordinator gets these keys with the value null (positions, payrolls and attendance blank them
 // instead of dropping them), so for them the rule is "absent or null". Any number is money that leaked.
-const NULLABLE_MONEY_KEYS = ['hourlyRate', 'overtimeRate', 'monthlySalary', 'amountCents', 'totalCents']
+const NULLABLE_MONEY_KEYS = ['hourlyRate', 'overtimeRate', 'monthlySalary', 'amountCents', 'totalCents', 'paidCents', 'pendingCents']
 
 // Walks the JSON and returns the path of every bank key and every amount that carries a value.
 function sensitiveFields(value: unknown, trail = '$'): string[] {
@@ -219,6 +276,8 @@ describe('the coordinator never receives money or bank details', () => {
     const [entry] = day.items.filter((item: { record: unknown }) => item.record)
     expect(entry.record).toMatchObject({ amountCents: null, hourlyRate: null, overtimeRate: null })
     expect(list.items[0].totalCents).toBeNull()
+    expect(list.items[0].paidCents).toBeNull()
+    expect(list.items[0].pendingCents).toBeNull()
   })
 
   it('the administrator does receive them, so the previous test is not vacuous', async () => {
@@ -239,8 +298,11 @@ describe('the coordinator never receives money or bank details', () => {
     }
 
     // The amounts of payrolls and attendance are numbers above zero for the administrator.
-    const listJson = responses['/v1/payrolls'] as { items: { totalCents: number }[] }
-    expect(listJson.items[0].totalCents).toBeGreaterThan(0)
+    const listed = (responses['/v1/payrolls'] as { items: { totalCents: number; paidCents: number; pendingCents: number }[] }).items[0]
+    expect(listed.totalCents).toBeGreaterThan(0)
+    // The cash payment of the setup is 1000; what is pending is the total minus what was paid.
+    expect(listed.paidCents).toBe(1000)
+    expect(listed.pendingCents).toBe(listed.totalCents - 1000)
     const detailJson = responses[`/v1/payrolls/${payrollId}`] as { records: { amountCents: number }[] }
     expect(detailJson.records[0].amountCents).toBeGreaterThan(0)
     const dayJson = responses[`/v1/attendance?payrollId=${payrollId}&date=${RECORD_DATE}`] as {

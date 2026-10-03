@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx --env-file=.env scripts/migrate.ts",
-    "create-admin": "tsx --env-file=.env scripts/create-admin.ts"
+    "create-admin": "tsx --env-file=.env scripts/create-admin.ts",
+    "create-evidence-bucket": "tsx --env-file=.env scripts/create-evidence-bucket.ts"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.3",

@@ -36,6 +36,9 @@ export async function createTestApp() {
   const createdInAuth: { id: string; email: string }[] = []
   const deletedInAuth: string[] = []
 
+  const uploadUrls: string[] = []
+  const readUrls: { path: string; seconds: number }[] = []
+
   const app = createApp({
     db,
     verifyToken: async (token) => (token in USERS ? { sub: USERS[token as Role] } : null),
@@ -55,6 +58,16 @@ export async function createTestApp() {
     },
     panelOrigin: 'http://localhost:3000',
     now: () => currentTime,
+    evidence: {
+      async createUploadUrl(path) {
+        uploadUrls.push(path)
+        return { signedUrl: `https://storage.test/upload/${path}?token=test-token`, token: 'test-token' }
+      },
+      async createReadUrl(path, seconds) {
+        readUrls.push({ path, seconds })
+        return { signedUrl: `https://storage.test/read/${path}` }
+      },
+    },
   })
 
   // request('admin', 'POST', '/v1/areas', { name: 'Producción' })
@@ -72,5 +85,5 @@ export async function createTestApp() {
     return { status: response.status, json }
   }
 
-  return { app, db, request, setNow, createdInAuth, deletedInAuth }
+  return { app, db, request, setNow, createdInAuth, deletedInAuth, uploadUrls, readUrls }
 }

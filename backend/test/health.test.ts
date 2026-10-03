@@ -36,6 +36,8 @@ describe('migrations', () => {
       'campaigns',
       'group_workers',
       'groups',
+      'payments',
+      'payroll_items',
       'payroll_workers',
       'payrolls',
       'positions',
