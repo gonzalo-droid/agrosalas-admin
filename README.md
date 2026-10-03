@@ -6,7 +6,7 @@ Panel interno de Agrosalas Perú: planilla, y más adelante inventario, compras 
 
 - `backend/`: API REST (Hono, Zod, Drizzle). Es lo único que habla con la base de datos.
 - `frontend/`: pantallas (Next.js). Solo consume la API.
-- `docs/operacion/`: guías de operación (desarrollo local, despliegue).
+- `docs/operacion/`: guías de operación: [desarrollo local](docs/operacion/desarrollo-local.md), [despliegue](docs/operacion/despliegue.md) y [respaldo](docs/operacion/respaldo.md).
 - `docs/superpowers/`: specs y planes.
 - `supabase/`: configuración de Supabase local (CLI en Docker).
 
@@ -41,6 +41,8 @@ Script de una sola vez (`backend/scripts/import-excel/`) que lee el Excel de pla
 La carga se niega, sin escribir nada, si una hoja ya se importó (existe una planilla con su nombre y asistencias con origen `excel`), si hay montos o minutos negativos, si un nombre del Excel coincide (sin tildes) con un trabajador que tiene DNI sin un alias `dni:`, si coincide con dos trabajadores sin DNI, o si un trabajador reutilizado ya tiene asistencia en una de las fechas.
 
 ## Despliegue y Supabase
+
+Producción se publica con Vercel y Supabase: la guía completa está en [docs/operacion/despliegue.md](docs/operacion/despliegue.md), y el respaldo en [docs/operacion/respaldo.md](docs/operacion/respaldo.md). Lo que sigue es la lista de revisión por entorno.
 
 Revisar en cada entorno (local, pruebas, producción):
 
