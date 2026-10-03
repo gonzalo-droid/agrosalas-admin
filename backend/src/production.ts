@@ -1,9 +1,9 @@
-import { createApp } from './app'
-import { createSupabaseAuthAdmin } from './auth/admin'
-import { createSupabaseVerifier } from './auth/verify'
-import { createDb } from './db/client'
-import type { Env } from './env'
-import { createSupabaseEvidenceStorage } from './storage/evidence'
+import { createApp } from './app.js'
+import { createSupabaseAuthAdmin } from './auth/admin.js'
+import { createSupabaseVerifier } from './auth/verify.js'
+import { createDb } from './db/client.js'
+import type { Env } from './env.js'
+import { createSupabaseEvidenceStorage } from './storage/evidence.js'
 
 // The API with its real dependencies: used by the local server (src/server.ts) and by Vercel (index.ts).
 export function createProductionApp(env: Env) {

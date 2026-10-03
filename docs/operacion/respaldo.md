@@ -37,7 +37,7 @@ La restauración se hace en un proyecto de Supabase **nuevo** (o en el Supabase 
    ```
 
    Quedan `roles.sql`, `schema.sql` y `data.sql`.
-3. Restaurar con el comando de la guía de Supabase (necesita `psql`; `brew install libpq` si no lo tienes):
+3. Restaurar con el comando de la guía de Supabase (necesita `psql`; si no lo tienes, `brew install libpq`, que no deja `psql` en el PATH: corre además `brew link --force libpq`, o llama al binario por su ruta, `"$(brew --prefix libpq)/bin/psql"`):
 
    ```bash
    psql \
@@ -51,7 +51,15 @@ La restauración se hace en un proyecto de Supabase **nuevo** (o en el Supabase 
    ```
 
    Es la misma cadena que `PROD_DATABASE_URL` pero del proyecto nuevo (session pooler, puerto 5432).
-4. Con la base restaurada, apuntar el backend al proyecto nuevo y volver a crear el bucket de evidencias (`npm run create-evidence-bucket -w @agrosalas/backend`). Las evidencias antiguas no vuelven: sus registros sí, pero los archivos no estaban en el respaldo.
+4. Con la base restaurada en un proyecto nuevo, reapuntar todo lo que hablaba con el anterior:
+   - Las variables de los dos proyectos de Vercel y luego **Redeploy** de ambos:
+     - `agrosalas-admin-api`: `DATABASE_URL` (*Transaction pooler*), `SUPABASE_URL` y `SUPABASE_SECRET_KEY`.
+     - `agrosalas-admin-web`: `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+   - Los secretos `PROD_*` del environment `production` de GitHub (`PROD_DATABASE_URL`, `PROD_SUPABASE_URL`, `PROD_SUPABASE_SECRET_KEY`).
+   - En el proyecto nuevo de Supabase: las URLs de Auth (*Site URL* y *Redirect URLs*), el alta pública apagada, el SMTP de Resend y la plantilla de *Reset password* si se personalizó.
+   - Volver a crear el bucket de evidencias (`npm run create-evidence-bucket -w @agrosalas/backend`). Las evidencias antiguas no vuelven: sus registros sí, pero los archivos no estaban en el respaldo.
+
+   El plan gratuito de Supabase permite 2 proyectos activos y los ocupan `nekomangacix` y `agrosalas-admin-prod`. Para restaurar en un proyecto nuevo hay que pausar uno antes (o pasar a Pro).
 
 **Ensayar antes de necesitarlo.** Conviene probar el procedimiento completo una vez en el Supabase local ([desarrollo local](desarrollo-local.md)): levantarlo vacío (`npm run db:stop -- --no-backup` y `npm run db:start`), restaurar con la cadena `postgresql://postgres:postgres@127.0.0.1:54322/postgres` y entrar al panel con un usuario del respaldo.
 
@@ -61,7 +69,7 @@ Fuente: [Backup and Restore using the CLI](https://supabase.com/docs/guides/plat
 
 - **Comandos de volcado:** `supabase db dump --db-url …` tres veces: `--role-only` (roles), sin banderas (estructura) y `--use-copy --data-only` (datos). La guía vigente añade `-x "storage.buckets_vectors" -x "storage.vector_indexes"` al volcado de datos; el workflow ya lo incluye.
 - **Pooler:** la guía recomienda la cadena del *session pooler* por defecto, y `--db-url` la acepta. Por eso `PROD_DATABASE_URL` es la del pooler en modo sesión (puerto 5432).
-- **Esquemas en `data.sql`:** la guía no los enumera. Se comprobó en local: `data.sql` incluye `auth` (con `auth.users` e `identities`), `public`, `storage`, `drizzle` (historial de migraciones) y `supabase_functions`. Un respaldo de prueba con un usuario de ejemplo se restauró en un Supabase local vacío y el usuario volvió en `auth.users` y en `public.users`.
+- **Esquemas en `data.sql`:** la guía no los enumera. Se comprobó en local (2026-10-03, CLI 2.119.0): `data.sql` incluye `auth` (con `auth.users` e `identities`), `public`, `storage`, `drizzle` (historial de migraciones) y `supabase_functions`. Un respaldo de prueba con un usuario de ejemplo se restauró en un Supabase local vacío y el usuario volvió en `auth.users` y en `public.users`.
 - **Restauración:** el `psql` de arriba, copiado de la guía. La guía avisa de que, si se cambiaron a mano disparadores o políticas RLS en `auth` o `storage`, hay que restaurarlos aparte; aquí no se tocan.
 
 ## Si el workflow falla

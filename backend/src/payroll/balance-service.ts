@@ -1,7 +1,7 @@
 import { and, asc, eq, inArray, sql } from 'drizzle-orm'
-import { attendanceRecords, payrollItems, payrollWorkers, payments, workers } from '../db/schema'
-import type { Db, Tx } from '../types'
-import { buildBalances, type WorkerBalance } from './balance'
+import { attendanceRecords, payrollItems, payrollWorkers, payments, workers } from '../db/schema.js'
+import type { Db, Tx } from '../types.js'
+import { buildBalances, type WorkerBalance } from './balance.js'
 
 // One balance per worker of the payroll (or only of `workerIds`), in surname, name and id order.
 export async function payrollBalances(db: Db | Tx, payrollId: string, workerIds?: string[]): Promise<WorkerBalance[]> {

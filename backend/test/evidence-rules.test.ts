@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { EVIDENCE_MAX_BYTES, evidencePath, isEvidencePathOf } from '../src/payroll/evidence'
-import { describeMethod, MEDIUM_OF } from '../src/payroll/payment-method'
+import { EVIDENCE_MAX_BYTES, evidencePath, isEvidencePathOf } from '../src/payroll/evidence.js'
+import { describeMethod, MEDIUM_OF } from '../src/payroll/payment-method.js'
 
 const PAYROLL = '11111111-1111-4111-8111-111111111111'
 const WORKER = '22222222-2222-4222-8222-222222222222'

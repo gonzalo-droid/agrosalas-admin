@@ -1,13 +1,13 @@
 import { and, asc, count, eq, ne } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { requireRole } from '../auth/middleware'
-import { workerPaymentMethods } from '../db/schema'
-import { recordAudit } from '../lib/audit'
-import { ApiError, notFound } from '../lib/errors'
-import { idSchema, validate, withAtLeastOneField } from '../lib/validate'
-import type { AppEnv, Dependencies } from '../types'
-import { findWorker } from './workers'
+import { requireRole } from '../auth/middleware.js'
+import { workerPaymentMethods } from '../db/schema.js'
+import { recordAudit } from '../lib/audit.js'
+import { ApiError, notFound } from '../lib/errors.js'
+import { idSchema, validate, withAtLeastOneField } from '../lib/validate.js'
+import type { AppEnv, Dependencies } from '../types.js'
+import { findWorker } from './workers.js'
 
 const text = (max: number) => z.string().trim().max(max).nullable().optional()
 

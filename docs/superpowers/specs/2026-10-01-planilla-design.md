@@ -71,7 +71,7 @@ Decisiones:
 - **Tipos compartidos.** El frontend usa el cliente RPC de Hono (`hc<AppType>`) importando solo el tipo de la API mediante npm workspaces. Los esquemas Zod viven en el backend.
 - **Dinero y tiempo.** El cálculo usa enteros: minutos y céntimos. Las fechas se interpretan siempre en `America/Lima`.
 - **Entornos.** Producción en un proyecto de Supabase en el plan gratuito (`agrosalas-admin-prod`). El desarrollo corre en local, con la CLI de Supabase en Docker; el proyecto `agrosalas-admin-dev` queda pausado (decisión del 2026-10-03).
-- **Despliegue.** Frontend y backend en Vercel como dos proyectos (`agrosalas-admin-web` y `agrosalas-admin-api`), con dominios `admin.agrosalasperu.com` y `api.agrosalasperu.com`, y solo se publica `master`. La API corre en Vercel con el trial de Pro (el plan Hobby no admite uso comercial); el alojamiento en Cloudflare Workers queda descartado (decisión del 2026-10-03). Guía en `docs/operacion/despliegue.md`.
+- **Despliegue.** Frontend y backend en Vercel como dos proyectos (`agrosalas-admin-web` y `agrosalas-admin-api`), con dominios `admin.agrosalasperu.com` y `api.agrosalasperu.com`, y solo se publica `master`. La API corre en Vercel y se arranca con el trial de Pro, que dura 14 días (el plan Hobby no admite uso comercial). Si al terminar no hay tarjeta, el equipo vuelve solo a Hobby y no se cobra nada; la decisión de pagar Pro queda para antes de que termine el trial y no está tomada; el alojamiento en Cloudflare Workers queda descartado (decisión del 2026-10-03). Guía en `docs/operacion/despliegue.md`.
 - **Verificación.** GitHub Actions ejecuta pruebas, lint y tipos en cada PR.
 
 ## 4. Roles y permisos
@@ -421,7 +421,7 @@ Se toman como valor por defecto y son baratos de cambiar más adelante.
 2. Cerrar una planilla con saldo pendiente pide confirmación en lugar de impedirse.
 3. La tarifa inicial del cargo Operario es S/ 6.25 exacto, no el 6.2517 del Excel.
 4. Asignación de campañas a las hojas del Excel e interpretación de las columnas de abono (sección 12).
-5. Alojamiento de la API y forma de respaldo (sección 13). Resuelto el 2026-10-03: Vercel con el trial de Pro y respaldo diario cifrado con GitHub Actions.
+5. Alojamiento de la API y forma de respaldo (sección 13). Resuelto el 2026-10-03 en lo técnico: la API en Vercel (se arranca con el trial de Pro de 14 días) y respaldo diario cifrado con GitHub Actions. Pendiente: decidir si se paga Pro (unos US$20 al mes) antes de que termine el trial; sin tarjeta el equipo vuelve a Hobby.
 
 ## 17. Convención de nombres
 

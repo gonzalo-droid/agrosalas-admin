@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest'
-import { userAreas } from '../src/db/schema'
-import type { Role } from '../src/types'
-import { createTestApp, USERS } from './helpers'
+import { userAreas } from '../src/db/schema.js'
+import type { Role } from '../src/types.js'
+import { createTestApp, USERS } from './helpers.js'
 
 let t: Awaited<ReturnType<typeof createTestApp>>
 let areaId: string

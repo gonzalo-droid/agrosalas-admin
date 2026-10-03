@@ -1,12 +1,12 @@
 import { count, desc, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
-import { requireRole } from '../auth/middleware'
-import { payrolls, payrollWorkers } from '../db/schema'
-import { offsetOf, pageSchema, paginated } from '../lib/pagination'
-import { idSchema, validate } from '../lib/validate'
-import { payrollBalances } from '../payroll/balance-service'
-import type { AppEnv, Dependencies } from '../types'
-import { findWorker } from './workers'
+import { requireRole } from '../auth/middleware.js'
+import { payrolls, payrollWorkers } from '../db/schema.js'
+import { offsetOf, pageSchema, paginated } from '../lib/pagination.js'
+import { idSchema, validate } from '../lib/validate.js'
+import { payrollBalances } from '../payroll/balance-service.js'
+import type { AppEnv, Dependencies } from '../types.js'
+import { findWorker } from './workers.js'
 
 // Mounted at /v1/workers, next to workersRoutes.
 export const workerHistoryRoutes = ({ db }: Dependencies) =>

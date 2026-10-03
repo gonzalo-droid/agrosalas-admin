@@ -22,11 +22,11 @@ En local el panel no usa el proyecto de Supabase de la nube: usa una copia de Su
    - `db:signing-key` crea `supabase/signing_keys.json`, la clave con la que el Supabase local firma los tokens. Es solo local, no se versiona y no sobrescribe una clave que ya existe. Se hace una sola vez.
    - `db:start` levanta los contenedores. **La primera vez descarga varias imágenes (unos GB) y puede tardar varios minutos**; las siguientes veces arranca en segundos.
 
-3. **Copiar las claves a los `.env`.** Ejecuta `npm run db:status` y busca, en la tabla «Authentication Keys» (si la salida sale en JSON, son `SECRET_KEY` y `PUBLISHABLE_KEY`):
-   - `Secret` (empieza con `sb_secret_`) va en `SUPABASE_SECRET_KEY` de `backend/.env`.
-   - `Publishable` (empieza con `sb_publishable_`) va en `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` de `frontend/.env.local`.
-
-   Copia antes `backend/.env.example` a `backend/.env` y `frontend/.env.example` a `frontend/.env.local`: ya traen los valores locales (`DATABASE_URL`, `SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_API_URL`); solo faltan esas dos claves.
+3. **Preparar los `.env` y copiar las claves.**
+   1. Copia `backend/.env.example` a `backend/.env` y `frontend/.env.example` a `frontend/.env.local`. Ya traen los valores locales (`DATABASE_URL`, `SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_API_URL`); solo faltan dos claves.
+   2. Ejecuta `npm run db:status` y busca, en la tabla «Authentication Keys» (si la salida sale en JSON, son `SECRET_KEY` y `PUBLISHABLE_KEY`), y pega:
+      - `Secret` (empieza con `sb_secret_`) en `SUPABASE_SECRET_KEY` de `backend/.env`.
+      - `Publishable` (empieza con `sb_publishable_`) en `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` de `frontend/.env.local`.
 
 4. **Crear las tablas, el bucket y tu usuario administrador:**
 
@@ -76,7 +76,8 @@ En local el panel no usa el proyecto de Supabase de la nube: usa una copia de Su
 
 - **«Cannot connect to the Docker daemon» o «docker: command not found»:** Docker Desktop está cerrado o no está instalado. Ábrelo, espera a que termine de iniciar y repite el comando.
 - **Puerto ocupado** (`port is already allocated` o similar en 54321 a 54324): otro programa (u otra copia de Supabase local) usa ese puerto. Cierra ese programa o, si es otra copia de Supabase, detenla con `supabase stop` en su carpeta. Si el ocupado es el 3000, Next elige otro puerto y las llamadas a la API fallan por CORS: libera el 3000 (`PANEL_ORIGIN` debe ser exactamente el origen del panel).
-- **`db:start` se queja de `signing_keys.json`:** falta el archivo. Ejecuta `npm run db:signing-key` y vuelve a empezar.
+- **`db:start` se queja de `signing_keys.json`:** falta el archivo, o quedó vacío (`[]`, por ejemplo si una generación anterior se interrumpió). Ejecuta de nuevo `npm run db:signing-key` y vuelve a empezar. Si el archivo existe pero no es un JSON válido (o no es un arreglo), el comando se detiene sin tocarlo: bórralo y vuelve a ejecutarlo.
+- **«Recuperar contraseña» deja de enviar correos en local:** el Supabase local limita los correos de Auth por hora (`[auth.rate_limit] email_sent` en `supabase/config.toml`, puesto en 30). Si llegas al límite, espera a la próxima hora.
 - **La API responde 401 después de recrear Supabase con otra clave de firma:** los tokens viejos ya no valen. Cierra sesión en el panel (o borra las cookies de localhost) y entra de nuevo.
 - **La clave de firma es solo local.** `supabase/signing_keys.json` contiene una clave privada que solo sirve para este Supabase en Docker: no se sube al repo (está en `.gitignore`), no se usa en producción y, si la pierdes o la borras, se genera otra con `npm run db:signing-key` (hay que volver a iniciar sesión).
 - **Las claves de `db:status` cambiaron:** vuelve a copiarlas a `backend/.env` y `frontend/.env.local` y reinicia la API y el panel.

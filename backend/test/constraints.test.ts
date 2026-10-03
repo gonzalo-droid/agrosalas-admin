@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { attendanceRecords, payments, payrollItems, payrolls } from '../src/db/schema'
-import { createTestApp, USERS } from './helpers'
+import { attendanceRecords, payments, payrollItems, payrolls } from '../src/db/schema.js'
+import { createTestApp, USERS } from './helpers.js'
 
 // These tests insert straight into the tables: the API already respects the rules, the database must too.
 let t: Awaited<ReturnType<typeof createTestApp>>

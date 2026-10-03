@@ -6,8 +6,8 @@ import {
   minutesOfDay,
   numberAt,
   textAt,
-} from '../../scripts/import-excel/grid'
-import type { CellValue } from '../../scripts/import-excel/read-xlsx'
+} from '../../scripts/import-excel/grid.js'
+import type { CellValue } from '../../scripts/import-excel/read-xlsx.js'
 
 describe('column helpers', () => {
   it('converts letters to indexes', () => {

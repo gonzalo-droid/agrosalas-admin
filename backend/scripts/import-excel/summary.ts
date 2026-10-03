@@ -1,6 +1,6 @@
-import { REVIEW_TEXT, type ParsedSheet, type ParsedWorker, type ReviewReason } from './parse-sheet'
-import { SHEETS, type PaymentRule } from './sheets'
-import { aliasDni, splitName, workerKey } from './names'
+import { REVIEW_TEXT, type ParsedSheet, type ParsedWorker, type ReviewReason } from './parse-sheet.js'
+import { SHEETS, type PaymentRule } from './sheets.js'
+import { aliasDni, splitName, workerKey } from './names.js'
 
 /** A negative amount (cents) or count of minutes: the database rejects both. */
 export type NegativeValue = { sheet: string; worker: string; what: string; value: number; unit: 'cents' | 'minutes' }

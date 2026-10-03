@@ -461,7 +461,8 @@ No es una tarea de subagente. Usa los conectores de Vercel y de Supabase y neces
   - "Recuperar contraseña" llega por Resend;
   - `https://api.agrosalasperu.com/health` responde;
   - `GET /internal/keep-alive` responde 401 sin el secreto;
-  - el cron aparece en Vercel → Settings → Cron Jobs.
+  - el cron aparece en Vercel → Settings → Cron Jobs;
+  - en Vercel → proyecto API → Settings → Cron Jobs, "Run" sobre `/internal/keep-alive` y comprobar en los logs que respondió 200 (así se nota si falta `CRON_SECRET`).
 - [ ] **5.10 Respaldo:**
   1. Lanzar "Production backup" a mano y descargar el artefacto.
   2. Gonzalo lo descifra.

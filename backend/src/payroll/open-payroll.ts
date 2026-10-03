@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm'
-import { payrolls, payrollWorkers } from '../db/schema'
-import { ApiError, notFound } from '../lib/errors'
-import type { Tx } from '../types'
+import { payrolls, payrollWorkers } from '../db/schema.js'
+import { ApiError, notFound } from '../lib/errors.js'
+import type { Tx } from '../types.js'
 
 // Returns the payroll, or fails if it does not exist (404) or is closed (409), and locks its row until the
 // transaction ends. Writes inside the payroll (attendance, items, payments) take 'share': they do not block each

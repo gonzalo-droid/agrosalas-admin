@@ -1,11 +1,11 @@
 import { count, desc, eq, getTableColumns } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { requireRole } from '../auth/middleware'
-import { auditLog, users } from '../db/schema'
-import { offsetOf, pageSchema, paginated } from '../lib/pagination'
-import { validate } from '../lib/validate'
-import type { AppEnv, Dependencies } from '../types'
+import { requireRole } from '../auth/middleware.js'
+import { auditLog, users } from '../db/schema.js'
+import { offsetOf, pageSchema, paginated } from '../lib/pagination.js'
+import { validate } from '../lib/validate.js'
+import type { AppEnv, Dependencies } from '../types.js'
 
 const auditFilters = pageSchema.extend({ entity: z.string().trim().min(1).optional() })
 

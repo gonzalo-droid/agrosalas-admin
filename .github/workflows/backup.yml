@@ -5,14 +5,18 @@ on:
     - cron: '0 8 * * *' # 03:00 in Lima
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   backup:
+    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     environment: production
     steps:
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.119.0 # same as the supabase devDependency in the root package.json
       - name: Dump the database
         env:
           DB_URL: ${{ secrets.PROD_DATABASE_URL }}

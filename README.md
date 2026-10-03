@@ -61,7 +61,7 @@ Revisar en cada entorno (local, pruebas, producción):
 | `npm run typecheck` | Tipos de todos los workspaces |
 | `npm run db:start` / `db:stop` / `db:status` | Levanta, detiene y muestra el estado (URLs y claves) del Supabase local en Docker |
 | `npm run db:signing-key` | Genera `supabase/signing_keys.json` (clave local de firma; no sobrescribe una existente) |
-| `npm run db:generate -w @agrosalas/backend -- --name <nombre>` | Genera una migración a partir de `backend/src/db/schema.ts` |
+| `npm run db:generate -w @agrosalas/backend -- --name <nombre>` | Genera una migración a partir de `backend/src/db/schema.ts`. Regla: agregar antes de quitar; la migración debe ser compatible con el código ya publicado (ver [Migraciones](docs/operacion/despliegue.md#migraciones)) |
 | `npm run db:migrate -w @agrosalas/backend` | Aplica las migraciones a la base de `backend/.env` |
 | `npm run create-evidence-bucket -w @agrosalas/backend` | Crea (o actualiza) el bucket privado de evidencias de pago del proyecto de `backend/.env` |
 | `npm run import-excel -w @agrosalas/backend -- <ruta.xlsx> [opciones]` | Prueba en seco de la migración del Excel; con `--commit --user <correo>` carga el historial (ver «Importar el historial del Excel») |
@@ -73,6 +73,7 @@ Revisar en cada entorno (local, pruebas, producción):
 - Los permisos se aplican en la API, no en la pantalla.
 - Toda tabla nueva lleva `.enableRLS()` y ninguna política: solo la API accede a la base.
 - Todo cambio de datos deja una fila en `audit_log`.
+- Los imports relativos del backend terminan en `.js` (`'./env.js'`): Node, en Vercel, no completa extensiones. Una prueba lo vigila.
 - El cálculo de horas y montos vive en backend/src/payroll/calc.ts y trabaja con enteros (minutos y céntimos).
 - El saldo de cada trabajador se calcula en backend/src/payroll/balance.ts: asistencia + conceptos que suman − descuentos − pagos. La lista de planillas y el resumen aplican la misma regla en SQL (backend/src/routes/payrolls.ts): si cambia la regla, hay que cambiar ambos lugares a la vez.
 - Nunca se versionan `.env` ni archivos con datos personales.

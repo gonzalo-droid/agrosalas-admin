@@ -1,4 +1,4 @@
-import type { CellValue } from './read-xlsx'
+import type { CellValue } from './read-xlsx.js'
 
 /** 'A' → 1, 'Z' → 26, 'AA' → 27. */
 export const columnIndex = (letters: string): number => {

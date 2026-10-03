@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { amountCents, computeRecord, suggestedOvertime, workedMinutes, type Marks } from '../src/payroll/calc'
-import { marksFromTimes } from '../src/payroll/time'
+import { amountCents, computeRecord, suggestedOvertime, workedMinutes, type Marks } from '../src/payroll/calc.js'
+import { marksFromTimes } from '../src/payroll/time.js'
 
 const marks = (date: string, times: (string | null)[]): Marks => {
   const [clockIn1, clockOut1, clockIn2, clockOut2] = marksFromTimes(date, times)

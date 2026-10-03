@@ -1,9 +1,9 @@
 import { PGlite } from '@electric-sql/pglite'
 import { drizzle } from 'drizzle-orm/pglite'
 import { migrate } from 'drizzle-orm/pglite/migrator'
-import { createApp } from '../src/app'
-import * as schema from '../src/db/schema'
-import type { Role } from '../src/types'
+import { createApp } from '../src/app.js'
+import * as schema from '../src/db/schema.js'
+import type { Role } from '../src/types.js'
 
 // One user per role. In the tests, the token is the role name.
 export const USERS: Record<Role, string> = {

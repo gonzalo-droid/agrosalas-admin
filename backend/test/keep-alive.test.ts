@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createTestApp } from './helpers'
+import { createTestApp } from './helpers.js'
 
 describe('keep-alive', () => {
   it('queries the database with the cron secret', async () => {

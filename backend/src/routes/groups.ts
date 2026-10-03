@@ -1,13 +1,13 @@
 import { and, asc, count, eq, getTableColumns } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { requireRole } from '../auth/middleware'
-import { groupWorkers, groups, workers } from '../db/schema'
-import { recordAudit } from '../lib/audit'
-import { notFound } from '../lib/errors'
-import { idSchema, validate, withAtLeastOneField } from '../lib/validate'
-import type { AppEnv, Dependencies } from '../types'
-import { workerScope } from './workers'
+import { requireRole } from '../auth/middleware.js'
+import { groupWorkers, groups, workers } from '../db/schema.js'
+import { recordAudit } from '../lib/audit.js'
+import { notFound } from '../lib/errors.js'
+import { idSchema, validate, withAtLeastOneField } from '../lib/validate.js'
+import type { AppEnv, Dependencies } from '../types.js'
+import { workerScope } from './workers.js'
 
 const name = z.string().trim().min(2).max(60)
 const date = z.iso.date().nullable().optional()

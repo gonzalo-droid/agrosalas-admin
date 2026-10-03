@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { campaignKeyOf, groupByCampaign, groupByWorker } from '../src/payroll/report-groups'
-import type { ReportLine, ReportPayroll, ReportWorker } from '../src/payroll/report-groups'
+import { campaignKeyOf, groupByCampaign, groupByWorker } from '../src/payroll/report-groups.js'
+import type { ReportLine, ReportPayroll, ReportWorker } from '../src/payroll/report-groups.js'
 
 const payroll = (overrides: Partial<ReportPayroll> & Pick<ReportPayroll, 'id'>): ReportPayroll => ({
   name: overrides.id,

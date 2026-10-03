@@ -1,13 +1,13 @@
 import { and, asc, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { requireRole } from '../auth/middleware'
-import { payrollItems, payrolls } from '../db/schema'
-import { recordAudit } from '../lib/audit'
-import { ApiError, notFound } from '../lib/errors'
-import { idSchema, validate, withAtLeastOneField } from '../lib/validate'
-import { findOpenPayroll, findPayrollMember } from '../payroll/open-payroll'
-import type { AppEnv, Dependencies } from '../types'
+import { requireRole } from '../auth/middleware.js'
+import { payrollItems, payrolls } from '../db/schema.js'
+import { recordAudit } from '../lib/audit.js'
+import { ApiError, notFound } from '../lib/errors.js'
+import { idSchema, validate, withAtLeastOneField } from '../lib/validate.js'
+import { findOpenPayroll, findPayrollMember } from '../payroll/open-payroll.js'
+import type { AppEnv, Dependencies } from '../types.js'
 
 const amountCents = z.number().int().min(1).max(99_999_999)
 // A note that is blank after trimming is stored as null, like the note of a payment.

@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest'
-import { userAreas } from '../src/db/schema'
-import { createTestApp, USERS } from './helpers'
+import { userAreas } from '../src/db/schema.js'
+import { createTestApp, USERS } from './helpers.js'
 
 let t: Awaited<ReturnType<typeof createTestApp>>
 let w1: string // Quispe: two days of attendance, a bonus, a deduction and two payments in A; a bonus in B

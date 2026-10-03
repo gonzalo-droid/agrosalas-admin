@@ -1,8 +1,8 @@
 // Creates the first administrator: npm run create-admin -- email@domain.com "First Last" "password"
-import { createSupabaseAuthAdmin } from '../src/auth/admin'
-import { createFirstAdmin } from '../src/auth/first-admin'
-import { createDb } from '../src/db/client'
-import { readEnv } from '../src/env'
+import { createSupabaseAuthAdmin } from '../src/auth/admin.js'
+import { createFirstAdmin } from '../src/auth/first-admin.js'
+import { createDb } from '../src/db/client.js'
+import { readEnv } from '../src/env.js'
 
 const [email, name, password] = process.argv.slice(2)
 if (!email || !name || !password || password.length < 8) {

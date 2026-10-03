@@ -1,7 +1,7 @@
-import { cellRef, columnIndex, minutesOfDay, numberAt, textAt } from './grid'
-import { applyAlias, normalizeName } from './names'
-import type { CellValue } from './read-xlsx'
-import type { SheetConfig } from './sheets'
+import { cellRef, columnIndex, minutesOfDay, numberAt, textAt } from './grid.js'
+import { applyAlias, normalizeName } from './names.js'
+import type { CellValue } from './read-xlsx.js'
+import type { SheetConfig } from './sheets.js'
 
 export type ReviewReason = 'formula' | 'not_a_time' | 'missing_marks' | 'reversed' | 'times_without_amount' | 'too_long'
 

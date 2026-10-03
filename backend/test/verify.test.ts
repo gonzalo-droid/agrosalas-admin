@@ -1,6 +1,6 @@
 import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT } from 'jose'
 import { describe, expect, it } from 'vitest'
-import { createVerifier } from '../src/auth/verify'
+import { createVerifier } from '../src/auth/verify.js'
 
 const ISSUER = 'https://project.supabase.co/auth/v1'
 

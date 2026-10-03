@@ -6,12 +6,17 @@ on:
     paths: ['backend/drizzle/**']
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   group: production-db
   cancel-in-progress: false
 
 jobs:
   migrate:
+    # Production secrets and migrations only from master (workflow_dispatch lets you pick any branch).
+    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     environment: production
     env:

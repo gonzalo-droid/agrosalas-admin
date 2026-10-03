@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readEnv } from '../src/env'
+import { readEnv } from '../src/env.js'
 
 const complete = {
   DATABASE_URL: 'postgres://u:c@host:5432/postgres',

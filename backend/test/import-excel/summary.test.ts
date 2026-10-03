@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { REVIEW_TEXT, type ParsedDay, type ParsedSheet, type ParsedWorker } from '../../scripts/import-excel/parse-sheet'
-import { buildSummary, findNegatives } from '../../scripts/import-excel/summary'
+import { REVIEW_TEXT, type ParsedDay, type ParsedSheet, type ParsedWorker } from '../../scripts/import-excel/parse-sheet.js'
+import { buildSummary, findNegatives } from '../../scripts/import-excel/summary.js'
 
 const day = (date: string, amountCents: number, overrides: Partial<ParsedDay> = {}): ParsedDay => ({
   date,

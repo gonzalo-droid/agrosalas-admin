@@ -15,7 +15,7 @@
     "db:start": "supabase start",
     "db:stop": "supabase stop",
     "db:status": "supabase status",
-    "db:signing-key": "node -e \"const fs=require('fs'),cp=require('child_process'),p='supabase/signing_keys.json';let n=0;try{n=JSON.parse(fs.readFileSync(p,'utf8')).length}catch{}if(n){console.log(p+' already exists; left untouched.');process.exit()}fs.writeFileSync(p,'[]');cp.execFileSync('npx',['supabase','gen','signing-key','--algorithm','ES256','--yes'],{stdio:'inherit'})\""
+    "db:signing-key": "node scripts/signing-key.mjs"
   },
   "engines": {
     "node": ">=22"

@@ -1,8 +1,8 @@
 import { timingSafeEqual } from 'node:crypto'
 import { sql } from 'drizzle-orm'
 import type { Context } from 'hono'
-import { ApiError } from '../lib/errors'
-import type { Dependencies } from '../types'
+import { ApiError } from '../lib/errors.js'
+import type { Dependencies } from '../types.js'
 
 const sameSecret = (given: string, expected: string) => {
   const a = Buffer.from(given)

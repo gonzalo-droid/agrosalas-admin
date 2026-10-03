@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { describeDatabase } from '../../scripts/import-excel/database'
+import { describeDatabase } from '../../scripts/import-excel/database.js'
 
 describe('describeDatabase', () => {
   it('names the host and the project of a direct Supabase connection, never the user or password', () => {

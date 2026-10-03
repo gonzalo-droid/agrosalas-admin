@@ -1,6 +1,6 @@
 import { serve } from '@hono/node-server'
-import { readEnv } from './env'
-import { createProductionApp } from './production'
+import { readEnv } from './env.js'
+import { createProductionApp } from './production.js'
 
 const env = readEnv()
 

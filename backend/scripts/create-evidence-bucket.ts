@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
-import { readEnv } from '../src/env'
-import { EVIDENCE_MAX_BYTES, EVIDENCE_TYPES } from '../src/payroll/evidence'
+import { readEnv } from '../src/env.js'
+import { EVIDENCE_MAX_BYTES, EVIDENCE_TYPES } from '../src/payroll/evidence.js'
 
 // Creates the private bucket of payment evidence, or updates its limits if it already exists.
 const env = readEnv()

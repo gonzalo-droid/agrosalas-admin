@@ -1,10 +1,10 @@
 import { eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { users } from '../db/schema'
-import { recordAudit } from '../lib/audit'
-import { validate } from '../lib/validate'
-import type { AppEnv, Dependencies } from '../types'
+import { users } from '../db/schema.js'
+import { recordAudit } from '../lib/audit.js'
+import { validate } from '../lib/validate.js'
+import type { AppEnv, Dependencies } from '../types.js'
 
 const updateProfile = z.object({ name: z.string().trim().min(2).max(80) })
 

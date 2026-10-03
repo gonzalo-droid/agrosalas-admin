@@ -1,8 +1,8 @@
 import { and, eq } from 'drizzle-orm'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { auditLog, userAreas } from '../src/db/schema'
-import { isEvidencePathOf } from '../src/payroll/evidence'
-import { createTestApp, USERS } from './helpers'
+import { auditLog, userAreas } from '../src/db/schema.js'
+import { isEvidencePathOf } from '../src/payroll/evidence.js'
+import { createTestApp, USERS } from './helpers.js'
 
 let t: Awaited<ReturnType<typeof createTestApp>>
 let areaProduction: string

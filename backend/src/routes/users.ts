@@ -1,12 +1,12 @@
 import { asc, eq, inArray } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { requireRole } from '../auth/middleware'
-import { areas, userAreas, users } from '../db/schema'
-import { recordAudit } from '../lib/audit'
-import { ApiError, notFound } from '../lib/errors'
-import { idSchema, validate, withAtLeastOneField } from '../lib/validate'
-import type { AppEnv, Db, Dependencies, Tx } from '../types'
+import { requireRole } from '../auth/middleware.js'
+import { areas, userAreas, users } from '../db/schema.js'
+import { recordAudit } from '../lib/audit.js'
+import { ApiError, notFound } from '../lib/errors.js'
+import { idSchema, validate, withAtLeastOneField } from '../lib/validate.js'
+import type { AppEnv, Db, Dependencies, Tx } from '../types.js'
 
 const role = z.enum(['admin', 'management', 'accounting', 'coordinator'])
 const createUser = z.object({
