@@ -1,5 +1,6 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { Fragment, useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -8,10 +9,16 @@ import { formatHours } from '@/lib/attendance'
 import { dateRange, formatCents } from '@/lib/format'
 import { limaDate } from '@/lib/lima-time'
 import { pendingText } from '@/lib/money'
+import { campaignChart } from '@/lib/report-charts'
 import { PAYROLL_STATUS_LABEL, payrollDisplayStatus } from '@/lib/payroll-view'
 import { cn } from '@/lib/utils'
 import { workerName } from '@/lib/worker-view'
 import type { CampaignExportInput } from '@/lib/xlsx'
+
+const ReportChart = dynamic(() => import('./report-chart'), {
+  ssr: false,
+  loading: () => <div className="flex h-[260px] items-center justify-center rounded-xl border bg-background text-sm text-muted-foreground">Cargando gráfico…</div>,
+})
 
 const PENDING_CLASS = 'text-amber-700 dark:text-amber-300'
 const LINK_CLASS = 'inline-flex min-h-11 items-center font-medium text-primary underline-offset-4 hover:underline'
@@ -31,6 +38,7 @@ export function CampaignReport({ data }: { data: CampaignExportInput }) {
 
   return (
     <div className="space-y-3">
+      <ReportChart title="Pagado y pendiente por campaña" data={campaignChart(data.items)} layout="horizontal" />
       <div className="overflow-x-auto rounded-xl border bg-background">
         <Table>
           <TableHeader>
