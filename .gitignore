@@ -10,3 +10,8 @@ next-env.d.ts
 .vercel
 # The payroll Excel file has personal data: it never goes in the repo.
 *.xlsx
+# The alias files and the import summaries name real workers: they stay outside the repo too (any folder).
+alias*.json
+resumen*.md
+backend/**/alias*.json
+backend/**/resumen*.md

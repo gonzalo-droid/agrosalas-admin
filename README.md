@@ -23,6 +23,19 @@ Node 22 o superior y un proyecto Supabase (Postgres y Auth).
 7. Copia `frontend/.env.example` a `frontend/.env.local` y complétalo con la URL y la clave pública del proyecto Supabase y con `NEXT_PUBLIC_API_URL` (la URL de la API del paso 6).
 8. `npm run dev:web` (panel en http://localhost:3000)
 
+## Importar el historial del Excel
+
+Script de una sola vez (`backend/scripts/import-excel/`) que lee el Excel de planilla y carga sus cuatro hojas de historial (trabajadores, planillas, asistencias, conceptos y pagos). El script se lanza con `tsx --env-file=.env`, así que `backend/.env` tiene que existir aun para la prueba en seco (que no usa `DATABASE_URL`); la carga necesita el `.env` completo. El archivo `.xlsx`, el archivo de alias y el resumen tienen datos personales: se guardan fuera del repo (por ejemplo en `~/planilla/`) y se pasan por ruta; `.gitignore` ignora `*.xlsx`, `alias*.json` y `resumen*.md`.
+
+1. **Prueba en seco** (por defecto: no lee `DATABASE_URL` y no escribe nada):
+   `npm run import-excel -w @agrosalas/backend -- ~/planilla/planilla.xlsx --aliases ~/planilla/alias.json --out ~/planilla/resumen.md`
+   Imprime el resumen (y lo guarda en `--out`): por hoja, el total importado frente al del Excel, los días a revisar, lo pagado y lo pendiente (calculado con lo importado), con avisos por trabajador; además los trabajadores con datos, los alias aplicados, los alias sin efecto y los nombres parecidos sin unificar. `--aliases` es un JSON `{ "nombre tal como está": "nombre unificado" }`; el valor también puede ser `"dni:<8 dígitos>"` para asignar ese nombre al trabajador existente con ese DNI. El script no trae alias propios.
+2. **Carga real**, solo después de revisar el resumen y confirmar las reglas de pago:
+   `npm run import-excel -w @agrosalas/backend -- ~/planilla/planilla.xlsx --aliases ~/planilla/alias.json --out ~/planilla/resumen.md --commit --user <correo>`
+   Antes de escribir imprime el host de la base y el proyecto de Supabase (nunca el usuario ni la contraseña). `--user` es el correo de un administrador activo; queda en la auditoría. Todo se carga en una sola transacción: si algo falla, no se escribe nada (tampoco el `--out`). Al terminar dice qué trabajadores reutilizó y cuáles creó. Las planillas quedan cerradas.
+
+La carga se niega, sin escribir nada, si una hoja ya se importó (existe una planilla con su nombre y asistencias con origen `excel`), si hay montos o minutos negativos, si un nombre del Excel coincide (sin tildes) con un trabajador que tiene DNI sin un alias `dni:`, si coincide con dos trabajadores sin DNI, o si un trabajador reutilizado ya tiene asistencia en una de las fechas.
+
 ## Despliegue y Supabase
 
 Revisar en cada entorno (local, pruebas, producción):
@@ -43,6 +56,7 @@ Revisar en cada entorno (local, pruebas, producción):
 | `npm run db:generate -w @agrosalas/backend -- --name <nombre>` | Genera una migración a partir de `backend/src/db/schema.ts` |
 | `npm run db:migrate -w @agrosalas/backend` | Aplica las migraciones a la base de `backend/.env` |
 | `npm run create-evidence-bucket -w @agrosalas/backend` | Crea (o actualiza) el bucket privado de evidencias de pago del proyecto de `backend/.env` |
+| `npm run import-excel -w @agrosalas/backend -- <ruta.xlsx> [opciones]` | Prueba en seco de la migración del Excel; con `--commit --user <correo>` carga el historial (ver «Importar el historial del Excel») |
 | `npm run lint` | ESLint del frontend |
 | `npm run build` | Build de producción del frontend |
 
