@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { areaChart, campaignChart, chartSummary, isEmptyChart, periodChart, soles, workerChart, type ChartData } from './report-charts'
+import { areaChart, axisSoles, campaignChart, chartHeight, chartSummary, isEmptyChart, periodChart, soles, workerChart, type ChartData } from './report-charts'
 
 const range = { from: '2026-10-01', to: '2026-10-31' }
 
@@ -8,6 +8,22 @@ describe('soles', () => {
     expect(soles(6823)).toBe(68.23)
     expect(soles(0)).toBe(0)
     expect(soles(-1050)).toBe(-10.5)
+  })
+})
+
+describe('axisSoles', () => {
+  it('writes whole soles with a thousands comma', () => {
+    expect(axisSoles(3200)).toBe('S/ 3,200')
+    expect(axisSoles(0)).toBe('S/ 0')
+    expect(axisSoles(1234.56)).toBe('S/ 1,235')
+  })
+
+  it('writes a negative like formatSoles does', () => {
+    expect(axisSoles(-200)).toBe('S/ -200')
+  })
+
+  it('never writes a negative zero', () => {
+    expect(axisSoles(-0.2)).toBe('S/ 0')
   })
 })
 
@@ -21,8 +37,8 @@ describe('periodChart', () => {
       range,
     )
     expect(data.rows).toEqual([
-      { label: '01/10 al 04/10/2026', attendance: 100, items: -25.5 },
-      { label: '05/10 al 11/10/2026', attendance: 68.23, items: 5 },
+      { label: '01/10 al 04/10/2026', tick: '01/10', attendance: 100, items: -25.5 },
+      { label: '05/10 al 11/10/2026', tick: '05/10', attendance: 68.23, items: 5 },
     ])
     expect(data.series).toEqual([
       { key: 'attendance', label: 'Asistencia', color: 'primary' },
@@ -30,9 +46,17 @@ describe('periodChart', () => {
     ])
   })
 
-  it('labels the months', () => {
+  it('ticks a week with the first day it shows: the week start, or the range start when the range cuts the week', () => {
+    const data = periodChart([{ weekStart: '2026-09-28', weekEnd: '2026-10-04', attendanceCents: 100, itemsCents: 0 }], range)
+    expect(data.rows[0].tick).toBe('01/10')
+    const full = periodChart([{ weekStart: '2026-10-12', weekEnd: '2026-10-18', attendanceCents: 100, itemsCents: 0 }], range)
+    expect(full.rows[0].tick).toBe('12/10')
+  })
+
+  it('labels the months, with no short tick', () => {
     const data = periodChart([{ month: '2026-10', attendanceCents: 100, itemsCents: 0 }], range)
     expect(data.rows).toEqual([{ label: 'Octubre 2026', attendance: 1, items: 0 }])
+    expect('tick' in data.rows[0]).toBe(false)
   })
 })
 
@@ -126,6 +150,20 @@ describe('workerChart', () => {
   })
 })
 
+describe('chartHeight', () => {
+  const rows = (count: number): ChartData => ({ rows: Array.from({ length: count }, (_, i) => ({ label: `R${i}`, amount: 1 })), series: [] })
+
+  it('is fixed for vertical bars', () => {
+    expect(chartHeight(rows(3), 'vertical')).toBe(260)
+    expect(chartHeight(rows(11), 'vertical')).toBe(260)
+  })
+
+  it('grows with the rows for horizontal bars, with a floor', () => {
+    expect(chartHeight(rows(2), 'horizontal')).toBe(160)
+    expect(chartHeight(rows(11), 'horizontal')).toBe(456)
+  })
+})
+
 describe('isEmptyChart', () => {
   const series = [{ key: 'amount', label: 'Monto', color: 'primary' as const }]
 
@@ -135,6 +173,10 @@ describe('isEmptyChart', () => {
 
   it('is true without rows', () => {
     expect(isEmptyChart({ rows: [], series })).toBe(true)
+  })
+
+  it('ignores the short axis text', () => {
+    expect(isEmptyChart({ rows: [{ label: 'A', tick: '01/10', amount: 0 }], series })).toBe(true)
   })
 
   it('is false with a value, even a negative one', () => {

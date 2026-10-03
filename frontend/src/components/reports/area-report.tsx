@@ -1,20 +1,15 @@
-import dynamic from 'next/dynamic'
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatHours } from '@/lib/attendance'
 import { formatCents } from '@/lib/format'
 import { signedCentsText } from '@/lib/money'
 import { areaChart } from '@/lib/report-charts'
 import type { AreaExportInput } from '@/lib/xlsx'
-
-const ReportChart = dynamic(() => import('./report-chart'), {
-  ssr: false,
-  loading: () => <div className="flex h-[260px] items-center justify-center rounded-xl border bg-background text-sm text-muted-foreground">Cargando gráfico…</div>,
-})
+import { ReportChart } from './report-chart'
 
 export function AreaReport({ data }: { data: AreaExportInput }) {
   return (
     <div className="space-y-3">
-      <ReportChart title="Costo por área" data={areaChart({ items: data.items, itemsCents: data.totals.itemsCents })} layout="vertical" />
+      <ReportChart title="Costo por área" data={areaChart({ items: data.items, itemsCents: data.totals.itemsCents })} layout="horizontal" />
       <div className="overflow-x-auto rounded-xl border bg-background">
         <Table>
           <TableHeader>

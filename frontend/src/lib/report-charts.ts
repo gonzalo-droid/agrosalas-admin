@@ -4,7 +4,8 @@ import { workerName } from './worker-view'
 
 export type ChartColor = 'primary' | 'amber' | 'muted'
 export type ChartSeries = { key: string; label: string; color: ChartColor }
-export type ChartRow = { label: string; [key: string]: string | number }
+// `label` is the full text (tooltip, screen reader); `tick` is an optional short text for the axis.
+export type ChartRow = { label: string; tick?: string; [key: string]: string | number | undefined }
 export type ChartData = { rows: ChartRow[]; series: ChartSeries[] }
 
 const PAID_AND_PENDING: ChartSeries[] = [
@@ -12,8 +13,13 @@ const PAID_AND_PENDING: ChartSeries[] = [
   { key: 'pending', label: 'Pendiente', color: 'amber' },
 ]
 
+const axisNumber = new Intl.NumberFormat('es-PE', { maximumFractionDigits: 0 })
+
 // The chart draws soles, not cents: 6823 → 68.23.
 export const soles = (cents: number): number => cents / 100
+
+// A money tick of the axis: whole soles, so it stays on one line. "S/ 3,200"; a negative is "S/ -200" like formatSoles.
+export const axisSoles = (amount: number): string => `S/ ${axisNumber.format(Math.round(amount) + 0)}`
 
 // A balance in favour of the company (negative pending) is drawn as zero; the table says the exact amount.
 const pendingSoles = (pendingCents: number): number => soles(Math.max(0, pendingCents))
@@ -24,7 +30,13 @@ export function periodChart(
   range: { from: string; to: string },
 ): ChartData {
   return {
-    rows: items.map((item) => ({ label: periodLabel(item, range), attendance: soles(item.attendanceCents), items: soles(item.itemsCents) })),
+    rows: items.map((item) => {
+      const label = periodLabel(item, range)
+      const row: ChartRow = { label, attendance: soles(item.attendanceCents), items: soles(item.itemsCents) }
+      // A week starts its label with the first day it shows ("dd/mm"); that is the short text for the axis.
+      if ('weekStart' in item) row.tick = label.slice(0, 5)
+      return row
+    }),
     series: [
       { key: 'attendance', label: 'Asistencia', color: 'primary' },
       { key: 'items', label: 'Conceptos', color: 'amber' },
@@ -63,6 +75,10 @@ export function workerChart(
   }
   return { rows, series: PAID_AND_PENDING }
 }
+
+// Pixels of the chart: vertical bars have a fixed height, horizontal ones one row each so the names do not crowd.
+export const chartHeight = (data: ChartData, layout: 'vertical' | 'horizontal'): number =>
+  layout === 'vertical' ? 260 : Math.max(160, 36 * data.rows.length + 60)
 
 // Nothing to draw: no bars, or every value of every series is 0.
 export const isEmptyChart = (data: ChartData): boolean => data.rows.every((row) => data.series.every((series) => row[series.key] === 0))
