@@ -25,6 +25,7 @@ import { invalidateClosing } from '@/lib/payments'
 import { payrollChanges, tabFromParam, type PayrollTab } from '@/lib/payroll-detail'
 import { PAYROLL_STATUS_LABEL, PAYROLL_TYPE_LABEL, payrollDisplayStatus, seesMoney } from '@/lib/payroll-view'
 import { cn } from '@/lib/utils'
+import { downloadXlsx, payrollSheets, safeFileName } from '@/lib/xlsx'
 
 type Payroll = ResponseBody<(typeof api.v1.payrolls)[':id']['$get']>
 
@@ -36,6 +37,8 @@ const TABS: { key: PayrollTab; label: string }[] = [
 ]
 // The fields of the edit dialog that have a place under them for the API's error.
 const EDIT_FIELDS = ['name', 'startDate', 'endDate', 'campaignId']
+// The most the API gives per page of payments.
+const PAYMENTS_PAGE_SIZE = 100
 
 // useSearchParams needs a Suspense boundary above it: without one, the build of the page fails.
 export default function PayrollPage() {
@@ -123,6 +126,7 @@ function PayrollDetail() {
                 Asistencia de hoy
               </Link>
             )}
+            {showMoney && <ExportButton payroll={payroll} />}
             {canEdit && (
               <>
                 <Button variant="outline" size="lg" className="h-11" onClick={() => setClosing(true)}>
@@ -209,6 +213,43 @@ function PayrollDetail() {
         <PaymentDialog payroll={payroll} workerId={paying.workerId} open={paying.open} onOpenChange={(open) => setPaying((p) => p && { ...p, open })} />
       )}
     </div>
+  )
+}
+
+// Makes the workbook in the browser: balances and items from the cache (or asked for), every page of the payments.
+function ExportButton({ payroll }: { payroll: Payroll }) {
+  const queryClient = useQueryClient()
+  const exportXlsx = useMutation({
+    mutationFn: async () => {
+      // Same keys as the tabs, so the screens and the file share one answer; a query invalidated by a write is asked again.
+      const [balances, items] = await Promise.all([
+        queryClient.fetchQuery({
+          queryKey: ['payrolls', payroll.id, 'balances'],
+          queryFn: () => unwrap(api.v1.payrolls[':id'].balances.$get({ param: { id: payroll.id } })),
+        }),
+        queryClient.fetchQuery({
+          queryKey: ['payroll-items', payroll.id],
+          queryFn: () => unwrap(api.v1['payroll-items'].$get({ query: { payrollId: payroll.id } })),
+        }),
+      ])
+      const payments: ResponseBody<typeof api.v1.payments.$get>['items'] = []
+      for (let page = 1; ; page++) {
+        const result = await unwrap(
+          api.v1.payments.$get({ query: { payrollId: payroll.id, page: String(page), pageSize: String(PAYMENTS_PAGE_SIZE) } }),
+        )
+        payments.push(...result.items)
+        // An empty page ends it too: a payment deleted meanwhile must not leave this loop waiting for the total.
+        if (result.items.length === 0 || payments.length >= result.total) break
+      }
+      await downloadXlsx(payrollSheets({ payroll, balances, items, payments }), `${safeFileName(`Planilla ${payroll.name}`)}.xlsx`)
+    },
+    onError: (e) => toast.error(errorMessage(e)),
+  })
+
+  return (
+    <Button variant="outline" size="lg" className="h-11" disabled={exportXlsx.isPending} onClick={() => exportXlsx.mutate()}>
+      {exportXlsx.isPending ? 'Preparando…' : 'Exportar a Excel'}
+    </Button>
   )
 }
 

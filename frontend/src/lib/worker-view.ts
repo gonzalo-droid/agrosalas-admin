@@ -25,3 +25,6 @@ export type PaymentMethodType = keyof typeof PAYMENT_METHOD_LABEL
 // "Cuenta bancaria BCP 191-1234": to confirm before removing it and to name the buttons of each row.
 export const describePaymentMethod = (m: { type: PaymentMethodType; bank: string | null; number: string }) =>
   [PAYMENT_METHOD_LABEL[m.type], m.bank, m.number].filter(Boolean).join(' ')
+
+// "Lastname, Firstname": the way a worker is named in lists, grids and exports.
+export const workerName = (worker: { firstName: string; lastName: string }) => `${worker.lastName}, ${worker.firstName}`

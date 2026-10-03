@@ -13,12 +13,13 @@ import { ATTENDANCE_TYPE_LABEL, formatMinutes, MARK_LABEL, MARKS, type Attendanc
 import { formatCents, formatDate } from '@/lib/format'
 import { dayOffset } from '@/lib/lima-time'
 import { buildRecordBody, formFromRecord, validateRecordForm, willDiscardMarks, type RecordBody, type RecordForm } from '@/lib/record-changes'
+import { workerName } from '@/lib/worker-view'
 
 // The record of a worker on a day, as the list of the day returns it (money is null for the coordinator).
 export type DayRecord = NonNullable<ResponseBody<typeof api.v1.attendance.$get>['items'][number]['record']>
 
-// "Lastname, Firstname": the way a worker is named on this screen.
-export const workerName = (worker: { firstName: string; lastName: string }) => `${worker.lastName}, ${worker.firstName}`
+// Kept here for the screens that already import it from this file.
+export { workerName }
 
 type RecordDialogProps = {
   open: boolean
