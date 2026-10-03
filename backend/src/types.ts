@@ -37,4 +37,6 @@ export type Dependencies = {
   // The clock. Injected so that tests never depend on the real time.
   now: () => Date
   evidence: EvidenceStorage
+  // Secret of the daily Vercel cron (GET /internal/keep-alive). Without it the route always answers 401.
+  cronSecret?: string
 }

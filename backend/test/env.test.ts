@@ -31,6 +31,12 @@ describe('readEnv', () => {
     expect(() => readEnv({ ...complete, PORT: port })).toThrow(/PORT/)
   })
 
+  it('treats CRON_SECRET as optional and requires 16 or more characters when given', () => {
+    expect(readEnv(complete).CRON_SECRET).toBeUndefined()
+    expect(readEnv({ ...complete, CRON_SECRET: 'a'.repeat(16) }).CRON_SECRET).toBe('a'.repeat(16))
+    expect(() => readEnv({ ...complete, CRON_SECRET: 'short' })).toThrow(/CRON_SECRET/)
+  })
+
   it('names the missing variables', () => {
     expect(() => readEnv({ DATABASE_URL: 'x' })).toThrow(/SUPABASE_URL, SUPABASE_SECRET_KEY/)
   })

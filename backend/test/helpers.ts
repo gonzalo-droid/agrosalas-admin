@@ -13,7 +13,10 @@ export const USERS: Record<Role, string> = {
   coordinator: '00000000-0000-4000-8000-000000000004',
 }
 
-export async function createTestApp() {
+export async function createTestApp(options: { cronSecret?: string } = {}) {
+  // Omitted: the default secret. Passed as undefined: an API with no cron secret configured.
+  const cronSecret = 'cronSecret' in options ? options.cronSecret : 'test-cron-secret-0123456789'
+
   // The test clock: Monday 5 October 2026, 08:00 in Lima. A test moves it with setNow.
   let currentTime = new Date('2026-10-05T13:00:00Z')
   const setNow = (date: Date) => {
@@ -68,6 +71,7 @@ export async function createTestApp() {
         return { signedUrl: `https://storage.test/read/${path}` }
       },
     },
+    cronSecret,
   })
 
   // request('admin', 'POST', '/v1/areas', { name: 'Producción' })

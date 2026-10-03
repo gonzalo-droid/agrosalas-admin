@@ -4,6 +4,7 @@ import { authenticate } from './auth/middleware'
 import { handleError } from './lib/errors'
 import { attendanceRoutes } from './routes/attendance'
 import { evidenceRoutes } from './routes/evidence'
+import { keepAlive } from './routes/keep-alive'
 import { areasRoutes, campaignsRoutes, shiftsRoutes } from './routes/catalogs'
 import { auditLogRoutes } from './routes/audit-log'
 import { meRoutes } from './routes/me'
@@ -50,6 +51,7 @@ export function createApp(deps: Dependencies) {
       }),
     )
     .get('/health', (c) => c.json({ ok: true }))
+    .get('/internal/keep-alive', keepAlive(deps))
     .route('/v1', v1)
     .notFound((c) => c.json({ error: { code: 'not_found', message: 'La ruta no existe' } }, 404))
     .onError(handleError)
