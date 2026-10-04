@@ -1,0 +1,34 @@
+name: Production database
+
+on:
+  push:
+    branches: [master]
+    paths: ['backend/drizzle/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-db
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    # Production secrets and migrations only from master (workflow_dispatch lets you pick any branch).
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+      SUPABASE_URL: ${{ secrets.PROD_SUPABASE_URL }}
+      SUPABASE_SECRET_KEY: ${{ secrets.PROD_SUPABASE_SECRET_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run db:migrate:ci -w @agrosalas/backend
+      - run: npm run create-evidence-bucket:ci -w @agrosalas/backend

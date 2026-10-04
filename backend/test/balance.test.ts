@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildBalances, salaryCents, signedCents, sumBalances } from '../src/payroll/balance'
+import { buildBalances, salaryCents, signedCents, sumBalances } from '../src/payroll/balance.js'
 
 describe('signedCents', () => {
   it('adds salary, bonus and piecework and subtracts a deduction', () => {

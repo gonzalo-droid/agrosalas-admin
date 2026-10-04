@@ -1,6 +1,6 @@
-import { users } from '../db/schema'
-import { recordAudit } from '../lib/audit'
-import type { AuthAdmin, Db } from '../types'
+import { users } from '../db/schema.js'
+import { recordAudit } from '../lib/audit.js'
+import type { AuthAdmin, Db } from '../types.js'
 
 export async function createFirstAdmin(
   db: Db,

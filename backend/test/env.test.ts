@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readEnv } from '../src/env'
+import { readEnv } from '../src/env.js'
 
 const complete = {
   DATABASE_URL: 'postgres://u:c@host:5432/postgres',
@@ -29,6 +29,12 @@ describe('readEnv', () => {
 
   it.each(['', '0', '70000'])('rejects PORT=%j and names it', (port) => {
     expect(() => readEnv({ ...complete, PORT: port })).toThrow(/PORT/)
+  })
+
+  it('treats CRON_SECRET as optional and requires 16 or more characters when given', () => {
+    expect(readEnv(complete).CRON_SECRET).toBeUndefined()
+    expect(readEnv({ ...complete, CRON_SECRET: 'a'.repeat(16) }).CRON_SECRET).toBe('a'.repeat(16))
+    expect(() => readEnv({ ...complete, CRON_SECRET: 'short' })).toThrow(/CRON_SECRET/)
   })
 
   it('names the missing variables', () => {

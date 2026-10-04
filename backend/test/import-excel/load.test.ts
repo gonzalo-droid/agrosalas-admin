@@ -2,10 +2,10 @@ import { and, eq, sql } from 'drizzle-orm'
 import { describe, expect, it } from 'vitest'
 import {
   attendanceRecords, auditLog, campaigns, payrollItems, payrollWorkers, payrolls, payments, workers,
-} from '../../src/db/schema'
-import { loadSheets } from '../../scripts/import-excel/load'
-import { REVIEW_TEXT, type ParsedDay, type ParsedSheet, type ParsedWorker } from '../../scripts/import-excel/parse-sheet'
-import { createTestApp, USERS } from '../helpers'
+} from '../../src/db/schema.js'
+import { loadSheets } from '../../scripts/import-excel/load.js'
+import { REVIEW_TEXT, type ParsedDay, type ParsedSheet, type ParsedWorker } from '../../scripts/import-excel/parse-sheet.js'
+import { createTestApp, USERS } from '../helpers.js'
 
 const day = (date: string, amountCents: number, overrides: Partial<ParsedDay> = {}): ParsedDay => ({
   date,

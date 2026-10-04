@@ -1,8 +1,8 @@
 import { eq } from 'drizzle-orm'
 import { createMiddleware } from 'hono/factory'
-import { userAreas, users } from '../db/schema'
-import { ApiError } from '../lib/errors'
-import type { AppEnv, Dependencies, Role } from '../types'
+import { userAreas, users } from '../db/schema.js'
+import { ApiError } from '../lib/errors.js'
+import type { AppEnv, Dependencies, Role } from '../types.js'
 
 export const authenticate = ({ db, verifyToken }: Dependencies) =>
   createMiddleware<AppEnv>(async (c, next) => {

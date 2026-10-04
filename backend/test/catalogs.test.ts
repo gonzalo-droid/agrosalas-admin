@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest'
-import { createTestApp } from './helpers'
+import { createTestApp } from './helpers.js'
 
 let t: Awaited<ReturnType<typeof createTestApp>>
 beforeAll(async () => {

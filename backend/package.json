@@ -12,8 +12,10 @@
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx --env-file=.env scripts/migrate.ts",
+    "db:migrate:ci": "tsx scripts/migrate.ts",
     "create-admin": "tsx --env-file=.env scripts/create-admin.ts",
     "create-evidence-bucket": "tsx --env-file=.env scripts/create-evidence-bucket.ts",
+    "create-evidence-bucket:ci": "tsx scripts/create-evidence-bucket.ts",
     "import-excel": "tsx --env-file=.env scripts/import-excel/index.ts"
   },
   "dependencies": {

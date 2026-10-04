@@ -9,5 +9,5 @@
     "esModuleInterop": true,
     "types": ["node"]
   },
-  "include": ["src", "test", "scripts", "drizzle.config.ts", "vitest.config.ts"]
+  "include": ["index.ts", "src", "test", "scripts", "drizzle.config.ts", "vitest.config.ts"]
 }

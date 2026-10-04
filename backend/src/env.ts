@@ -9,6 +9,7 @@ const schema = z.object({
   SUPABASE_SECRET_KEY: z.string().min(1),
   EVIDENCE_BUCKET: z.string().min(1).default('payment-evidence'),
   PANEL_ORIGIN: url().default('http://localhost:3000'),
+  CRON_SECRET: z.string().min(16).optional(),
   PORT: z.coerce.number().int().min(1).max(65535).default(8787),
 })
 

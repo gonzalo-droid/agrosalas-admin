@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { auditLog, users } from '../src/db/schema'
-import { createTestApp, USERS } from './helpers'
+import { auditLog, users } from '../src/db/schema.js'
+import { createTestApp, USERS } from './helpers.js'
 
 let t: Awaited<ReturnType<typeof createTestApp>>
 beforeAll(async () => {

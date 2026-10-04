@@ -1,19 +1,19 @@
 import { and, asc, eq, inArray } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { requireRole } from '../auth/middleware'
-import { attendanceRecords, payrolls, payrollWorkers, workers } from '../db/schema'
-import { ApiError, notFound } from '../lib/errors'
-import { idSchema, validate, withAtLeastOneField } from '../lib/validate'
+import { requireRole } from '../auth/middleware.js'
+import { attendanceRecords, payrolls, payrollWorkers, workers } from '../db/schema.js'
+import { ApiError, notFound } from '../lib/errors.js'
+import { idSchema, validate, withAtLeastOneField } from '../lib/validate.js'
 import {
   applyClock,
   dateOutsidePayroll,
   deleteRecord,
   redactMoney,
   saveFullRecord,
-} from '../payroll/attendance-service'
-import type { AppEnv, Dependencies } from '../types'
-import { workerScope } from './workers'
+} from '../payroll/attendance-service.js'
+import type { AppEnv, Dependencies } from '../types.js'
+import { workerScope } from './workers.js'
 
 const isoDate = z.iso.date()
 const mark = z.enum(['clockIn1', 'clockOut1', 'clockIn2', 'clockOut2'])

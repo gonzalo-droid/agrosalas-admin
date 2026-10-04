@@ -1,0 +1,46 @@
+name: Production backup
+
+on:
+  schedule:
+    - cron: '0 8 * * *' # 03:00 in Lima
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.119.0 # same as the supabase devDependency in the root package.json
+      - name: Dump the database
+        env:
+          DB_URL: ${{ secrets.PROD_DATABASE_URL }}
+        run: |
+          mkdir backup
+          supabase db dump --db-url "$DB_URL" -f backup/roles.sql --role-only
+          supabase db dump --db-url "$DB_URL" -f backup/schema.sql
+          supabase db dump --db-url "$DB_URL" -f backup/data.sql --use-copy --data-only -x "storage.buckets_vectors" -x "storage.vector_indexes"
+      - name: Encrypt
+        env:
+          AGE_RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
+        run: |
+          test -n "$AGE_RECIPIENT"
+          sudo apt-get update -qq && sudo apt-get install -y -qq age
+          name="agrosalas-$(date -u +%Y-%m-%d)"
+          tar -czf "$name.tar.gz" -C backup .
+          age -r "$AGE_RECIPIENT" -o "$name.tar.gz.age" "$name.tar.gz"
+          rm -rf backup "$name.tar.gz"
+          echo "BACKUP_NAME=$name" >> "$GITHUB_ENV"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BACKUP_NAME }}
+          path: ${{ env.BACKUP_NAME }}.tar.gz.age
+          retention-days: 30
+          if-no-files-found: error
+      - name: Check that the API answers
+        run: curl -fsS --max-time 20 https://api.agrosalasperu.com/health

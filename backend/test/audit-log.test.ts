@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest'
-import { createTestApp, USERS } from './helpers'
-import { auditLog } from '../src/db/schema'
+import { createTestApp, USERS } from './helpers.js'
+import { auditLog } from '../src/db/schema.js'
 
 let t: Awaited<ReturnType<typeof createTestApp>>
 beforeAll(async () => {

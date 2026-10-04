@@ -1,13 +1,13 @@
 import { and, asc, count, eq, ilike, inArray, or, type SQL } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { requireRole } from '../auth/middleware'
-import { groupWorkers, workerPaymentMethods, workers } from '../db/schema'
-import { recordAudit } from '../lib/audit'
-import { notFound } from '../lib/errors'
-import { offsetOf, pageSchema, paginated } from '../lib/pagination'
-import { idSchema, validate, withAtLeastOneField } from '../lib/validate'
-import type { AppEnv, Db, Dependencies, SessionUser, Tx } from '../types'
+import { requireRole } from '../auth/middleware.js'
+import { groupWorkers, workerPaymentMethods, workers } from '../db/schema.js'
+import { recordAudit } from '../lib/audit.js'
+import { notFound } from '../lib/errors.js'
+import { offsetOf, pageSchema, paginated } from '../lib/pagination.js'
+import { idSchema, validate, withAtLeastOneField } from '../lib/validate.js'
+import type { AppEnv, Db, Dependencies, SessionUser, Tx } from '../types.js'
 
 const text = (max: number) => z.string().trim().max(max).nullable().optional()
 const optionalId = z.uuid().nullable().optional()

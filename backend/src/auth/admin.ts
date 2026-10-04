@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
-import { ApiError } from '../lib/errors'
-import type { AuthAdmin } from '../types'
+import { ApiError } from '../lib/errors.js'
+import type { AuthAdmin } from '../types.js'
 
 export function createSupabaseAuthAdmin(supabaseUrl: string, secretKey: string): AuthAdmin {
   const supabase = createClient(supabaseUrl, secretKey, {

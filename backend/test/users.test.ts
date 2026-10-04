@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest'
-import { createTestApp, USERS } from './helpers'
+import { createTestApp, USERS } from './helpers.js'
 
 let t: Awaited<ReturnType<typeof createTestApp>>
 let areaId: string

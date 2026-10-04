@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest'
-import { userAreas } from '../src/db/schema'
-import { createTestApp, USERS } from './helpers'
+import { userAreas } from '../src/db/schema.js'
+import { createTestApp, USERS } from './helpers.js'
 
 let t: Awaited<ReturnType<typeof createTestApp>>
 let workerId: string

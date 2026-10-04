@@ -1,8 +1,8 @@
 import { and, eq, inArray } from 'drizzle-orm'
-import { payrollItems, positions, workers } from '../db/schema'
-import { recordAudit } from '../lib/audit'
-import type { Tx } from '../types'
-import { salaryCents } from './balance'
+import { payrollItems, positions, workers } from '../db/schema.js'
+import { recordAudit } from '../lib/audit.js'
+import type { Tx } from '../types.js'
+import { salaryCents } from './balance.js'
 
 // A monthly payroll pays the contract staff with a salary item: one per contract worker whose position is monthly
 // and has a salary. Whoever already has one keeps it. Returns how many were created.

@@ -6,21 +6,25 @@ Panel interno de Agrosalas Perú: planilla, y más adelante inventario, compras 
 
 - `backend/`: API REST (Hono, Zod, Drizzle). Es lo único que habla con la base de datos.
 - `frontend/`: pantallas (Next.js). Solo consume la API.
+- `docs/operacion/`: guías de operación: [desarrollo local](docs/operacion/desarrollo-local.md), [despliegue](docs/operacion/despliegue.md) y [respaldo](docs/operacion/respaldo.md).
 - `docs/superpowers/`: specs y planes.
+- `supabase/`: configuración de Supabase local (CLI en Docker).
 
 ## Requisitos
 
-Node 22 o superior y un proyecto Supabase (Postgres y Auth).
+Node 22 o superior y Docker Desktop (en desarrollo, Supabase corre en local con la CLI: ver [Desarrollo local](docs/operacion/desarrollo-local.md)). Producción usa un proyecto Supabase en la nube.
 
 ## Puesta en marcha
 
-1. `npm install`
-2. Copia `backend/.env.example` a `backend/.env` y complétalo. `EVIDENCE_BUCKET` es el nombre del bucket privado de las evidencias de pago (por defecto `payment-evidence`).
+La guía paso a paso, con Supabase en Docker, está en [docs/operacion/desarrollo-local.md](docs/operacion/desarrollo-local.md). Resumen:
+
+1. `npm install`, `npm run db:signing-key` (una vez) y `npm run db:start` (Supabase en Docker; `npm run db:status` muestra las claves).
+2. Copia `backend/.env.example` a `backend/.env` y complétalo con la `Secret key` de `db:status`. `EVIDENCE_BUCKET` es el nombre del bucket privado de las evidencias de pago (por defecto `payment-evidence`).
 3. `npm run db:migrate -w @agrosalas/backend`
 4. `npm run create-evidence-bucket -w @agrosalas/backend` (una vez por proyecto de Supabase, después de las migraciones: crea el bucket privado, con tope de 5 MB y solo JPG, PNG, WebP y PDF; si ya existe, actualiza esos límites)
 5. `npm run create-admin -w @agrosalas/backend -- <correo> "<nombre>" "<contraseña>"`
 6. `npm run dev:api` (API en http://localhost:8787)
-7. Copia `frontend/.env.example` a `frontend/.env.local` y complétalo con la URL y la clave pública del proyecto Supabase y con `NEXT_PUBLIC_API_URL` (la URL de la API del paso 6).
+7. Copia `frontend/.env.example` a `frontend/.env.local` y complétalo con la `Publishable key` de `db:status` y con `NEXT_PUBLIC_API_URL` (la URL de la API del paso 6).
 8. `npm run dev:web` (panel en http://localhost:3000)
 
 ## Importar el historial del Excel
@@ -38,6 +42,8 @@ La carga se niega, sin escribir nada, si una hoja ya se importó (existe una pla
 
 ## Despliegue y Supabase
 
+Producción se publica con Vercel y Supabase: la guía completa está en [docs/operacion/despliegue.md](docs/operacion/despliegue.md), y el respaldo en [docs/operacion/respaldo.md](docs/operacion/respaldo.md). Lo que sigue es la lista de revisión por entorno.
+
 Revisar en cada entorno (local, pruebas, producción):
 
 - **Authentication → URL Configuration:** la *Site URL* es el origen del panel y las *Redirect URLs* incluyen `<origen del panel>/reset-password`.
@@ -53,7 +59,9 @@ Revisar en cada entorno (local, pruebas, producción):
 |---|---|
 | `npm test` | Pruebas de todos los workspaces. Las del backend usan una base en memoria: no necesitan Docker ni red. |
 | `npm run typecheck` | Tipos de todos los workspaces |
-| `npm run db:generate -w @agrosalas/backend -- --name <nombre>` | Genera una migración a partir de `backend/src/db/schema.ts` |
+| `npm run db:start` / `db:stop` / `db:status` | Levanta, detiene y muestra el estado (URLs y claves) del Supabase local en Docker |
+| `npm run db:signing-key` | Genera `supabase/signing_keys.json` (clave local de firma; no sobrescribe una existente) |
+| `npm run db:generate -w @agrosalas/backend -- --name <nombre>` | Genera una migración a partir de `backend/src/db/schema.ts`. Regla: agregar antes de quitar; la migración debe ser compatible con el código ya publicado (ver [Migraciones](docs/operacion/despliegue.md#migraciones)) |
 | `npm run db:migrate -w @agrosalas/backend` | Aplica las migraciones a la base de `backend/.env` |
 | `npm run create-evidence-bucket -w @agrosalas/backend` | Crea (o actualiza) el bucket privado de evidencias de pago del proyecto de `backend/.env` |
 | `npm run import-excel -w @agrosalas/backend -- <ruta.xlsx> [opciones]` | Prueba en seco de la migración del Excel; con `--commit --user <correo>` carga el historial (ver «Importar el historial del Excel») |
@@ -65,6 +73,7 @@ Revisar en cada entorno (local, pruebas, producción):
 - Los permisos se aplican en la API, no en la pantalla.
 - Toda tabla nueva lleva `.enableRLS()` y ninguna política: solo la API accede a la base.
 - Todo cambio de datos deja una fila en `audit_log`.
+- Los imports relativos del backend terminan en `.js` (`'./env.js'`): Node, en Vercel, no completa extensiones. Una prueba lo vigila.
 - El cálculo de horas y montos vive en backend/src/payroll/calc.ts y trabaja con enteros (minutos y céntimos).
 - El saldo de cada trabajador se calcula en backend/src/payroll/balance.ts: asistencia + conceptos que suman − descuentos − pagos. La lista de planillas y el resumen aplican la misma regla en SQL (backend/src/routes/payrolls.ts): si cambia la regla, hay que cambiar ambos lugares a la vez.
 - Nunca se versionan `.env` ni archivos con datos personales.

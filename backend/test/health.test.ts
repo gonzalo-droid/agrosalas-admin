@@ -1,8 +1,8 @@
 import { sql } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { handleError } from '../src/lib/errors'
-import { createTestApp } from './helpers'
+import { handleError } from '../src/lib/errors.js'
+import { createTestApp } from './helpers.js'
 
 let t: Awaited<ReturnType<typeof createTestApp>>
 beforeAll(async () => {

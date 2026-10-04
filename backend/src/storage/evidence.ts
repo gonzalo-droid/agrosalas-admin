@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
-import { ApiError } from '../lib/errors'
-import type { EvidenceStorage } from '../types'
+import { ApiError } from '../lib/errors.js'
+import type { EvidenceStorage } from '../types.js'
 
 const failed = () => new ApiError(502, 'storage_error', 'No se pudo preparar la evidencia; inténtalo de nuevo')
 

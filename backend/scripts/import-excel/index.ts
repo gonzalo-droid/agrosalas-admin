@@ -2,15 +2,15 @@
 // npm run import-excel -w @agrosalas/backend -- <file.xlsx> [--aliases alias.json] [--out summary.md] [--commit --user email]
 import { readFileSync, writeFileSync } from 'node:fs'
 import { eq } from 'drizzle-orm'
-import { users } from '../../src/db/schema'
-import type { Db } from '../../src/types'
-import { describeDatabase } from './database'
-import { loadSheets, type LoadResult } from './load'
-import { applyAlias, DEFAULT_ALIASES, normalizeName, parseAliases, similarNames, unusedAliases } from './names'
-import { parseSheet, type ParsedSheet } from './parse-sheet'
-import { readXlsx } from './read-xlsx'
-import { SHEETS } from './sheets'
-import { buildSummary, findNegatives } from './summary'
+import { users } from '../../src/db/schema.js'
+import type { Db } from '../../src/types.js'
+import { describeDatabase } from './database.js'
+import { loadSheets, type LoadResult } from './load.js'
+import { applyAlias, DEFAULT_ALIASES, normalizeName, parseAliases, similarNames, unusedAliases } from './names.js'
+import { parseSheet, type ParsedSheet } from './parse-sheet.js'
+import { readXlsx } from './read-xlsx.js'
+import { SHEETS } from './sheets.js'
+import { buildSummary, findNegatives } from './summary.js'
 
 const USAGE =
   'Uso: npm run import-excel -w @agrosalas/backend -- <ruta.xlsx> [--aliases alias.json] [--out resumen.md] [--commit --user correo]'
@@ -112,7 +112,7 @@ async function main(argv: string[]): Promise<number> {
   }
 
   // Imported here, lazily, so a dry run never reads DATABASE_URL nor opens a connection.
-  const [{ createDb }, { readEnv }] = await Promise.all([import('../../src/db/client'), import('../../src/env')])
+  const [{ createDb }, { readEnv }] = await Promise.all([import('../../src/db/client.js'), import('../../src/env.js')])
   const databaseUrl = readEnv().DATABASE_URL
   // Says where it is about to write before anything else touches that database.
   console.log(describeDatabase(databaseUrl))

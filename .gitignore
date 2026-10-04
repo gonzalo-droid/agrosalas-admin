@@ -15,3 +15,7 @@ alias*.json
 resumen*.md
 backend/**/alias*.json
 backend/**/resumen*.md
+# Local Supabase (Docker): the signing key is private and only for local use.
+supabase/signing_keys.json
+supabase/.temp
+supabase/.branches

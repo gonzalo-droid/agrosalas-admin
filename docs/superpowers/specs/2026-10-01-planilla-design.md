@@ -70,8 +70,8 @@ Decisiones:
 - **Base de datos cerrada.** RLS activado en todas las tablas y sin políticas: las claves públicas de Supabase no pueden leer ni escribir nada. El backend se conecta como rol privilegiado por el pooler en modo transacción (Drizzle + `postgres` con `prepare: false`).
 - **Tipos compartidos.** El frontend usa el cliente RPC de Hono (`hc<AppType>`) importando solo el tipo de la API mediante npm workspaces. Los esquemas Zod viven en el backend.
 - **Dinero y tiempo.** El cálculo usa enteros: minutos y céntimos. Las fechas se interpretan siempre en `America/Lima`.
-- **Entornos.** Dos proyectos Supabase: desarrollo y producción.
-- **Despliegue.** Frontend y backend en Vercel como dos proyectos, con dominios `admin.agrosalasperu.com` y `api.agrosalasperu.com`. El plan Hobby de Vercel no admite uso comercial: si la cuenta no es Pro, la API se aloja en Cloudflare Workers (Hono corre igual). Se decide al desplegar.
+- **Entornos.** Producción en un proyecto de Supabase en el plan gratuito (`agrosalas-admin-prod`). El desarrollo corre en local, con la CLI de Supabase en Docker; el proyecto `agrosalas-admin-dev` queda pausado (decisión del 2026-10-03).
+- **Despliegue.** Frontend y backend en Vercel como dos proyectos (`agrosalas-admin-web` y `agrosalas-admin-api`), con dominios `admin.agrosalasperu.com` y `api.agrosalasperu.com`, y solo se publica `master`. La API corre en Vercel y se arranca con el trial de Pro, que dura 14 días (el plan Hobby no admite uso comercial). Si al terminar no hay tarjeta, el equipo vuelve solo a Hobby y no se cobra nada; la decisión de pagar Pro queda para antes de que termine el trial y no está tomada; el alojamiento en Cloudflare Workers queda descartado (decisión del 2026-10-03). Guía en `docs/operacion/despliegue.md`.
 - **Verificación.** GitHub Actions ejecuta pruebas, lint y tipos en cada PR.
 
 ## 4. Roles y permisos
@@ -393,7 +393,7 @@ Script en `backend/scripts/import-excel/` que recibe la ruta del archivo (`npm r
 - CORS de la API limitado al dominio del panel.
 - Secretos solo en variables de entorno del backend; el frontend solo conoce la URL y la clave pública de Supabase y la URL de la API.
 - Bucket de evidencias privado.
-- Respaldo: copia semanal automática de la base (tarea programada con `pg_dump` hacia un almacenamiento privado) o plan Pro de Supabase con copias diarias. Se decide al crear el proyecto de producción, tras verificar qué incluye el plan vigente.
+- Respaldo: copia diaria de la base, cifrada con `age`, que GitHub Actions guarda como artefacto durante 30 días (decisión del 2026-10-03; ver `docs/operacion/respaldo.md`). Las evidencias (archivos del bucket) no entran en la copia: viven solo en Supabase Storage.
 
 ## 14. Pruebas
 
@@ -421,7 +421,7 @@ Se toman como valor por defecto y son baratos de cambiar más adelante.
 2. Cerrar una planilla con saldo pendiente pide confirmación en lugar de impedirse.
 3. La tarifa inicial del cargo Operario es S/ 6.25 exacto, no el 6.2517 del Excel.
 4. Asignación de campañas a las hojas del Excel e interpretación de las columnas de abono (sección 12).
-5. Alojamiento de la API (Vercel Pro o Cloudflare Workers) y forma de respaldo (sección 13).
+5. Alojamiento de la API y forma de respaldo (sección 13). Resuelto el 2026-10-03 en lo técnico: la API en Vercel (se arranca con el trial de Pro de 14 días) y respaldo diario cifrado con GitHub Actions. Pendiente: decidir si se paga Pro (unos US$20 al mes) antes de que termine el trial; sin tarjeta el equipo vuelve a Hobby.
 
 ## 17. Convención de nombres
 

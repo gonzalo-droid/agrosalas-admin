@@ -1,12 +1,12 @@
 import { between, eq, inArray, sql, type AnyColumn } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { requireRole } from '../auth/middleware'
-import { areas, attendanceRecords, campaigns, payments, payrollItems, payrolls, workers } from '../db/schema'
-import { validate } from '../lib/validate'
-import { groupByCampaign, groupByWorker, type ReportLine, type ReportPayroll } from '../payroll/report-groups'
-import { daysInRange, monthsInRange, sumByPeriod, weekStart, weeksInRange, type DayTotals } from '../payroll/report-periods'
-import type { AppEnv, Db, Dependencies } from '../types'
+import { requireRole } from '../auth/middleware.js'
+import { areas, attendanceRecords, campaigns, payments, payrollItems, payrolls, workers } from '../db/schema.js'
+import { validate } from '../lib/validate.js'
+import { groupByCampaign, groupByWorker, type ReportLine, type ReportPayroll } from '../payroll/report-groups.js'
+import { daysInRange, monthsInRange, sumByPeriod, weekStart, weeksInRange, type DayTotals } from '../payroll/report-periods.js'
+import type { AppEnv, Db, Dependencies } from '../types.js'
 
 const isoDate = z.iso.date()
 const rangeQuery = z

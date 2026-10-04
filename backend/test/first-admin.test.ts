@@ -1,9 +1,9 @@
 import { eq } from 'drizzle-orm'
 import { describe, expect, it } from 'vitest'
-import { createFirstAdmin } from '../src/auth/first-admin'
-import { auditLog, users } from '../src/db/schema'
-import type { AuthAdmin } from '../src/types'
-import { USERS, createTestApp } from './helpers'
+import { createFirstAdmin } from '../src/auth/first-admin.js'
+import { auditLog, users } from '../src/db/schema.js'
+import type { AuthAdmin } from '../src/types.js'
+import { USERS, createTestApp } from './helpers.js'
 
 const input = { email: 'boss@example.test', name: 'Jefa Admin', password: 'clave-segura-9' }
 

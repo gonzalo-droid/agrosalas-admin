@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import type { CellValue } from '../../scripts/import-excel/read-xlsx'
-import { parseSheet, REVIEW_TEXT } from '../../scripts/import-excel/parse-sheet'
-import { SHEETS, type SheetConfig } from '../../scripts/import-excel/sheets'
+import type { CellValue } from '../../scripts/import-excel/read-xlsx.js'
+import { parseSheet, REVIEW_TEXT } from '../../scripts/import-excel/parse-sheet.js'
+import { SHEETS, type SheetConfig } from '../../scripts/import-excel/sheets.js'
 
 const HOURLY = 6.2516667
 const OVERTIME = 7.8145833

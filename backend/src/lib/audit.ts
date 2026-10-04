@@ -1,5 +1,5 @@
-import { auditLog } from '../db/schema'
-import type { Db, Tx } from '../types'
+import { auditLog } from '../db/schema.js'
+import type { Db, Tx } from '../types.js'
 
 type AuditAction = 'create' | 'update' | 'delete'
 

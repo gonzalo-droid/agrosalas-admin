@@ -12,7 +12,7 @@ import {
   titleCase,
   unusedAliases,
   workerKey,
-} from '../../scripts/import-excel/names'
+} from '../../scripts/import-excel/names.js'
 
 describe('normalizeName', () => {
   it('puts one space after the comma', () => {

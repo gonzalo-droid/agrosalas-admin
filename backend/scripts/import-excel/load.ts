@@ -1,12 +1,12 @@
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import {
   attendanceRecords, auditLog, campaigns, payrollItems, payrollWorkers, payrolls, payments, workers,
-} from '../../src/db/schema'
-import { limaInstant } from '../../src/payroll/time'
-import type { Db, Tx } from '../../src/types'
-import { aliasDni, nameKey, normalizeName, splitName, titleCase, workerKey } from './names'
-import { REVIEW_TEXT, type ParsedSheet, type ParsedWorker } from './parse-sheet'
-import { findNegatives, negativeText } from './summary'
+} from '../../src/db/schema.js'
+import { limaInstant } from '../../src/payroll/time.js'
+import type { Db, Tx } from '../../src/types.js'
+import { aliasDni, nameKey, normalizeName, splitName, titleCase, workerKey } from './names.js'
+import { REVIEW_TEXT, type ParsedSheet, type ParsedWorker } from './parse-sheet.js'
+import { findNegatives, negativeText } from './summary.js'
 
 export type LoadCounts = { workers: number; payrolls: number; records: number; items: number; payments: number }
 /** The counts, plus which Excel names went to an existing worker (and which one) and which were created. */

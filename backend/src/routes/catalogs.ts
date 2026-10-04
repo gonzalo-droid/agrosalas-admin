@@ -1,12 +1,12 @@
 import { asc, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { requireRole } from '../auth/middleware'
-import { areas, campaigns, shifts } from '../db/schema'
-import { recordAudit } from '../lib/audit'
-import { notFound } from '../lib/errors'
-import { idSchema, validate, withAtLeastOneField } from '../lib/validate'
-import type { AppEnv, Dependencies } from '../types'
+import { requireRole } from '../auth/middleware.js'
+import { areas, campaigns, shifts } from '../db/schema.js'
+import { recordAudit } from '../lib/audit.js'
+import { notFound } from '../lib/errors.js'
+import { idSchema, validate, withAtLeastOneField } from '../lib/validate.js'
+import type { AppEnv, Dependencies } from '../types.js'
 
 const name = z.string().trim().min(2).max(60)
 const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Usa el formato HH:MM')

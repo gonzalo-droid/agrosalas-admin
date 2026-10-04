@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addDays, limaDate, limaInstant, marksFromTimes, monthRange, notBefore } from '../src/payroll/time'
+import { addDays, limaDate, limaInstant, marksFromTimes, monthRange, notBefore } from '../src/payroll/time.js'
 
 describe('Lima time', () => {
   it('gives the Lima date of an instant, five hours behind UTC', () => {

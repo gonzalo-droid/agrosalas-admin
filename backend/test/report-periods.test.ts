@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { daysInRange, monthsInRange, sumByPeriod, weekStart, weeksInRange } from '../src/payroll/report-periods'
+import { daysInRange, monthsInRange, sumByPeriod, weekStart, weeksInRange } from '../src/payroll/report-periods.js'
 
 describe('report periods', () => {
   it('counts the days of a range, both ends included', () => {
