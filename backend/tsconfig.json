@@ -7,7 +7,10 @@
     "noEmit": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
-    "types": ["node"]
+    "types": ["node"],
+    // npm workspaces hoist @types/node to the repo root. Vercel's builder for the API (root directory
+    // backend/) does not look there on its own, so the root folder is listed explicitly.
+    "typeRoots": ["./node_modules/@types", "../node_modules/@types"]
   },
   "include": ["index.ts", "src", "test", "scripts", "drizzle.config.ts", "vitest.config.ts"]
 }

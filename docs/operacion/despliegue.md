@@ -79,6 +79,7 @@ En GitHub → Settings → Environments → `production`:
 | Secreto | `PROD_SUPABASE_URL` | URL del proyecto |
 | Secreto | `PROD_SUPABASE_SECRET_KEY` | Clave secreta del proyecto |
 | Variable | `BACKUP_AGE_RECIPIENT` | Clave pública `age` (empieza con `age1`; ver [respaldo](respaldo.md)) |
+| Variable | `API_HEALTH_URL` | Dirección completa del `/health` de la API publicada (en QA, la de `*.vercel.app`; luego `https://api.agrosalasperu.com/health`). Si falta, el respaldo omite esa comprobación |
 
 Para que los secretos de producción solo salgan de `master`: Settings → Environments → `production` → **Deployment branches and tags** → *Selected branches and tags* → agregar solo `master`. Los dos workflows además llevan `if: github.ref == 'refs/heads/master'` en su job, así que lanzarlos a mano desde otra rama no hace nada.
 
@@ -100,7 +101,7 @@ En este orden:
 6. **Dominios.** En cada proyecto, Settings → Domains: agregar `api.agrosalasperu.com` y `admin.agrosalasperu.com`, y poner los registros en Namecheap (abajo). Si Vercel pide verificar el dominio con un registro `TXT` `_vercel`, también va en Namecheap (pasa si el dominio ya está en otra cuenta o equipo de Vercel).
 7. **Primer administrador** (abajo).
 8. **Comprobar:**
-   - `https://api.agrosalasperu.com/health` responde `{"ok":true}`, y se puede entrar al panel y recuperar una contraseña.
+   - El `/health` de la API (`API_HEALTH_URL`) responde `{"ok":true}`, y se puede entrar al panel y recuperar una contraseña.
    - El cron funciona: Vercel → proyecto `agrosalas-admin-api` → Settings → Cron Jobs → **Run** sobre `/internal/keep-alive`, y en los logs debe aparecer 200. Si responde 401, falta `CRON_SECRET` o está mal escrito (y entonces nada mantiene despierta la base salvo el respaldo).
 
 ## Supabase producción
