@@ -4,7 +4,7 @@
 
 **Goal:** El panel y la API quedan publicados en `admin.agrosalasperu.com` y `api.agrosalasperu.com`; cada push a `master` despliega solo; la base de producción se migra sola, se respalda cifrada cada día y no se pausa; el desarrollo pasa a un Supabase local en Docker.
 
-**Architecture:** Dos proyectos de Vercel desde el mismo repo (`frontend/` con Next.js y `backend/` con Hono, que Vercel detecta por un `index.ts` con `export default`), solo despliegues de producción desde `master`. Producción usa un proyecto nuevo de Supabase en plan gratuito (`us-east-1`); el proyecto `agrosalas-admin-dev` se pausa y el desarrollo usa la CLI de Supabase en Docker. GitHub Actions aplica las migraciones al cambiar `backend/drizzle/` y hace el respaldo diario (cifrado con `age`, 30 días); un cron de Vercel consulta la base una vez al día para que Supabase no pause el proyecto.
+**Architecture:** Dos proyectos de Vercel desde el mismo repo (`frontend/` con Next.js y `backend/` con Hono, que Vercel detecta por un `index.ts` con `export default`), solo despliegues de producción desde `master`. Producción usa un proyecto nuevo de Supabase en plan gratuito (`us-east-1`); el proyecto `agrosalas-admin-dev` se pausa y el desarrollo usa la CLI de Supabase en Docker. (Cambiado el 2026-10-06: producción es `agrosalas-admin-dev`; ver "Tarea 5" en el estado de ejecución.) GitHub Actions aplica las migraciones al cambiar `backend/drizzle/` y hace el respaldo diario (cifrado con `age`, 30 días); un cron de Vercel consulta la base una vez al día para que Supabase no pause el proyecto.
 
 **Tech Stack:** el del repo, más la CLI de Supabase (paquete npm `supabase`, dependencia de desarrollo), GitHub Actions, `age`, Vercel (trial de Pro; el plan lo activa Gonzalo).
 
@@ -492,3 +492,22 @@ No es una tarea de subagente. Usa los conectores de Vercel y de Supabase y neces
 - **Pruebas:** backend 566 (antes 561) y frontend 329. Lint, typecheck y build en verde.
 
 **Tarea 5: pendiente.** Antes del paso 5.6 se corre `vercel build` del proyecto API, como recomendó la revisión final, para confirmar la detección de `backend/index.ts`.
+
+**Tarea 5, cambio del 2026-10-06:** Gonzalo aclaró que los datos de `agrosalas-admin-dev` son los reales, así que **producción es ese proyecto** y no se creó `agrosalas-admin-prod`. Los pasos 5.3 y 5.4 se reemplazan por esto:
+
+- **Respaldo previo:** `supabase db dump` completo, guardado fuera del repo.
+- **Datos de prueba borrados:**
+  - la planilla "Semana 40 · Contenedor Chile", con su asistencia, el bono, el pago Yape y su archivo de evidencia;
+  - 10 trabajadores ficticios.
+- **Totales verificados después del borrado:**
+  - 4 planillas y 27 trabajadores;
+  - total S/ 9,069.61;
+  - pagado S/ 4,956.28.
+
+En la nube quedan activos `nekomangacix` y producción; el desarrollo está en Docker.
+
+La decisión 10 ("producción empieza vacía") queda sin efecto: el historial del Excel ya está en producción, con las reglas de pago todavía por confirmar.
+
+Hechos del paso 5.5:
+- clave `age` creada;
+- environment `production` limitado a `master`, con `BACKUP_AGE_RECIPIENT`.

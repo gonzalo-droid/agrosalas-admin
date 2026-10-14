@@ -10,7 +10,7 @@ Las cuentas, los pagos, las claves y los DNS los pone quien administra el panel.
 |---|---|
 | `admin.agrosalasperu.com` | Vercel `agrosalas-admin-web` (raíz `frontend`) |
 | `api.agrosalasperu.com` | Vercel `agrosalas-admin-api` (raíz `backend`) |
-| Base, login y evidencias | Supabase `agrosalas-admin-prod` (región `us-east-1`) |
+| Base, login y evidencias | Supabase `agrosalas-admin-dev` (ref `qckpcajjlvvskaqxxqxc`, región `us-east-1`). El nombre viene de cuando era desarrollo; desde el 2026-10-06 es producción, con los datos reales |
 | Migraciones y respaldo | GitHub Actions |
 | Correo | Resend |
 | DNS | Namecheap |
@@ -88,7 +88,7 @@ Las migraciones y el respaldo usan el pooler en modo sesión (5432); la API en V
 
 En este orden:
 
-1. **Supabase.** Crear el proyecto `agrosalas-admin-prod` en `us-east-1`, plan gratuito, y guardar la contraseña de la base. Ver «Supabase producción» más abajo.
+1. **Supabase.** El proyecto de producción ya existe: `agrosalas-admin-dev` (plan gratuito, `us-east-1`). Sus cadenas de conexión y claves salen de su panel (*Connect* y *Project Settings → API Keys*). Ver «Supabase producción» más abajo.
 2. **Resend y Namecheap** (correo). Ver más abajo.
 3. **GitHub.** Cargar el environment `production` y generar la clave `age` (ver [respaldo](respaldo.md)).
 4. **Migraciones.** Lanzar a mano **Production database** (Actions → *Run workflow*): crea las tablas con RLS y el bucket privado.
@@ -105,7 +105,7 @@ En este orden:
 
 ## Supabase producción
 
-Lo hace quien administra el panel, en el panel de Supabase del proyecto `agrosalas-admin-prod`:
+Lo hace quien administra el panel, en el panel de Supabase del proyecto de producción, `agrosalas-admin-dev`:
 
 - **Authentication → URL Configuration:** *Site URL* `https://admin.agrosalasperu.com` y, en *Redirect URLs*, `https://admin.agrosalasperu.com/reset-password`.
 - **Registro público desactivado:** Authentication → Sign In / Providers → apagar *Allow new users to sign up*. Las cuentas las crea el administrador.
@@ -169,7 +169,7 @@ El script no usa `npm run create-admin` porque ese comando lee `backend/.env` (e
 | Límite | Qué hacer al llegar |
 |---|---|
 | 1 GB de evidencias (Storage) | Pasar a Supabase Pro. |
-| 2 proyectos activos | Los dos activos son `nekomangacix` y `agrosalas-admin-prod`; `agrosalas-admin-dev` está pausado y no cuenta. Antes de activar otro proyecto (por ejemplo, para restaurar un respaldo), pausar uno o pasar a Pro. |
+| 2 proyectos activos | Los dos activos son `nekomangacix` y `agrosalas-admin-dev` (producción). Antes de activar otro proyecto (por ejemplo, para restaurar un respaldo), pausar uno o pasar a Pro. |
 | Pausa por inactividad (7 días sin uso) | La cubren el cron de Vercel (consulta diaria) y el respaldo diario. Si un proyecto se pausa igual, se reanuda desde el panel de Supabase. |
 | Fin del trial de Vercel Pro | El trial dura **14 días** desde que se activa (o menos, si se llega a sus límites de uso: 16 horas de CPU activa o 1 millón de invocaciones al mes). **Anotar la fecha de fin el día que se activa.** Con tarjeta, el cobro de Pro empieza al terminar. Sin tarjeta no se cobra nada: el equipo vuelve solo a Hobby, se quitan los miembros del equipo y rigen los límites de Hobby. En Hobby los despliegues y el cron diario siguen funcionando, pero Hobby no admite uso comercial. **Decisión pendiente, antes de la fecha de fin:** pagar Pro o volver a Hobby. |
 
