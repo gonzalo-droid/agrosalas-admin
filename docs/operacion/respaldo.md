@@ -59,7 +59,7 @@ La restauración se hace en un proyecto de Supabase **nuevo** (o en el Supabase 
    - En el proyecto nuevo de Supabase: las URLs de Auth (*Site URL* y *Redirect URLs*), el alta pública apagada, el SMTP de Resend y la plantilla de *Reset password* si se personalizó.
    - Volver a crear el bucket de evidencias (`npm run create-evidence-bucket -w @agrosalas/backend`). Las evidencias antiguas no vuelven: sus registros sí, pero los archivos no estaban en el respaldo.
 
-   El plan gratuito de Supabase permite 2 proyectos activos y los ocupan `nekomangacix` y `agrosalas-admin-prod`. Para restaurar en un proyecto nuevo hay que pausar uno antes (o pasar a Pro).
+   El plan gratuito de Supabase permite 2 proyectos activos y los ocupan `nekomangacix` y `agrosalas-admin-dev` (producción). Para restaurar en un proyecto nuevo hay que pausar uno antes (o pasar a Pro).
 
 **Ensayar antes de necesitarlo.** Conviene probar el procedimiento completo una vez en el Supabase local ([desarrollo local](desarrollo-local.md)): levantarlo vacío (`npm run db:stop -- --no-backup` y `npm run db:start`), restaurar con la cadena `postgresql://postgres:postgres@127.0.0.1:54322/postgres` y entrar al panel con un usuario del respaldo.
 
