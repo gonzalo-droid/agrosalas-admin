@@ -43,4 +43,7 @@ jobs:
           retention-days: 30
           if-no-files-found: error
       - name: Check that the API answers
-        run: curl -fsS --max-time 20 https://api.agrosalasperu.com/health
+        if: vars.API_HEALTH_URL != ''
+        env:
+          API_HEALTH_URL: ${{ vars.API_HEALTH_URL }}
+        run: curl -fsS --max-time 20 "$API_HEALTH_URL"

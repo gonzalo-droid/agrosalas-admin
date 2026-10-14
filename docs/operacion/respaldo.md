@@ -79,7 +79,7 @@ GitHub manda un correo. Abrir la ejecución en Actions y revisar el job. Los mot
 - La cadena `PROD_DATABASE_URL` cambió (por ejemplo, se cambió la contraseña de la base) y hay que actualizar el secreto.
 - La base está pausada (Supabase pausa los proyectos gratuitos tras 7 días sin actividad) o inaccesible.
 - La variable `BACKUP_AGE_RECIPIENT` falta o está mal escrita (el paso «Encrypt» falla de inmediato).
-- La API no responde: el último paso consulta `https://api.agrosalasperu.com/health`. El respaldo ya quedó guardado, pero hay que revisar la API.
+- La API no responde: el último paso consulta la dirección de la variable `API_HEALTH_URL` (si está definida). El respaldo ya quedó guardado, pero hay que revisar la API.
 
 ## Aviso: workflows programados en repos públicos
 
